@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
-  Users, Save, Download, AlertCircle, FileText, Calendar, 
-  LogOut, CheckCircle, XCircle, Clock, Shield, MapPin, Plus, 
+  Users, Save, AlertCircle, FileText, 
+  LogOut, CheckCircle, XCircle, Shield, Plus, 
   Building, List, Layers, UserPlus, Filter, Loader2, PlusCircle,
-  Trash2, MessageSquare, Bell, Check, KeyRound, ArrowLeft, Lock,
-  User, Edit, UserCog, Phone, Briefcase, Settings, Printer, 
-  Image as ImageIcon, FileDown, X
+  Trash2, MessageSquare, Bell, User, Edit, UserCog, Phone, Briefcase, 
+  Settings, Printer, Image as ImageIcon, FileDown, X
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -70,16 +69,24 @@ const QUARTERS = ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"];
 
 // --- PDF SAFE STYLES (Inline CSS) ---
 const PDF_STYLES = {
-  container: { backgroundColor: '#ffffff', color: '#000000', padding: '20px', fontFamily: 'Arial, sans-serif' },
+  container: { backgroundColor: '#ffffff', color: '#000000', fontFamily: 'Arial, sans-serif' },
+  // Header with 3 Columns (Left Logo, Center Text, Right Logo)
+  headerContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%' },
+  logoBox: { width: '150px', display: 'flex', justifyContent: 'center' }, // Fixed width for logos
+  centerText: { textAlign: 'center', flex: 1 },
+  
+  // Table Styling
   header: { backgroundColor: '#bfdbfe', color: '#1e3a8a', fontWeight: 'bold' }, // Light Blue Header
   subHeader: { backgroundColor: '#f3f4f6', color: '#374151' },
   cell: { border: '1px solid #9ca3af', padding: '4px', textAlign: 'center', fontSize: '10px' },
+  
+  // Colors
   rowEven: { backgroundColor: '#ffffff' },
   rowOdd: { backgroundColor: '#f9fafb' },
   hostRow: { backgroundColor: '#dbeafe', fontWeight: 'bold' },
   border: { borderColor: '#9ca3af', borderWidth: '1px', borderStyle: 'solid' },
   
-  // Columns
+  // Columns Colors
   colHuman: { backgroundColor: '#eff6ff' },
   colAB: { backgroundColor: '#dcfce7' },
   colStatus: { backgroundColor: '#f3e8ff' },
@@ -98,12 +105,26 @@ const mapRowToDb = (r) => ({ male: toInt(r.male), female: toInt(r.female), age_l
 const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["January", "February", "March"]; if (q === "2nd Quarter") return ["April", "May", "June"]; if (q === "3rd Quarter") return ["July", "August", "September"]; if (q === "4th Quarter") return ["October", "November", "December"]; return []; };
 const StatusBadge = ({ status }) => { const styles = { 'Draft': 'bg-gray-200 text-gray-700', 'Pending': 'bg-yellow-100 text-yellow-800', 'Approved': 'bg-green-100 text-green-800', 'Rejected': 'bg-red-100 text-red-800' }; return <span className={`px-2 py-1 rounded-full text-xs font-bold ${styles[status] || styles['Draft']}`}>{status || 'Draft'}</span>; };
 
-// --- PDF DOWNLOAD HELPER ---
+// Check if a row has ANY data > 0
+const hasData = (row) => {
+  if (!row) return false;
+  const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
+  return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '');
+};
+
+// --- PDF DOWNLOAD HELPER (Hides empty rows dynamically) ---
 const downloadPDF = async (elementId, filename) => {
   const element = document.getElementById(elementId);
   if(!element) { toast.error("Nothing to print!"); return; }
 
-  // Load script if not present
+  // Inject styles to HIDE empty rows during print
+  const style = document.createElement('style');
+  style.innerHTML = `
+    .pdf-hide-empty { display: none !important; }
+    .pdf-show-flex { display: flex !important; }
+  `;
+  document.head.appendChild(style);
+
   if (!window.html2pdf) {
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js';
@@ -116,11 +137,11 @@ const downloadPDF = async (elementId, filename) => {
   }
 
   if (window.html2pdf) {
-    // 1. Hide unwanted UI elements
+    // 1. Hide unwanted UI elements (Filters, Buttons)
     const noPrints = document.querySelectorAll('.no-print');
     noPrints.forEach(el => el.style.display = 'none');
 
-    // 2. Show Header and Footer explicitly for the PDF capture
+    // 2. Force Show Header and Footer
     const pdfHeader = document.getElementById('pdf-header');
     const pdfFooter = document.getElementById('pdf-footer');
     if(pdfHeader) pdfHeader.style.display = 'flex';
@@ -131,7 +152,8 @@ const downloadPDF = async (elementId, filename) => {
       filename: filename, 
       image: { type: 'jpeg', quality: 0.98 }, 
       html2canvas: { scale: 2, useCORS: true, logging: false }, 
-      jsPDF: { unit: 'in', format: [13, 8.5], orientation: 'landscape' } // 13x8.5 (Long/Folio Landscape)
+      // 13x8.5 (Folio Landscape - approx)
+      jsPDF: { unit: 'in', format: [13, 8.5], orientation: 'landscape' } 
     };
     
     try {
@@ -141,10 +163,11 @@ const downloadPDF = async (elementId, filename) => {
       console.error(err);
       toast.error("PDF Error: " + (err.message || "Unknown error"));
     } finally {
-      // 3. Restore UI state
+      // 3. Restore UI
       noPrints.forEach(el => el.style.display = '');
       if(pdfHeader) pdfHeader.style.display = 'none';
       if(pdfFooter) pdfFooter.style.display = 'none';
+      document.head.removeChild(style);
     }
   }
 };
@@ -365,18 +388,27 @@ function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onS
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(isAdmin ? 'logo' : 'signatories');
 
+  // Handle Global Logo (Admin)
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) { const r = new FileReader(); r.onloadend = () => setLogoForm({ ...logoForm, logo_base64: r.result }); r.readAsDataURL(file); }
   };
 
-  const addSignatory = () => setSignatories([...signatories, { name: '', title: '', signature_base64: '' }]);
+  // Handle User/Facility Logo (Users & Admin)
+  const handleFacilityLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const r = new FileReader();
+      r.onloadend = () => {
+        onSaveProfile({ ...userProfile, facility_logo: r.result });
+      };
+      r.readAsDataURL(file);
+    }
+  };
+
+  const addSignatory = () => setSignatories([...signatories, { label: '', name: '', title: '' }]);
   const removeSignatory = (index) => setSignatories(signatories.filter((_, i) => i !== index));
   const updateSignatory = (index, field, value) => { const n = [...signatories]; n[index][field] = value; setSignatories(n); };
-  const handleSigFileChange = (e, index) => {
-    const file = e.target.files[0];
-    if (file) { const r = new FileReader(); r.onloadend = () => { const n = [...signatories]; n[index].signature_base64 = r.result; setSignatories(n); }; r.readAsDataURL(file); }
-  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -387,13 +419,19 @@ function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onS
         if(existing) await supabase.from('settings').update({ logo_base64: logoForm.logo_base64 }).eq('id', existing.id);
         else await supabase.from('settings').insert({ logo_base64: logoForm.logo_base64 });
         onSaveGlobal(logoForm);
-        toast.success("Logo saved.");
+        toast.success("Global Logo saved.");
       }
+      
+      // Save User Profile Data (Signatories + Facility Logo)
       if (activeTab === 'signatories') {
-        const { error } = await supabase.from('profiles').update({ signatories }).eq('id', userProfile.id);
+        const { error } = await supabase.from('profiles').update({ 
+          signatories: signatories,
+          facility_logo: userProfile.facility_logo // Ensure this is saved
+        }).eq('id', userProfile.id);
+        
         if(error) throw error;
         onSaveProfile({ ...userProfile, signatories });
-        toast.success("Signatories saved.");
+        toast.success("Profile Settings saved.");
       }
       onClose();
     } catch(err) { toast.error("Error: " + err.message); }
@@ -406,29 +444,45 @@ function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onS
         <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold flex items-center gap-2"><Settings size={24} className="text-gray-700"/> Settings</h2><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle size={24}/></button></div>
         <div className="flex border-b mb-4">
           {isAdmin && <button onClick={() => setActiveTab('logo')} className={`px-4 py-2 font-bold text-sm ${activeTab==='logo'?'border-b-2 border-blue-600 text-blue-600':'text-gray-500'}`}>System Logo</button>}
-          <button onClick={() => setActiveTab('signatories')} className={`px-4 py-2 font-bold text-sm ${activeTab==='signatories'?'border-b-2 border-blue-600 text-blue-600':'text-gray-500'}`}>Signatories (My Report)</button>
+          <button onClick={() => setActiveTab('signatories')} className={`px-4 py-2 font-bold text-sm ${activeTab==='signatories'?'border-b-2 border-blue-600 text-blue-600':'text-gray-500'}`}>Signatories & Logo</button>
         </div>
         <form onSubmit={handleSave} className="space-y-4">
           {activeTab === 'logo' && (
             <div className="border p-4 rounded bg-gray-50">
-              <h3 className="font-bold text-sm mb-2 text-blue-900">Header Logo (Global)</h3>
+              <h3 className="font-bold text-sm mb-2 text-blue-900">Header Logo (Left Side)</h3>
               <div className="flex items-center gap-4">{logoForm.logo_base64 && <img src={logoForm.logo_base64} alt="Logo" className="h-16 w-16 object-contain border bg-white" />}<input type="file" accept="image/*" onChange={handleLogoChange} className="text-sm text-gray-500" /></div>
             </div>
           )}
           {activeTab === 'signatories' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-blue-900">Manage Signatories</h3><button type="button" onClick={addSignatory} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 flex items-center gap-1"><Plus size={12}/> Add Row</button></div>
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                {signatories.map((sig, idx) => (
-                  <div key={idx} className="flex gap-2 items-start border p-2 rounded bg-gray-50 relative group">
-                    <div className="flex-1 space-y-2">
-                      <div className="grid grid-cols-2 gap-2"><input type="text" placeholder="Name (e.g. Dr. Juan)" value={sig.name} onChange={e=>updateSignatory(idx, 'name', e.target.value)} className="text-sm p-1 border rounded w-full"/><input type="text" placeholder="Title (e.g. MHO)" value={sig.title} onChange={e=>updateSignatory(idx, 'title', e.target.value)} className="text-sm p-1 border rounded w-full"/></div>
-                      <div className="flex items-center gap-2"><span className="text-xs font-bold text-gray-500">E-Sig:</span><input type="file" accept="image/*" onChange={(e)=>handleSigFileChange(e, idx)} className="text-xs text-gray-500 w-full"/>{sig.signature_base64 && <img src={sig.signature_base64} className="h-8 w-auto border bg-white" alt="Sig" />}</div>
+            <div className="space-y-6">
+              {/* Facility Logo Upload */}
+              <div className="border p-4 rounded bg-gray-50">
+                <h3 className="font-bold text-sm mb-2 text-blue-900">My Facility Logo (Right Side)</h3>
+                <div className="flex items-center gap-4">
+                  {userProfile?.facility_logo && <img src={userProfile.facility_logo} alt="Facility Logo" className="h-16 w-16 object-contain border bg-white" />}
+                  <input type="file" accept="image/*" onChange={handleFacilityLogoChange} className="text-sm text-gray-500" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center"><h3 className="font-bold text-sm text-blue-900">Manage Signatories</h3><button type="button" onClick={addSignatory} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 flex items-center gap-1"><Plus size={12}/> Add Row</button></div>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {signatories.map((sig, idx) => (
+                    <div key={idx} className="flex gap-2 items-start border p-2 rounded bg-gray-50 relative group">
+                      <div className="flex-1 space-y-2">
+                        <div className="grid grid-cols-1 gap-2">
+                           <input type="text" placeholder="Label (e.g. Prepared By)" value={sig.label || ''} onChange={e=>updateSignatory(idx, 'label', e.target.value)} className="text-sm p-1 border rounded w-full font-bold bg-gray-100"/>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="text" placeholder="Name (e.g. Dr. Juan)" value={sig.name} onChange={e=>updateSignatory(idx, 'name', e.target.value)} className="text-sm p-1 border rounded w-full"/>
+                          <input type="text" placeholder="Title (e.g. MHO)" value={sig.title} onChange={e=>updateSignatory(idx, 'title', e.target.value)} className="text-sm p-1 border rounded w-full"/>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => removeSignatory(idx)} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
                     </div>
-                    <button type="button" onClick={() => removeSignatory(idx)} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
-                  </div>
-                ))}
-                {signatories.length === 0 && <p className="text-xs text-gray-400 italic text-center">No signatories added.</p>}
+                  ))}
+                  {signatories.length === 0 && <p className="text-xs text-gray-400 italic text-center">No signatories added.</p>}
+                </div>
               </div>
             </div>
           )}
@@ -842,14 +896,24 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
              </div>
              
              {/* PRINT HEADER - NOW USING INLINE STYLES FOR PDF SAFETY */}
-             <div className="hidden print:flex mb-6 items-center justify-center gap-6 pt-4" style={{ display: 'none', ...PDF_STYLES.container }} id="pdf-header">
-                {globalSettings?.logo_base64 && <img src={globalSettings.logo_base64} alt="Logo" className="h-24 w-24 object-contain" />}
-                <div className="text-center">
-                   <h1 style={{fontSize:'16pt', fontWeight:'bold', textTransform:'uppercase'}}>National Rabies Prevention and Control Program</h1>
-                   <h2 style={{fontSize:'14pt', fontWeight:'bold', textTransform:'uppercase'}}>National Rabies and Bite Victims Report</h2>
-                   <p style={{fontSize:'12pt', fontWeight:'bold', marginTop:'5px'}}>
+             <div className="hidden print:flex mb-6 items-center justify-between gap-6 pt-4 px-8" style={{ display: 'none', ...PDF_STYLES.headerContainer }} id="pdf-header">
+                {/* Global Logo (Left) */}
+                <div style={PDF_STYLES.logoBox}>
+                  {globalSettings?.logo_base64 && <img src={globalSettings.logo_base64} alt="Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}
+                </div>
+
+                {/* Center Text */}
+                <div style={PDF_STYLES.centerText}>
+                   <h1 style={{fontSize:'14px', fontWeight:'bold', textTransform:'uppercase'}}>National Rabies Prevention and Control Program</h1>
+                   <h2 style={{fontSize:'14px', fontWeight:'bold', textTransform:'uppercase'}}>National Rabies and Bite Victims Report</h2>
+                   <p style={{fontSize:'12px', fontWeight:'bold', marginTop:'5px'}}>
                      {periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`)}
                    </p>
+                </div>
+
+                {/* Facility Logo (Right) */}
+                <div style={PDF_STYLES.logoBox}>
+                  {userProfile?.facility_logo && <img src={userProfile.facility_logo} alt="Facility Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}
                 </div>
              </div>
 
@@ -879,16 +943,22 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                 </thead>
                 <tbody className="text-xs" style={{ color: '#000000' }}>
                   {currentRows.map((key, idx) => {
-                    if (key === "Others:") return <tr key="others-separator" style={{ backgroundColor: '#e5e7eb', fontWeight: 'bold' }}><td colSpan={26} className="py-2 px-3 border text-left sticky left-0 z-10" style={PDF_STYLES.border}>Others (Municipalities)</td></tr>;
+                    const isEmpty = !hasData(data[key]);
+                    // Only hide non-municipality empty rows. Usually we want to keep municipalities visible even if empty, 
+                    // BUT per requirement "hide empty rows", we can hide them too if truly empty.
+                    // For now, let's tag them with 'pdf-hide-empty' if they have NO data.
+                    const hideClass = isEmpty ? 'pdf-hide-empty' : '';
+
+                    if (key === "Others:") return <tr key="others-separator" className={hideClass} style={{ backgroundColor: '#e5e7eb', fontWeight: 'bold' }}><td colSpan={26} className="py-2 px-3 border text-left sticky left-0 z-10" style={PDF_STYLES.border}>Others (Municipalities)</td></tr>;
+                    
                     const row = data[key] || INITIAL_ROW_STATE;
                     const c = getComputations(row);
                     const isRowReadOnly = user.role === 'admin' || key === currentHostMunicipality || isConsolidatedView || isAggregationMode || (reportStatus !== 'Draft' && reportStatus !== 'Rejected'); 
-                    const rowBg = key === currentHostMunicipality ? PDF_STYLES.hostRow.backgroundColor : (idx % 2 === 0 ? PDF_STYLES.rowEven.backgroundColor : PDF_STYLES.rowOdd.backgroundColor);
-                    const rowFontWeight = key === currentHostMunicipality ? 'bold' : 'normal';
+                    const rowStyle = key === currentHostMunicipality ? PDF_STYLES.hostRow : (idx % 2 === 0 ? PDF_STYLES.rowEven : PDF_STYLES.rowOdd);
 
                     return (
-                      <tr key={key} style={{ backgroundColor: rowBg, fontWeight: rowFontWeight }}>
-                        <td className="py-1 px-2 border font-medium sticky left-0 z-10 whitespace-nowrap" style={{...PDF_STYLES.border, backgroundColor: rowBg, fontWeight: rowFontWeight, color: MUNICIPALITIES.includes(key) ? '#1e40af' : '#1f2937', paddingLeft: MUNICIPALITIES.includes(key) ? '0.5rem' : '1rem'}}>{key} {key === currentHostMunicipality && "(Total)"}</td>
+                      <tr key={key} className={hideClass} style={rowStyle}>
+                        <td className="py-1 px-2 border font-medium sticky left-0 z-10 whitespace-nowrap" style={{...PDF_STYLES.border, ...rowStyle, color: MUNICIPALITIES.includes(key) ? '#1e40af' : '#1f2937', paddingLeft: MUNICIPALITIES.includes(key) ? '0.5rem' : '1rem'}}>{key} {key === currentHostMunicipality && "(Total)"}</td>
                         {['male','female'].map(f => <td key={f} className="p-0 border" style={PDF_STYLES.border}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
                         <td className="p-1 border text-center font-bold" style={{...PDF_STYLES.border, backgroundColor: '#f3f4f6'}}>{c.sexTotal}</td>
                         {['ageLt15','ageGt15'].map(f => <td key={f} className="p-0 border" style={PDF_STYLES.border}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
@@ -929,14 +999,15 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
              </div>
 
              {/* PRINT FOOTER (SIGNATORIES) - USING INLINE STYLES */}
-             <div className="hidden print:flex justify-around mt-12 text-center text-sm" style={{ display: 'none', justifyContent:'space-around', marginTop:'3rem', textAlign:'center', fontSize:'0.875rem' }} id="pdf-footer">
+             <div className="hidden print:flex justify-around mt-12 text-center text-sm" style={{ display: 'none', justifyContent:'space-around', marginTop:'3rem', textAlign:'center', fontSize:'12px' }} id="pdf-footer">
                 {userProfile?.signatories?.length > 0 ? userProfile.signatories.map((sig, idx) => (
                   <div key={idx} className="flex flex-col items-center" style={{ minWidth: '150px', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                    <div style={{height:'3rem', marginBottom:'0.5rem', fontWeight:'bold', fontSize:'12px', textTransform:'uppercase', color:'#4b5563'}}>{sig.label}</div>
                     <div className="h-16 flex items-end justify-center w-full relative" style={{height:'4rem', display:'flex', alignItems:'flex-end', justifyContent:'center', width:'100%', position:'relative'}}>
-                      {sig.signature_base64 && <img src={sig.signature_base64} alt="Signature" style={{height:'3rem', width:'auto', objectFit:'contain', marginBottom:'-10px', position:'relative', zIndex:'10'}} />}
+                      {/* Signature Image (Hidden if none) */}
                     </div>
                     <p style={{fontWeight:'bold', textTransform:'uppercase', borderTop:'1px solid black', padding:'0.25rem 2rem', marginTop:'0.25rem', width:'100%'}}>{sig.name}</p>
-                    <p style={{fontSize:'0.75rem'}}>{sig.title}</p>
+                    <p style={{fontSize:'12px'}}>{sig.title}</p>
                   </div>
                 )) : <p style={{fontStyle:'italic', color:'#9ca3af'}}>No signatories set. Configure in Settings.</p>}
              </div>
