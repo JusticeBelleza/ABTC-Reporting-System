@@ -1,21 +1,60 @@
-This project was designed and developed independently by Justice Belleza.
-It was created outside of any employment duties and without the use of employer
-resources. No organization or workplace holds ownership or authorship over this
-system.
+# ABTC ReportSys
 
-# React + Vite
+**Animal Bite Treatment Center Reporting System**  
+Developed independently by Justice Belleza.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## Disclaimer
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This project was designed and developed independently by **Justice Belleza**.  
+It was created outside of any employment duties and without the use of employer resources.  
+No organization or workplace holds ownership or authorship over this system.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Overview
 
-## Expanding the ESLint configuration
+ABTC ReportSys is a reporting system for Animal Bite Treatment Centers.  
+The system **does not collect patient-identifiable data**; it only collects:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Number of animal bite cases
+- Employee details: name, designation, email, contact number
+
+The system provides a **secure, fast, and easy-to-use tool** for reporting and record-keeping.
+
+---
+
+## Features
+
+- Submit and track animal bite reports
+- Aggregate case numbers per period
+- Record employee information for accountability
+- Fast and responsive frontend built with React + Vite
+- Backend powered by Node.js
+- **Database and authentication handled by Supabase**
+
+---
+
+## Tech Stack
+
+- **Frontend:** React, Vite  
+- **Backend:** Node.js,  
+- **Database & Authentication:** Supabase  
+- **Version Control:** Git  
+
+---
+
+## Legal
+
+- [Privacy Policy](PRIVACY.md)  
+- [Terms of Use](TERMS.md)  
+
+---
+
+## Author
+
+**Justice Belleza**  
+Email: justice.belleza@icloud.com  
+Domain: [abtcrs.com](https://abtcrs.com)  
+© 2026 Justice Belleza. Independent project.
