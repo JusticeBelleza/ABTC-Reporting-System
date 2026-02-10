@@ -38,8 +38,8 @@ The system provides a **secure, fast, and easy-to-use tool** for reporting and r
 
 ## Tech Stack
 
-- **Frontend:** React, Vite  
-- **Backend:** Node.js,  
+- **Frontend:** React, Tailwind CSS  
+- **Backend:** Node.js 
 - **Database & Authentication:** Supabase  
 - **Version Control:** Git  
 
