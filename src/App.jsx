@@ -6,7 +6,7 @@ import {
   Building, List, Layers, UserPlus, Filter, Loader2, PlusCircle,
   Trash2, MessageSquare, Bell, User, Edit, UserCog, Phone, Briefcase, 
   Settings, Printer, Image as ImageIcon, FileDown, X, Lock, ArrowLeft,
-  Github 
+  Github, AlertTriangle 
 } from 'lucide-react';
 import {Toaster, toast} from 'sonner';
 
@@ -35,7 +35,6 @@ const DEFAULT_FACILITIES = [
   "Manabo RHU", "Lagangilang RHU", "La Paz RHU", "AMDC", "APH"
 ];
 
-// Added "Non-Abra" to the end of the list so it appears last but is calculated
 const MUNICIPALITIES = [
   "Bangued", "Boliney", "Bucay", "Bucloc", "Daguioman", "Danglas", 
   "Dolores", "La Paz", "Lacub", "Lagangilang", "Lagayan", "Langiden", 
@@ -55,6 +54,7 @@ const INITIAL_FACILITY_BARANGAYS = {
   "La Paz RHU": ["Benben", "Bulbulala", "Buli", "Canan", "Liguis", "Malabbaga", "Mudeng", "Pidipid", "Poblacion", "San Gregorio", "Toon", "Udangan"]
 };
 
+// MAIN REPORT INITIAL STATE
 const INITIAL_ROW_STATE = { 
   male: '', female: '', ageLt15: '', ageGt15: '', 
   cat1: '', cat2: '', cat3: '', 
@@ -64,10 +64,18 @@ const INITIAL_ROW_STATE = {
   washed: '', remarks: '' 
 };
 
+// COHORT REPORT INITIAL STATE
+const INITIAL_COHORT_ROW = {
+  // Category II
+  cat2_registered: '', cat2_rig: '', cat2_complete: '', cat2_incomplete: '', cat2_booster: '', cat2_none: '', cat2_died: '', cat2_remarks: '',
+  // Category III
+  cat3_registered: '', cat3_rig: '', cat3_complete: '', cat3_incomplete: '', cat3_booster: '', cat3_none: '', cat3_died: '', cat3_remarks: ''
+};
+
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const QUARTERS = ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"];
 
-// --- PDF SAFE STYLES (HEX ONLY - NO TAILWIND COLORS) ---
+// --- PDF SAFE STYLES ---
 const PDF_STYLES = {
   container: { backgroundColor: '#ffffff', color: '#000000', fontFamily: 'Arial, sans-serif' },
   headerContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', width: '100%', backgroundColor: '#ffffff' },
@@ -75,7 +83,7 @@ const PDF_STYLES = {
   centerText: { textAlign: 'center', flex: 1, color: '#000000' },
   header: { backgroundColor: '#f4f4f5', color: '#18181b', fontWeight: 'bold', borderBottom: '2px solid #d4d4d8' }, 
   subHeader: { backgroundColor: '#fafafa', color: '#52525b', fontWeight: 'bold' },
-  cell: { border: '1px solid #e4e4e7', padding: '6px', textAlign: 'center', fontSize: '10px', color: '#000000' },
+  cell: { border: '1px solid #e4e4e7', padding: '6px', textAlign: 'center', fontSize: '10px', color: '#000000', verticalAlign: 'middle' },
   rowEven: { backgroundColor: '#ffffff', color: '#000000' },
   rowOdd: { backgroundColor: '#ffffff', color: '#000000' },
   hostRow: { backgroundColor: '#f4f4f5', fontWeight: 'bold', color: '#000000' },
@@ -91,8 +99,21 @@ const PDF_STYLES = {
 
 // --- Helper Functions ---
 const mapDbToRow = (r) => ({ ...INITIAL_ROW_STATE, ...r, male: r.male ?? '', female: r.female ?? '', ageLt15: r.age_lt_15 ?? '', ageGt15: r.age_gt_15 ?? '', cat1: r.cat_1 ?? '', cat2: r.cat_2 ?? '', cat3: r.cat_3 ?? '', totalPatients: r.total_patients ?? '', abCount: r.ab_count ?? '', hrCount: r.hr_count ?? '', pvrv: r.pvrv ?? '', pcecv: r.pcecv ?? '', hrig: r.hrig ?? '', erig: r.erig ?? '', dog: r.dog ?? '', cat: r.cat ?? '', othersCount: r.others_count ?? '', othersSpec: r.others_spec ?? '', washed: r.washed ?? '', remarks: r.remarks ?? '' });
+const mapCohortDbToRow = (r) => {
+  const safe = (v) => (v === 0 || v === null) ? '' : v;
+  return {
+    cat2_registered: safe(r.cat2_registered), cat2_rig: safe(r.cat2_rig), cat2_complete: safe(r.cat2_complete), cat2_incomplete: safe(r.cat2_incomplete), cat2_booster: safe(r.cat2_booster), cat2_none: safe(r.cat2_none), cat2_died: safe(r.cat2_died), cat2_remarks: r.cat2_remarks || '',
+    cat3_registered: safe(r.cat3_registered), cat3_rig: safe(r.cat3_rig), cat3_complete: safe(r.cat3_complete), cat3_incomplete: safe(r.cat3_incomplete), cat3_booster: safe(r.cat3_booster), cat3_none: safe(r.cat3_none), cat3_died: safe(r.cat3_died), cat3_remarks: r.cat3_remarks || ''
+  };
+};
+
 const toInt = (val) => val === '' ? 0 : Number(val);
 const mapRowToDb = (r) => ({ male: toInt(r.male), female: toInt(r.female), age_lt_15: toInt(r.ageLt15), age_gt_15: toInt(r.ageGt15), cat_1: toInt(r.cat1), cat_2: toInt(r.cat2), cat_3: toInt(r.cat3), total_patients: toInt(r.totalPatients), ab_count: toInt(r.abCount), hr_count: toInt(r.hrCount), pvrv: toInt(r.pvrv), pcecv: toInt(r.pcecv), hrig: toInt(r.hrig), erig: toInt(r.erig), dog: toInt(r.dog), cat: toInt(r.cat), others_count: toInt(r.others_count), others_spec: r.othersSpec, washed: toInt(r.washed), remarks: r.remarks });
+const mapCohortRowToDb = (r) => ({
+  cat2_registered: toInt(r.cat2_registered), cat2_rig: toInt(r.cat2_rig), cat2_complete: toInt(r.cat2_complete), cat2_incomplete: toInt(r.cat2_incomplete), cat2_booster: toInt(r.cat2_booster), cat2_none: toInt(r.cat2_none), cat2_died: toInt(r.cat2_died), cat2_remarks: r.cat2_remarks,
+  cat3_registered: toInt(r.cat3_registered), cat3_rig: toInt(r.cat3_rig), cat3_complete: toInt(r.cat3_complete), cat3_incomplete: toInt(r.cat3_incomplete), cat3_booster: toInt(r.cat3_booster), cat3_none: toInt(r.cat3_none), cat3_died: toInt(r.cat3_died), cat3_remarks: r.cat3_remarks
+});
+
 const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["January", "February", "March"]; if (q === "2nd Quarter") return ["April", "May", "June"]; if (q === "3rd Quarter") return ["July", "August", "September"]; if (q === "4th Quarter") return ["October", "November", "December"]; return []; };
 
 const StatusBadge = ({ status }) => { 
@@ -111,19 +132,49 @@ const hasData = (row) => {
   return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '');
 };
 
+const hasCohortData = (row, category) => {
+  if(!row) return false;
+  if (category === 'cat2') {
+    const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died'];
+    return keys.some(k => Number(row[k]) > 0) || (row.cat2_remarks && row.cat2_remarks.trim() !== '');
+  } else if (category === 'cat3') {
+    const keys = ['cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
+    return keys.some(k => Number(row[k]) > 0) || (row.cat3_remarks && row.cat3_remarks.trim() !== '');
+  }
+  return false;
+};
+
 // --- PDF DOWNLOAD HELPER ---
 const downloadPDF = async (elementId, filename) => {
   const element = document.getElementById(elementId);
   if(!element) { toast.error("Nothing to print!"); return; }
 
   const style = document.createElement('style');
-  // Inject CSS to reset colors specifically for print to avoid oklch issues
+  // FORCE OVERRIDE ALL COLORS TO HEX FOR PDF TO FIX OKLCH ERROR AND FIX ALIGNMENT
   style.innerHTML = `
     .pdf-hide-empty { display: none !important; }
     .pdf-show-flex { display: flex !important; }
     .no-print { display: none !important; }
+    .pdf-visible { display: block !important; } 
+    #${elementId}, #${elementId} * {
+      background-color: #ffffff !important;
+      color: #000000 !important;
+      border-color: #e5e7eb !important;
+    }
+    #${elementId} input {
+      color: #000000 !important;
+    }
+    /* Explicitly set header heights for PDF to avoid cutting off text in merged cells */
+    #${elementId} th[rowspan="2"] {
+      height: 60px !important; 
+      vertical-align: middle !important;
+    }
   `;
   document.head.appendChild(style);
+
+  // Temporarily reveal all cohort tables for the PDF snapshot
+  const hiddenCohortTables = document.querySelectorAll('.cohort-table-hidden');
+  hiddenCohortTables.forEach(el => el.classList.add('pdf-visible'));
 
   if (!window.html2pdf) {
     const script = document.createElement('script');
@@ -142,7 +193,6 @@ const downloadPDF = async (elementId, filename) => {
     if(pdfHeader) pdfHeader.style.display = 'flex';
     if(pdfFooter) pdfFooter.style.display = 'flex';
 
-    // Ensure strict styles are applied to the element
     const opt = { 
       margin: 0.2, 
       filename: filename, 
@@ -160,6 +210,7 @@ const downloadPDF = async (elementId, filename) => {
     } finally {
       if(pdfHeader) pdfHeader.style.display = 'none';
       if(pdfFooter) pdfFooter.style.display = 'none';
+      hiddenCohortTables.forEach(el => el.classList.remove('pdf-visible'));
       document.head.removeChild(style);
     }
   }
@@ -301,18 +352,21 @@ export default function App() {
     }
   }, [session]);
 
+  const user = useMemo(() => {
+    if (!session) return null;
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.user_metadata?.facility_name || 'Unknown Facility',
+      fullName: session.user.user_metadata?.full_name, 
+      role: session.user.user_metadata?.role || 'user'
+    };
+  }, [session]);
+
   if (!supabase) return <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">Configuration Missing</div>;
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-zinc-900" size={20} /></div>;
   if (showPasswordUpdate) return <UpdatePasswordForm onComplete={() => setShowPasswordUpdate(false)} />;
   if (!session) return <Login />;
-
-  const user = {
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.user_metadata?.facility_name || 'Unknown Facility',
-    fullName: session.user.user_metadata?.full_name, 
-    role: session.user.user_metadata?.role || 'user'
-  };
 
   return (
     <>
@@ -635,6 +689,8 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const currentRealMonth = currentDate.getMonth();
   const availableYears = useMemo(() => { const years = []; for (let y = 2024; y <= currentRealYear; y++) years.push(y); return years; }, [currentRealYear]);
   
+  const [activeTab, setActiveTab] = useState('main'); // 'main' or 'cohort'
+  const [cohortSubTab, setCohortSubTab] = useState('cat2'); // 'cat2' or 'cat3'
   const [year, setYear] = useState(currentRealYear);
   const [periodType, setPeriodType] = useState('Monthly'); 
   const [month, setMonth] = useState(MONTHS[currentRealMonth]);
@@ -642,11 +698,19 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const availableMonths = useMemo(() => (year === currentRealYear ? MONTHS.slice(0, currentRealMonth + 1) : MONTHS), [year, currentRealYear, currentRealMonth]);
 
   const [data, setData] = useState({});
+  const [cohortData, setCohortData] = useState({});
   const [reportStatus, setReportStatus] = useState('Draft');
   const [loading, setLoading] = useState(false);
   const [adminViewMode, setAdminViewMode] = useState('dashboard');
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [facilityStatuses, setFacilityStatuses] = useState({});
+  
+  // Row visibility states
+  const [visibleOtherMunicipalities, setVisibleOtherMunicipalities] = useState([]);
+  const [visibleCat2, setVisibleCat2] = useState([]);
+  const [visibleCat3, setVisibleCat3] = useState([]);
+  
+  const [deleteConfirmation, setDeleteConfirmation] = useState({ isOpen: false, rowKey: null });
   
   const [showManageUsers, setShowManageUsers] = useState(false);
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
@@ -702,34 +766,100 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     }
   };
 
+  const handleDeleteRow = (key) => {
+    setDeleteConfirmation({ isOpen: true, rowKey: key });
+  };
+
+  const confirmDeleteRow = () => {
+    const key = deleteConfirmation.rowKey;
+    if (key) {
+      if (activeTab === 'main') {
+        setData(prev => ({...prev, [key]: {...INITIAL_ROW_STATE}}));
+        setVisibleOtherMunicipalities(prev => prev.filter(m => m !== key));
+      } else {
+        setCohortData(prev => {
+            const currentRow = prev[key] || { ...INITIAL_COHORT_ROW };
+            let updatedRow = { ...currentRow };
+            
+            // Explicit separation: Clear only the current category's fields and update only current visibility
+            if (cohortSubTab === 'cat2') {
+                updatedRow = {
+                    ...updatedRow,
+                    cat2_registered: '', cat2_rig: '', cat2_complete: '', cat2_incomplete: '', cat2_booster: '', cat2_none: '', cat2_died: '', cat2_remarks: ''
+                };
+                setVisibleCat2(prevVis => prevVis.filter(m => m !== key));
+            } else {
+                updatedRow = {
+                    ...updatedRow,
+                    cat3_registered: '', cat3_rig: '', cat3_complete: '', cat3_incomplete: '', cat3_booster: '', cat3_none: '', cat3_died: '', cat3_remarks: ''
+                };
+                setVisibleCat3(prevVis => prevVis.filter(m => m !== key));
+            }
+            return { ...prev, [key]: updatedRow };
+        });
+      }
+      toast.success(`Row for ${key} removed`);
+    }
+    setDeleteConfirmation({ isOpen: false, rowKey: null });
+  };
+
   const createDbNotification = async (recipient, title, message, type='info') => {
     try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); }
   };
 
-  const getRowKeysForFacility = (facilityName, consolidated = false) => {
+  // Helper to get visible rows based on context
+  const getRowKeysForFacility = (facilityName, consolidated = false, returnAll = false, forCohort = false, specificVisible = null) => {
     if (!facilityName) return []; 
     if (consolidated) return MUNICIPALITIES;
     if (facilityName === "AMDC" || facilityName === "APH" || !facilityBarangays[facilityName]) return MUNICIPALITIES;
+    
     const barangays = facilityBarangays[facilityName] || [];
     const hostMunicipality = MUNICIPALITIES.find(m => facilityName.includes(m));
+    
     if (barangays.length > 0 && hostMunicipality) {
       const other = MUNICIPALITIES.filter(m => m !== hostMunicipality);
-      return [hostMunicipality, ...barangays, "Others:", ...other];
+      if (returnAll) return [hostMunicipality, ...barangays, "Others:", ...other];
+      
+      // Select correct visibility array
+      let visible = [];
+      if (specificVisible) {
+          visible = specificVisible;
+      } else if (!forCohort) {
+          visible = visibleOtherMunicipalities;
+      }
+      // If forCohort is true but specificVisible is null, it means we are initializing or missing context, default to empty to be safe
+      
+      const visibleOther = other.filter(m => visible.includes(m));
+      
+      return [hostMunicipality, ...barangays, "Others:", ...visibleOther];
     }
     return barangays.length > 0 ? [...barangays, "Others:", ...MUNICIPALITIES] : MUNICIPALITIES;
   };
 
   const activeFacilityName = user.role === 'admin' ? (isConsolidatedView ? 'PHO Consolidated' : selectedFacility) : user.name;
-  const currentRows = useMemo(() => (user.role === 'admin' && adminViewMode === 'dashboard') ? [] : getRowKeysForFacility(activeFacilityName, isConsolidatedView), [activeFacilityName, isConsolidatedView, facilityBarangays, user.role, adminViewMode]);
+  
+  const currentRows = useMemo(() => (user.role === 'admin' && adminViewMode === 'dashboard') ? [] : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, false, visibleOtherMunicipalities), [activeFacilityName, isConsolidatedView, facilityBarangays, user.role, adminViewMode, visibleOtherMunicipalities]);
+  
+  // Independent memoized rows for Cat 2 and Cat 3
+  const cohortRowsCat2 = useMemo(() => (user.role === 'admin' && adminViewMode === 'dashboard') ? [] : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, true, visibleCat2), [activeFacilityName, isConsolidatedView, facilityBarangays, user.role, adminViewMode, visibleCat2]);
+  const cohortRowsCat3 = useMemo(() => (user.role === 'admin' && adminViewMode === 'dashboard') ? [] : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, true, visibleCat3), [activeFacilityName, isConsolidatedView, facilityBarangays, user.role, adminViewMode, visibleCat3]);
+  
   const currentHostMunicipality = useMemo(() => (!activeFacilityName || isConsolidatedView || activeFacilityName==="AMDC" || activeFacilityName==="APH") ? null : MUNICIPALITIES.find(m => activeFacilityName.includes(m)) || null, [activeFacilityName, isConsolidatedView]);
-  const initData = (rowKeys) => { const d = {}; rowKeys.forEach(k => { if (k !== "Others:") d[k] = { ...INITIAL_ROW_STATE }; }); return d; };
+  
+  const initData = (rowKeys, isCohort=false) => { 
+    const d = {}; 
+    rowKeys.forEach(k => { 
+      if (k !== "Others:") d[k] = isCohort ? { ...INITIAL_COHORT_ROW } : { ...INITIAL_ROW_STATE }; 
+    }); 
+    return d; 
+  };
 
   useEffect(() => {
     if (user.role === 'admin') {
       if (adminViewMode === 'dashboard') fetchFacilityStatuses();
       else if (adminViewMode === 'consolidated' || (adminViewMode === 'review' && selectedFacility)) fetchData();
     } else fetchData();
-  }, [user, year, month, quarter, periodType, adminViewMode, selectedFacility]);
+  }, [user, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab]);
 
   const fetchFacilityStatuses = async () => {
     if (periodType !== 'Monthly') return; 
@@ -744,68 +874,170 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const fetchData = async () => {
     setLoading(true);
     const target = user.role === 'admin' ? (isConsolidatedView ? null : selectedFacility) : user.name;
-    const rows = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView);
-    const newData = initData(rows);
-    let query = supabase.from('abtc_reports').select('*').eq('year', year);
-    if (periodType === 'Monthly') query = query.eq('month', month);
-    else if (periodType === 'Quarterly') query = query.in('month', getQuarterMonths(quarter));
-    if (isConsolidatedView) query = query.eq('status', 'Approved'); else if (target) query = query.eq('facility', target);
+    const fullRowKeys = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView, true, false);
     
-    const { data: records } = await query;
-    if (records && records.length > 0) {
-      records.forEach(record => {
-        const m = record.municipality;
-        if (newData[m]) {
-           const r = mapDbToRow(record);
-           const c = newData[m];
-           const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-           keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
+    // --- MAIN REPORT FETCH ---
+    if (activeTab === 'main') {
+        const newData = initData(fullRowKeys, false);
+        let query = supabase.from('abtc_reports').select('*').eq('year', year);
+        if (periodType === 'Monthly') query = query.eq('month', month);
+        else if (periodType === 'Quarterly') query = query.in('month', getQuarterMonths(quarter));
+        if (isConsolidatedView) query = query.eq('status', 'Approved'); else if (target) query = query.eq('facility', target);
+        
+        const { data: records } = await query;
+        const newVisibleOthers = new Set();
+
+        if (records && records.length > 0) {
+          records.forEach(record => {
+            const m = record.municipality;
+            if (newData[m]) {
+               const r = mapDbToRow(record);
+               const c = newData[m];
+               const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
+               keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
+
+               const isBarangay = facilityBarangays[target]?.includes(m);
+               const host = MUNICIPALITIES.find(mun => target?.includes(mun));
+               const isMainKey = m === host;
+               if (!isBarangay && !isMainKey && hasData(r)) { newVisibleOthers.add(m); }
+            }
+          });
+          setData(newData);
+          if (periodType === 'Monthly' && !isConsolidatedView) setReportStatus(records[0].status || 'Draft');
+          else setReportStatus(isConsolidatedView ? 'View Only' : 'Draft');
+        } else { setData(newData); setReportStatus('Draft'); }
+        setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
+    }
+    
+    // --- COHORT FETCH ---
+    if (activeTab === 'cohort') {
+        const newCohort = initData(fullRowKeys, true);
+        let query = supabase.from('abtc_cohort_reports').select('*').eq('year', year);
+        if (periodType === 'Monthly') query = query.eq('month', month);
+        else if (periodType === 'Quarterly') query = query.in('month', getQuarterMonths(quarter)); 
+        
+        if (isConsolidatedView) query = query.eq('status', 'Approved'); else if (target) query = query.eq('facility', target);
+
+        const { data: records } = await query;
+        const newVisibleCat2 = new Set();
+        const newVisibleCat3 = new Set();
+
+        if (records && records.length > 0) {
+            records.forEach(record => {
+                const m = record.municipality;
+                if(newCohort[m]) {
+                    const r = mapCohortDbToRow(record);
+                    const c = newCohort[m];
+                    const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died',
+                                  'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
+                    keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
+                    c.cat2_remarks = r.cat2_remarks || '';
+                    c.cat3_remarks = r.cat3_remarks || '';
+
+                    const isBarangay = facilityBarangays[target]?.includes(m);
+                    const host = MUNICIPALITIES.find(mun => target?.includes(mun));
+                    const isMainKey = m === host;
+                    
+                    if (!isBarangay && !isMainKey) {
+                        if (hasCohortData(r, 'cat2')) newVisibleCat2.add(m);
+                        if (hasCohortData(r, 'cat3')) newVisibleCat3.add(m);
+                    }
+                }
+            });
+            setCohortData(newCohort);
+            if (periodType === 'Monthly' && !isConsolidatedView) setReportStatus(records[0].status || 'Draft');
+            else setReportStatus(isConsolidatedView ? 'View Only' : 'Draft');
+        } else { 
+            setCohortData(newCohort); 
+            setReportStatus('Draft');
         }
-      });
-      setData(newData);
-      if (periodType === 'Monthly' && !isConsolidatedView) setReportStatus(records[0].status || 'Draft');
-      else setReportStatus(isConsolidatedView ? 'View Only' : 'Draft');
-    } else { setData(newData); setReportStatus('Draft'); }
+        setVisibleCat2(Array.from(newVisibleCat2));
+        setVisibleCat3(Array.from(newVisibleCat3));
+    }
+
     setLoading(false);
   };
 
   const confirmRejection = async () => { if (!rejectionReason.trim()) { toast.error("Reason required"); return; } setShowRejectModal(false); await handleSave('Rejected', rejectionReason); };
+  
   const handleSave = async (newStatus, reason = null) => {
-    if (periodType !== 'Monthly') { toast.error("Monthly only"); return; }
+    if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
+    
     if (newStatus === 'Rejected' && reason === null && user.role === 'admin') { setRejectionReason(''); setShowRejectModal(true); return; }
     const target = user.role === 'admin' ? selectedFacility : user.name;
     setLoading(true);
-    const targetKey = currentHostMunicipality || Object.keys(data)[0];
-    const payload = Object.entries(data).map(([m, row]) => {
-      let rem = row.remarks;
-      if (newStatus === 'Rejected' && reason && m === targetKey) rem = `REJECTED: ${reason}`;
-      return { ...mapRowToDb(row), year, month, municipality: m, facility: target, status: newStatus, remarks: rem };
-    });
+    
+    const targetKey = currentHostMunicipality || MUNICIPALITIES[0]; // fallback
+
     try {
-      await supabase.from('abtc_reports').delete().eq('year', year).eq('month', month).eq('facility', target);
-      await supabase.from('abtc_reports').insert(payload);
-      setReportStatus(newStatus);
-      if (newStatus === 'Pending') { await createDbNotification('PHO Admin', 'New Submission', `${target} report ${month}.`, 'info'); toast.success('Submitted'); }
-      else if (newStatus === 'Approved') { await createDbNotification(target, 'Approved', `Report ${month} approved.`, 'success'); toast.success('Approved'); }
-      else if (newStatus === 'Rejected') { await createDbNotification(target, 'Rejected', `Report ${month} rejected.`, 'error'); toast.success('Rejected'); }
-      else toast.success('Saved');
-      if (user.role === 'admin' && (newStatus === 'Approved' || newStatus === 'Rejected')) { setAdminViewMode('dashboard'); setSelectedFacility(null); fetchFacilityStatuses(); }
+        if (activeTab === 'main') {
+            const payload = Object.entries(data).map(([m, row]) => {
+                if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
+                let rem = row.remarks;
+                if (newStatus === 'Rejected' && reason && m === targetKey) rem = `REJECTED: ${reason}`;
+                return { ...mapRowToDb(row), year, month, municipality: m, facility: target, status: newStatus, remarks: rem };
+            }).filter(x => x !== null);
+
+            await supabase.from('abtc_reports').delete().eq('year', year).eq('month', month).eq('facility', target);
+            if(payload.length > 0) await supabase.from('abtc_reports').insert(payload);
+            setReportStatus(newStatus);
+        } else {
+            // Cohort Save
+            // Check both categories for visible rows to determine what to save
+            const payload = Object.entries(cohortData).map(([m, row]) => {
+                // If it has no data AND isn't in any visible list, skip it
+                if (!hasCohortData(row, 'cat2') && !hasCohortData(row, 'cat3') && 
+                    !getRowKeysForFacility(target, false, false, true, visibleCat2).includes(m) && 
+                    !getRowKeysForFacility(target, false, false, true, visibleCat3).includes(m)) return null;
+                
+                return { ...mapCohortRowToDb(row), year, month: periodType === 'Monthly' ? month : quarter, municipality: m, facility: target, status: newStatus };
+            }).filter(x => x !== null);
+
+            await supabase.from('abtc_cohort_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
+            if(payload.length > 0) await supabase.from('abtc_cohort_reports').insert(payload);
+            setReportStatus(newStatus);
+        }
+
+        if (newStatus === 'Pending') { await createDbNotification('PHO Admin', 'New Submission', `${target} report.`, 'info'); toast.success('Submitted'); }
+        else if (newStatus === 'Approved') { await createDbNotification(target, 'Approved', `Report approved.`, 'success'); toast.success('Approved'); }
+        else if (newStatus === 'Rejected') { await createDbNotification(target, 'Rejected', `Report rejected.`, 'error'); toast.success('Rejected'); }
+        else toast.success('Saved');
+        
+        if (user.role === 'admin' && (newStatus === 'Approved' || newStatus === 'Rejected')) { setAdminViewMode('dashboard'); setSelectedFacility(null); fetchFacilityStatuses(); }
+
     } catch (err) { toast.error(err.message); } finally { setLoading(false); }
   };
 
   const handleChange = (m, f, v) => {
-    if (periodType !== 'Monthly' || user.role === 'admin' || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
-    setData(prev => {
-      const n = { ...prev }; n[m] = { ...n[m], [f]: v };
-      if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
-          const tot = { ...INITIAL_ROW_STATE };
-          const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-          facilityBarangays[activeFacilityName].forEach(b => { const r = n[b] || INITIAL_ROW_STATE; keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); });
-          keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
-          n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot, remarks: 'Auto-computed' };
-      }
-      return n;
-    });
+    if (activeTab === 'main') {
+        if (periodType !== 'Monthly' || user.role === 'admin' || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
+        setData(prev => {
+            const n = { ...prev }; n[m] = { ...n[m], [f]: v };
+            if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
+                const tot = { ...INITIAL_ROW_STATE };
+                const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
+                facilityBarangays[activeFacilityName].forEach(b => { const r = n[b] || INITIAL_ROW_STATE; keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); });
+                keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
+                n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot, remarks: 'Auto-computed' };
+            }
+            return n;
+        });
+    } else {
+        // Cohort Change
+        if (user.role === 'admin' || m === currentHostMunicipality) return;
+        setCohortData(prev => {
+            const n = { ...prev }; n[m] = { ...n[m], [f]: v };
+            // Auto compute host municipality total
+            if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
+                const tot = { ...INITIAL_COHORT_ROW };
+                const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
+                facilityBarangays[activeFacilityName].forEach(b => { const r = n[b] || INITIAL_COHORT_ROW; keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); });
+                keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
+                n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot };
+            }
+            return n;
+        });
+    }
   };
 
   const getComputations = (row) => {
@@ -830,8 +1062,22 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
         t.sexTotal += c.sexTotal; t.ageTotal += c.ageTotal; t.cat23 += c.cat23; t.catTotal += c.catTotal; t.animalTotal += c.animalTotal;
       }
     });
+    t.percent = t.animalTotal > 0 ? (t.washed / t.animalTotal * 100).toFixed(0) + '%' : '0%';
     return t;
   }, [data]);
+
+  const cohortTotals = useMemo(() => {
+    const t = { ...INITIAL_COHORT_ROW };
+    const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died',
+                  'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
+    keys.forEach(k => t[k] = 0);
+    Object.entries(cohortData).forEach(([key, row]) => {
+        if(MUNICIPALITIES.includes(key)) {
+            keys.forEach(k => t[k] += toInt(row[k]));
+        }
+    });
+    return t;
+  }, [cohortData]);
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans text-zinc-900">
@@ -907,7 +1153,10 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                 <div className="flex items-center gap-4">
                   {user.role === 'admin' && <button onClick={() => { setAdminViewMode('dashboard'); setSelectedFacility(null); }} className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition"><ArrowLeft size={18}/></button>}
                   <div>
-                    <h2 className="text-xl font-bold tracking-tight text-zinc-900 flex items-center gap-2">{isConsolidatedView ? 'Consolidated Report' : `${activeFacilityName}`}</h2>
+                    <h2 className="text-xl font-bold tracking-tight text-zinc-900 flex items-center gap-2">
+                      {isConsolidatedView ? 'Consolidated Report' : `${activeFacilityName}`}
+                      {!isConsolidatedView && !isAggregationMode && <StatusBadge status={reportStatus} />}
+                    </h2>
                     <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
                       <span>{periodType}</span> &bull; <span>{periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</span>
                     </div>
@@ -915,6 +1164,12 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                   {/* TAB SWITCHER */}
+                   <div className="bg-white border border-gray-200 rounded-lg p-1 flex shadow-sm mr-4">
+                      <button onClick={() => setActiveTab('main')} className={`px-4 py-1.5 text-sm font-medium rounded transition ${activeTab==='main'?'bg-zinc-900 text-white shadow':'text-gray-600 hover:bg-gray-50'}`}>ABTC Reporting</button>
+                      <button onClick={() => setActiveTab('cohort')} className={`px-4 py-1.5 text-sm font-medium rounded transition ${activeTab==='cohort'?'bg-zinc-900 text-white shadow':'text-gray-600 hover:bg-gray-50'}`}>Cohort</button>
+                   </div>
+
                    {/* Filters */}
                    <div className="bg-white border border-gray-200 rounded-lg p-1 flex items-center shadow-sm">
                       <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-transparent text-sm font-medium text-zinc-900 p-1.5 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
@@ -931,7 +1186,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                    
                    {!isConsolidatedView && !isAggregationMode && (
                      <>
-                        <StatusBadge status={reportStatus} />
                         {user.role === 'admin' ? (
                           <>
                             <button onClick={() => handleSave('Approved')} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve</button>
@@ -949,21 +1203,25 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
              </div>
              
              {/* PRINT HEADER */}
-             <div className="hidden print:flex mb-6 items-center justify-between gap-6 pt-4 px-8" style={{ display: 'none', ...PDF_STYLES.headerContainer }} id="pdf-header">
+             <div className="hidden print:flex mb-6 items-center justify-between gap-6 pt-4 px-8" style={{ ...PDF_STYLES.headerContainer, display: 'none' }} id="pdf-header">
                 <div style={PDF_STYLES.logoBox}>{globalSettings?.logo_base64 && <img src={globalSettings.logo_base64} alt="Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}</div>
                 <div style={PDF_STYLES.centerText}>
                    <h1 style={{fontSize:'12px', fontWeight:'bold', textTransform:'uppercase', letterSpacing:'1px', color:'#000'}}>National Rabies Prevention and Control Program</h1>
-                   <h2 style={{fontSize:'14px', fontWeight:'bold', textTransform:'uppercase', margin:'4px 0', color:'#000'}}>National Rabies and Bite Victims Report</h2>
+                   <h2 style={{fontSize:'14px', fontWeight:'bold', textTransform:'uppercase', margin:'4px 0', color:'#000'}}>
+                     {activeTab === 'main' ? 'National Rabies and Bite Victims Report' : 'Consolidated Cohort Report'}
+                   </h2>
                    <p style={{fontSize:'11px', fontWeight:'bold', color:'#000'}}>{periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`)}</p>
                 </div>
                 <div style={PDF_STYLES.logoBox}>{userProfile?.facility_logo && <img src={userProfile.facility_logo} alt="Facility Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}</div>
              </div>
 
              <div className="overflow-x-auto shadow-sm rounded-xl bg-white border border-gray-200 print:shadow-none print:border-none" style={{...PDF_STYLES.container, ...PDF_STYLES.border}}>
+               
+               {activeTab === 'main' ? (
                <table className="w-full border-collapse" style={{ borderColor: PDF_STYLES.border.borderColor }}>
                 <thead>
                   <tr style={isConsolidatedView ? PDF_STYLES.header : PDF_STYLES.subHeader}>
-                    <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', fontWeight:'bold'}}>{isConsolidatedView ? "Municipality" : (facilityBarangays[activeFacilityName] ? "Barangay / Municipality" : "Municipality")}</th>
+                    <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', fontWeight:'bold', width: '200px', minWidth: '200px'}}>{isConsolidatedView ? "Municipality" : (facilityBarangays[activeFacilityName] ? "Barangay / Municipality" : "Municipality")}</th>
                     <th colSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Human Cases (Sex)</th>
                     <th colSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Human Cases (Age)</th>
                     <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Category</th>
@@ -971,7 +1229,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                     <th colSpan={4} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>PEP</th>
                     <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Biting Animals</th>
                     <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Washing</th>
-                    <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Remarks</th>
+                    <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500', width: '150px', minWidth: '150px'}}>Remarks</th>
                   </tr>
                   <tr style={PDF_STYLES.subHeader}>
                     <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>M</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>F</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
@@ -988,17 +1246,52 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                     const isEmpty = !hasData(data[key]);
                     const hideClass = isEmpty ? 'pdf-hide-empty' : '';
 
-                    if (key === "Others:") return <tr key="others-separator" className={hideClass} style={{ ...PDF_STYLES.rowEven, ...PDF_STYLES.bgGray, fontWeight: 'bold' }}><td colSpan={26} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', ...PDF_STYLES.bgGray, fontWeight:'bold', color:'#6b7280'}}>Others (Municipalities)</td></tr>;
+                    if (key === "Others:") {
+                      const host = currentHostMunicipality;
+                      const availableOptions = MUNICIPALITIES.filter(m => m !== host && !visibleOtherMunicipalities.includes(m)).sort();
+                      const showAddControls = user.role !== 'admin' && !isConsolidatedView && !isAggregationMode && (reportStatus === 'Draft' || reportStatus === 'Rejected');
+                      return (
+                        <tr key="others-separator" className={hideClass} style={{ ...PDF_STYLES.rowEven, ...PDF_STYLES.bgGray }}>
+                          <td colSpan={26} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', ...PDF_STYLES.bgGray, padding:'8px'}}>
+                             <div className="flex justify-between items-center">
+                               <span className="font-bold text-gray-500">Other Municipalities</span>
+                               {showAddControls && (
+                                 <div className="flex items-center gap-2 no-print">
+                                   <select id="other-mun-select" className="bg-white border border-gray-300 text-xs rounded p-1 outline-none">
+                                      <option value="">Select Municipality...</option>
+                                      {availableOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                   </select>
+                                   <button type="button" onClick={() => { const select = document.getElementById('other-mun-select'); const val = select.value; if(val) { setVisibleOtherMunicipalities(prev => [...prev, val]); select.value = ""; } }} className="bg-zinc-900 text-white px-2 py-1 rounded text-xs hover:bg-zinc-800 transition">+ Add Row</button>
+                                 </div>
+                               )}
+                             </div>
+                          </td>
+                        </tr>
+                      );
+                    }
                     
                     const row = data[key] || INITIAL_ROW_STATE;
                     const c = getComputations(row);
                     const isRowReadOnly = user.role === 'admin' || key === currentHostMunicipality || isConsolidatedView || isAggregationMode || (reportStatus !== 'Draft' && reportStatus !== 'Rejected'); 
                     const rowStyle = key === currentHostMunicipality ? PDF_STYLES.hostRow : PDF_STYLES.rowEven;
+                    const isOtherRow = visibleOtherMunicipalities.includes(key);
 
                     return (
                       <tr key={key} className={hideClass} style={rowStyle}>
-                        <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(key) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(key) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal'}}>{key} {key === currentHostMunicipality && <span style={{fontSize:'10px', color:'#9ca3af', fontWeight:'normal'}}>(Total)</span>}</td>
-                        {/* Inputs */}
+                        <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(key) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(key) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal'}}>
+                          <div className="flex justify-between items-center group/row">
+                             <span>{key} {key === currentHostMunicipality && <span style={{fontSize:'10px', color:'#9ca3af', fontWeight:'normal'}}>(Total)</span>}</span>
+                             {isOtherRow && !isRowReadOnly && (
+                               <button 
+                                  onClick={() => handleDeleteRow(key)} 
+                                  className="text-gray-400 hover:text-red-600 transition px-2 no-print" 
+                                  title="Remove row"
+                               >
+                                 <XCircle size={14} />
+                               </button>
+                             )}
+                          </div>
+                        </td>
                         {['male','female'].map(f => <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
                         <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.sexTotal}</td>
                         {['ageLt15','ageGt15'].map(f => <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
@@ -1031,11 +1324,181 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                     <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}></td>
                     <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}>{grandTotals.animalTotal}</td>
                     <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals.washed}</td>
-                    <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}></td>
+                    <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}>{grandTotals.percent}</td>
                     <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}></td>
                   </tr>
                 </tbody>
                </table>
+               ) : (
+               // --- COHORT TABLE ---
+               <div className="p-4">
+                 {/* Cohort Category Switcher */}
+                 <div className="flex gap-4 mb-4 border-b border-gray-100 pb-2 no-print">
+                    <button onClick={() => setCohortSubTab('cat2')} className={`text-sm font-semibold pb-1 border-b-2 transition ${cohortSubTab==='cat2' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Category II</button>
+                    <button onClick={() => setCohortSubTab('cat3')} className={`text-sm font-semibold pb-1 border-b-2 transition ${cohortSubTab==='cat3' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Category III</button>
+                 </div>
+
+                 {/* Category II Table */}
+                 <div className={`cohort-table-hidden ${cohortSubTab === 'cat2' ? 'block' : 'hidden'}`}>
+                     <div className="bg-gray-50/50 p-2 font-bold text-center border border-gray-100 rounded-t-lg text-sm text-gray-600 mb-1">CATEGORY II - EXPOSURES</div>
+                     <table className="w-full border-collapse mb-8" style={{ borderColor: PDF_STYLES.border.borderColor }}>
+                        <thead>
+                            <tr style={PDF_STYLES.subHeader}>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', verticalAlign:'middle', width: '200px', minWidth: '200px'}}>Municipality</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '80px', minWidth: '80px'}}>Registered Exposures</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '80px', minWidth: '80px'}}>Patients w/ RIG</th>
+                                <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle'}}>Outcome of PEP</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width:'150px', minWidth: '150px'}}>Remarks</th>
+                            </tr>
+                            <tr style={PDF_STYLES.subHeader}>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Complete</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Incomplete</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Booster</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>None</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Died</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {cohortRowsCat2.map((key, idx) => {
+                                const isEmpty = !hasCohortData(cohortData[key], 'cat2');
+                                const hideClass = isEmpty ? 'pdf-hide-empty' : '';
+                                const row = cohortData[key] || INITIAL_COHORT_ROW;
+                                const isRowReadOnly = user.role === 'admin' || key === currentHostMunicipality;
+                                const isOtherRow = visibleCat2.includes(key);
+
+                                if (key === "Others:") {
+                                    const host = currentHostMunicipality;
+                                    const availableOptions = MUNICIPALITIES.filter(m => m !== host && !visibleCat2.includes(m)).sort();
+                                    const showAddControls = user.role !== 'admin' && !isConsolidatedView;
+                                    return (
+                                        <tr key="cohort-others-sep" className={hideClass} style={{ ...PDF_STYLES.rowEven, ...PDF_STYLES.bgGray }}>
+                                            <td colSpan={9} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', ...PDF_STYLES.bgGray, padding:'8px'}}>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-bold text-gray-500">Other Municipalities</span>
+                                                    {showAddControls && (
+                                                        <div className="flex items-center gap-2 no-print">
+                                                            <select id="cohort-other-select-2" className="bg-white border border-gray-300 text-xs rounded p-1 outline-none">
+                                                                <option value="">Select...</option>
+                                                                {availableOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            </select>
+                                                            <button type="button" onClick={() => { const select = document.getElementById('cohort-other-select-2'); const val = select.value; if(val) { setVisibleCat2(prev => [...prev, val]); select.value = ""; } }} className="bg-zinc-900 text-white px-2 py-1 rounded text-xs hover:bg-zinc-800 transition">+ Add Row</button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+
+                                return (
+                                    <tr key={key} className={hideClass} style={PDF_STYLES.rowEven}>
+                                        <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal'}}>
+                                            <div className="flex justify-between items-center group/row">
+                                                <span>{key}</span>
+                                                {isOtherRow && !isRowReadOnly && (
+                                                    <button onClick={() => handleDeleteRow(key)} className="text-gray-400 hover:text-red-600 transition px-2 no-print"><XCircle size={14} /></button>
+                                                )}
+                                            </div>
+                                        </td>
+                                        {['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died'].map(f => (
+                                            <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e => handleChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>
+                                        ))}
+                                        <td style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="text" value={row.cat2_remarks} onChange={e => handleChange(key, 'cat2_remarks', e.target.value)} style={PDF_STYLES.inputText} /></td>
+                                    </tr>
+                                );
+                            })}
+                            <tr style={{ ...PDF_STYLES.bgDark, fontWeight:'bold', fontSize:'11px' }}>
+                                <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark}}>TOTAL</td>
+                                {['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died'].map(k => (
+                                    <td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark}}>{cohortTotals[k]}</td>
+                                ))}
+                                <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark}}></td>
+                            </tr>
+                        </tbody>
+                     </table>
+                 </div>
+
+                 {/* Category III Table */}
+                 <div className={`cohort-table-hidden ${cohortSubTab === 'cat3' ? 'block' : 'hidden'}`}>
+                     <div className="bg-gray-50/50 p-2 font-bold text-center border border-gray-100 rounded-t-lg text-sm text-gray-600 mb-1">CATEGORY III - EXPOSURES</div>
+                     <table className="w-full border-collapse" style={{ borderColor: PDF_STYLES.border.borderColor }}>
+                        <thead>
+                            <tr style={PDF_STYLES.subHeader}>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', verticalAlign:'middle', width: '200px', minWidth: '200px'}}>Municipality</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '80px', minWidth: '80px'}}>Registered Exposures</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '80px', minWidth: '80px'}}>Patients w/ RIG</th>
+                                <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle'}}>Outcome of PEP</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width:'150px', minWidth: '150px'}}>Remarks</th>
+                            </tr>
+                            <tr style={PDF_STYLES.subHeader}>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Complete</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Incomplete</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Booster</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>None</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Died</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {cohortRowsCat3.map((key, idx) => {
+                                const isEmpty = !hasCohortData(cohortData[key], 'cat3');
+                                const hideClass = isEmpty ? 'pdf-hide-empty' : '';
+                                const row = cohortData[key] || INITIAL_COHORT_ROW;
+                                const isRowReadOnly = user.role === 'admin' || key === currentHostMunicipality;
+                                const isOtherRow = visibleCat3.includes(key);
+                                
+                                if (key === "Others:") {
+                                    const host = currentHostMunicipality;
+                                    const availableOptions = MUNICIPALITIES.filter(m => m !== host && !visibleCat3.includes(m)).sort();
+                                    const showAddControls = user.role !== 'admin' && !isConsolidatedView;
+                                    return (
+                                        <tr key="cohort-others-sep-3" className={hideClass} style={{ ...PDF_STYLES.rowEven, ...PDF_STYLES.bgGray }}>
+                                            <td colSpan={9} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', ...PDF_STYLES.bgGray, padding:'8px'}}>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-bold text-gray-500">Other Municipalities</span>
+                                                    {showAddControls && (
+                                                        <div className="flex items-center gap-2 no-print">
+                                                            <select id="cohort-other-select-3" className="bg-white border border-gray-300 text-xs rounded p-1 outline-none">
+                                                                <option value="">Select...</option>
+                                                                {availableOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            </select>
+                                                            <button type="button" onClick={() => { const select = document.getElementById('cohort-other-select-3'); const val = select.value; if(val) { setVisibleCat3(prev => [...prev, val]); select.value = ""; } }} className="bg-zinc-900 text-white px-2 py-1 rounded text-xs hover:bg-zinc-800 transition">+ Add Row</button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+
+                                return (
+                                    <tr key={key} className={hideClass} style={PDF_STYLES.rowEven}>
+                                        <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal'}}>
+                                            <div className="flex justify-between items-center group/row">
+                                                <span>{key}</span>
+                                                {isOtherRow && !isRowReadOnly && (
+                                                    <button onClick={() => handleDeleteRow(key)} className="text-gray-400 hover:text-red-600 transition px-2 no-print"><XCircle size={14} /></button>
+                                                )}
+                                            </div>
+                                        </td>
+                                        {['cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'].map(f => (
+                                            <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e => handleChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>
+                                        ))}
+                                        <td style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="text" value={row.cat3_remarks} onChange={e => handleChange(key, 'cat3_remarks', e.target.value)} style={PDF_STYLES.inputText} /></td>
+                                    </tr>
+                                );
+                            })}
+                            <tr style={{ ...PDF_STYLES.bgDark, fontWeight:'bold', fontSize:'11px' }}>
+                                <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark}}>TOTAL</td>
+                                {['cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'].map(k => (
+                                    <td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark}}>{cohortTotals[k]}</td>
+                                ))}
+                                <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark}}></td>
+                            </tr>
+                        </tbody>
+                     </table>
+                 </div>
+               </div>
+               )}
              </div>
 
              {/* PRINT FOOTER */}
@@ -1067,6 +1530,25 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
         {showAddFacilityModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md"><div className="flex justify-between items-center mb-6"><h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2><button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button></div><AddFacilityForm onAdd={handleAddFacility} /></div></div>)}
         {showRejectModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200"><div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold text-rose-600 flex items-center gap-2"><MessageSquare size={20}/> Reject Report</h2><button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20}/></button></div><p className="text-gray-600 text-sm mb-4">Please provide a reason for rejecting this report.</p><textarea className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition" rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} autoFocus placeholder="e.g. Incomplete data for..."></textarea><div className="flex justify-end gap-3 mt-4"><button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition">Cancel</button><button onClick={confirmRejection} className="px-4 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-sm font-medium transition">Confirm Rejection</button></div></div></div>)}
+        
+        {/* CUSTOM CONFIRMATION MODAL FOR DELETION */}
+        {deleteConfirmation.isOpen && (
+          <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-sm animate-in fade-in zoom-in duration-200">
+              <div className="flex flex-col items-center text-center">
+                <div className="bg-red-50 p-3 rounded-full mb-4 text-red-600">
+                  <AlertTriangle size={24} strokeWidth={2} />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Remove Row?</h3>
+                <p className="text-sm text-gray-500 mb-6">Are you sure you want to remove the row for <span className="font-bold text-gray-800">{deleteConfirmation.rowKey}</span>? All data in this row will be cleared.</p>
+                <div className="flex gap-3 w-full">
+                  <button onClick={() => setDeleteConfirmation({isOpen: false, rowKey: null})} className="flex-1 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition border border-gray-200">Cancel</button>
+                  <button onClick={confirmDeleteRow} className="flex-1 px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg text-sm font-medium transition shadow-sm">Remove</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* --- Footer --- */}
@@ -1084,65 +1566,5 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
         </div>
       </footer>
     </div>
-  );
-}
-
-// Form for Adding Facility
-function AddFacilityForm({ onAdd }) {
-  const [name, setName] = useState('');
-  const [type, setType] = useState('Hospital'); 
-  const [barangays, setBarangays] = useState('');
-  const handleSubmit = (e) => { e.preventDefault(); if (name.trim()) onAdd(name.trim(), type, barangays); };
-  return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Facility Name</label><input type="text" required placeholder="e.g. San Juan RHU" className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={name} onChange={e => setName(e.target.value)} /></div>
-      <div><label className="block text-xs font-medium text-gray-700 mb-2">Facility Type</label><div className="flex gap-4 p-1"><label className="flex items-center gap-2 text-sm cursor-pointer text-gray-700"><input type="radio" name="ftype" checked={type === 'Hospital'} onChange={() => setType('Hospital')} className="accent-zinc-900" /> Hospital/Clinic</label><label className="flex items-center gap-2 text-sm cursor-pointer text-gray-700"><input type="radio" name="ftype" checked={type === 'RHU'} onChange={() => setType('RHU')} className="accent-zinc-900" /> RHU</label></div></div>
-      {type === 'RHU' && (<div><label className="block text-xs font-medium text-gray-700 mb-1.5">Catchment Barangays</label><textarea className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none h-24" placeholder="Enter names separated by commas..." value={barangays} onChange={e => setBarangays(e.target.value)} /><p className="text-[10px] text-gray-400 mt-1">Leave blank if unknown.</p></div>)}
-      <button type="submit" className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 font-medium text-sm transition">Add Facility</button>
-    </form>
-  );
-}
-
-// Extracted User Register Form (with new fields)
-function RegisterUserForm({ facilities, client, onSuccess }) {
-  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [facilityName, setFacilityName] = useState(facilities[0] || ''); const [role, setRole] = useState('user');
-  const [fullName, setFullName] = useState(''); const [designation, setDesignation] = useState(''); const [contactNumber, setContactNumber] = useState('');
-  const [loading, setLoading] = useState(false); const [msg, setMsg] = useState({ type: '', text: '' });
-
-  const handleRegister = async (e) => {
-    e.preventDefault(); setLoading(true); setMsg({ type: '', text: '' });
-    if (!client) { setMsg({ type: 'error', text: 'Client error' }); setLoading(false); return; }
-    try {
-      const { data, error } = await client.auth.signUp({ 
-        email, password, 
-        options: { data: { facility_name: facilityName, role, full_name: fullName, designation, contact_number: contactNumber } } 
-      });
-      if (error) throw error;
-      if (data.user) { 
-        toast.success(`User created: ${facilityName}`);
-        setEmail(''); setPassword(''); setFullName(''); setDesignation(''); setContactNumber('');
-        if(onSuccess) onSuccess();
-      }
-    } catch (err) { setMsg({ type: 'error', text: err.message }); } finally { setLoading(false); }
-  };
-
-  return (
-    <form onSubmit={handleRegister} className="space-y-4">
-      {msg.text && <div className={`p-3 rounded text-xs ${msg.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>{msg.text}</div>}
-      <div className="grid grid-cols-2 gap-4">
-        <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Email</label><input type="email" required className="w-full bg-white border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={email} onChange={e => setEmail(e.target.value)} /></div>
-        <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Password</label><input type="password" required className="w-full bg-white border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={password} onChange={e => setPassword(e.target.value)} /></div>
-      </div>
-      <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Role</label><select className="w-full bg-white border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={role} onChange={e => setRole(e.target.value)}><option value="user">Facility User (Reporter)</option><option value="admin">PHO Admin (Viewer)</option></select></div>
-      <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Assign Facility</label>{role === 'admin' ? <input type="text" disabled value="PHO Admin" className="w-full border border-gray-200 p-2 rounded-lg text-sm bg-gray-50 text-gray-500" /> : <select className="w-full bg-white border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={facilityName} onChange={e => setFacilityName(e.target.value)}>{facilities.map(f => <option key={f} value={f}>{f}</option>)}</select>}</div>
-      
-      <div className="pt-2 border-t border-gray-100 mt-2"><h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Profile Information</h3></div>
-      <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Full Name</label><input type="text" className="w-full bg-white border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Juan Dela Cruz" /></div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Designation</label><input type="text" className="w-full bg-white border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={designation} onChange={e => setDesignation(e.target.value)} placeholder="e.g. Nurse II" /></div>
-        <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Contact No.</label><input type="text" className="w-full bg-white border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={contactNumber} onChange={e => setContactNumber(e.target.value)} placeholder="0917..." /></div>
-      </div>
-      <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition font-medium text-sm mt-4 flex items-center justify-center gap-2">{loading && <Loader2 size={16} className="animate-spin"/>} Create Account</button>
-    </form>
   );
 }
