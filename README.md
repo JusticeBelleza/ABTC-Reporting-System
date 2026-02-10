@@ -1,3 +1,8 @@
+This project was designed and developed independently by Justice Belleza.
+It was created outside of any employment duties and without the use of employer
+resources. No organization or workplace holds ownership or authorship over this
+system.
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
