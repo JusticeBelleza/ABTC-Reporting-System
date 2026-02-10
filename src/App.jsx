@@ -5,7 +5,8 @@ import {
   LogOut, CheckCircle, XCircle, Shield, Plus, 
   Building, List, Layers, UserPlus, Filter, Loader2, PlusCircle,
   Trash2, MessageSquare, Bell, User, Edit, UserCog, Phone, Briefcase, 
-  Settings, Printer, Image as ImageIcon, FileDown, X, Lock, ArrowLeft
+  Settings, Printer, Image as ImageIcon, FileDown, X, Lock, ArrowLeft,
+  Github 
 } from 'lucide-react';
 import {Toaster, toast} from 'sonner';
 
@@ -34,12 +35,13 @@ const DEFAULT_FACILITIES = [
   "Manabo RHU", "Lagangilang RHU", "La Paz RHU", "AMDC", "APH"
 ];
 
+// Added "Non-Abra" to the end of the list so it appears last but is calculated
 const MUNICIPALITIES = [
   "Bangued", "Boliney", "Bucay", "Bucloc", "Daguioman", "Danglas", 
   "Dolores", "La Paz", "Lacub", "Lagangilang", "Lagayan", "Langiden", 
   "Licuan-Baay", "Luba", "Malibcong", "Manabo", "Peñarrubia", "Pidigan", 
   "Pilar", "Sallapadan", "San Isidro", "San Juan", "San Quintin", "Tayum", 
-  "Tineg", "Tubo", "Villaviciosa"
+  "Tineg", "Tubo", "Villaviciosa", "Non-Abra" 
 ];
 
 const INITIAL_FACILITY_BARANGAYS = {
@@ -307,7 +309,8 @@ export default function App() {
   const user = {
     id: session.user.id,
     email: session.user.email,
-    name: session.user.user_metadata?.facility_name || 'Unknown Facility', 
+    name: session.user.user_metadata?.facility_name || 'Unknown Facility',
+    fullName: session.user.user_metadata?.full_name, 
     role: session.user.user_metadata?.role || 'user'
   };
 
@@ -844,7 +847,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
             <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
             <div className="hidden md:flex items-center gap-3 cursor-pointer p-1.5 rounded-lg hover:bg-gray-50 transition" onClick={() => setShowProfileModal(true)}>
               <div className="text-right">
-                <div className="text-sm font-medium leading-none">{user.name}</div>
+                <div className="text-sm font-medium leading-none">{userProfile?.full_name || user.fullName || user.name}</div>
                 <div className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mt-1">{user.role}</div>
               </div>
               <div className="bg-gray-100 p-2 rounded-full text-gray-600"><User size={16}/></div>
@@ -1065,6 +1068,21 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
         {showAddFacilityModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md"><div className="flex justify-between items-center mb-6"><h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2><button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button></div><AddFacilityForm onAdd={handleAddFacility} /></div></div>)}
         {showRejectModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200"><div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold text-rose-600 flex items-center gap-2"><MessageSquare size={20}/> Reject Report</h2><button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20}/></button></div><p className="text-gray-600 text-sm mb-4">Please provide a reason for rejecting this report.</p><textarea className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition" rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} autoFocus placeholder="e.g. Incomplete data for..."></textarea><div className="flex justify-end gap-3 mt-4"><button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition">Cancel</button><button onClick={confirmRejection} className="px-4 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-sm font-medium transition">Confirm Rejection</button></div></div></div>)}
       </main>
+
+      {/* --- Footer --- */}
+      <footer className="bg-white border-t border-gray-200 py-6 mt-auto no-print">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="text-sm text-gray-500">
+            &copy; {new Date().getFullYear()} Abra Provincial Health Office. All rights reserved.
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span>Developed by Justice Belleza</span>
+            <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="text-zinc-900 hover:text-blue-600 transition-colors">
+              <Github size={16} />
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
