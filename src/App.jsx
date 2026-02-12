@@ -306,7 +306,7 @@ function Login({ onLogin }) {
             <FileText size={32} strokeWidth={1.5} />
           </div>
           <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">ABTC-Reporting System</h1>
-          <p className="text-sm text-gray-500 mt-1">Provincial Health Office</p>
+          <p className="text-sm text-gray-500 mt-1">Developed by: Justice P. Belleza</p>
         </div>
         
         {error && <div className="bg-red-50 text-red-600 p-3 rounded text-xs mb-6 border border-red-100 flex gap-2"><AlertCircle size={14}/> {error}</div>}
@@ -375,12 +375,25 @@ function UpdatePasswordForm({ onComplete }) {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) toast.error(error.message);
-    else { toast.success("Password updated."); onComplete(); }
-    setLoading(false);
-  };
+  e.preventDefault(); 
+  setLoading(true);
+  
+  const { error } = await supabase.auth.updateUser({ password });
+  
+  if (error) {
+    toast.error(error.message);
+  } else {
+    toast.success("Password updated. Please log in with your new password.");
+    
+    // Sign out the user to destroy the recovery session
+    // This will trigger onAuthStateChange, setting session to null
+    // and automatically showing the Login component.
+    await supabase.auth.signOut(); 
+    
+    onComplete(); 
+  }
+  setLoading(false);
+};
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
@@ -528,30 +541,51 @@ function PrivacyModal({ onClose }) {
         </div>
         <div className="p-6 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-6">
            <div>
-             <h3 className="font-bold text-gray-900 mb-2">Effective Date: 2026</h3>
-             <p>ABTC ReportSys respects user privacy and is committed to protecting any personal information collected through the system. This Privacy Policy explains what information is collected, how it is used, and how it is protected.</p>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Information We Collect</h3>
-             <p className="mb-2">ABTC ReportSys does not collect patient-identifiable data. The system only collects the following information for operational and reporting purposes:</p>
-             <ul className="list-disc pl-5 space-y-1">
-               <li><strong>Aggregated Case Data:</strong> Number of animal bite cases, statistical summaries, non-identifiable figures.</li>
-               <li><strong>User / Employee Information:</strong> Full name, designation, email address, contact number.</li>
-             </ul>
-             <p className="mt-2 italic text-xs text-gray-500">No patient names, addresses, medical records, or personally identifiable health information are collected or stored.</p>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Purpose of Data Collection</h3>
-             <p>The collected information is used solely to generate reports, identify responsible personnel, support administration, and improve system reliability. Data is not used for marketing or commercial advertising.</p>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Data Sharing and Security</h3>
-             <p>ABTC ReportSys does not sell, share, or disclose data to third parties. Access is limited to authorized users. Reasonable technical measures are implemented to protect information, though no system can guarantee absolute security.</p>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Contact</h3>
-             <p>For questions regarding this Privacy Policy: <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline">justice.belleza@icloud.com</a></p>
-           </div>
+            <h3 className="font-bold text-gray-900 mb-2">Effective Date: February 12, 2026</h3>
+            <p>
+              The ABTC Reporting System respects user privacy and is committed to protecting any personal information 
+              collected through the system in accordance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>. 
+              This Privacy Policy explains what information is collected, how it is used, and how it is protected.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Information We Collect</h3>
+            <p className="mb-2">
+              The ABTC Reporting System does not collect patient-identifiable data. In compliance with transparency principles, 
+              the system only collects the following information for operational and reporting purposes:
+            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><strong>Aggregated Case Data:</strong> Number of animal bite cases, statistical summaries, and non-identifiable figures.</li>
+              <li><strong>User / Employee Information:</strong> Full name, designation, email address, and contact number.</li>
+            </ul>
+            <p className="mt-2 italic text-xs text-gray-500">
+              No patient names, addresses, medical records, or personally identifiable health information are collected or stored.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Purpose of Data Collection</h3>
+            <p>
+              The collected information is processed solely to generate reports, identify responsible personnel, 
+              support administration, and improve system reliability. All data processing is conducted for 
+              legitimate purposes and is not used for marketing or commercial advertising.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Data Sharing and Security</h3>
+            <p>
+              The ABTC Reporting System does not sell, share, or disclose data to third parties. Access is strictly 
+              limited to authorized users. In line with the Data Privacy Act of 2012, reasonable technical and 
+              organizational measures are implemented to protect information against unauthorized access or processing, 
+              though no system can guarantee absolute security.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Contact</h3>
+            <p>
+              For questions regarding this Privacy Policy or to exercise your rights under the Data Privacy Act of 2012, please contact: 
+              <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline"> justice.belleza@icloud.com</a>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -569,35 +603,39 @@ function TermsModal({ onClose }) {
         </div>
         <div className="p-6 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-6">
            <div>
-             <h3 className="font-bold text-gray-900 mb-2">Effective Date: 2026</h3>
-             <p>By accessing or using ABTC ReportSys, you agree to the following Terms of Use.</p>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Acceptable & Prohibited Use</h3>
-             <p>Users agree to use the system only for intended reporting purposes, provide accurate info, and maintain credential confidentiality.</p>
-             <p className="mt-2 font-medium">Users must not:</p>
-             <ul className="list-disc pl-5 space-y-1 mt-1">
-               <li>Input patient-identifiable or sensitive personal data.</li>
-               <li>Attempt unauthorized access or misuse system data.</li>
-               <li>Use the system for illegal activities.</li>
-             </ul>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Data Responsibility</h3>
-             <p>Users are responsible for ensuring no confidential patient information is entered. ABTC ReportSys assumes no liability for data entered in violation of these terms.</p>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Intellectual Property</h3>
-             <p>© 2026 Justice Belleza. Independent project. Use of the system does not grant ownership rights.</p>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Availability and Liability</h3>
-             <p>The system is provided “as is”. The developer shall not be held liable for data inaccuracies, downtime, or loss arising from misuse.</p>
-           </div>
-           <div>
-             <h3 className="font-bold text-gray-900 mb-2">Contact</h3>
-             <p>For inquiries: <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline">justice.belleza@icloud.com</a></p>
-           </div>
+            <h3 className="font-bold text-gray-900 mb-2">Effective Date: February 12, 2026</h3>
+            <p>By accessing or using the ABTC Reporting System, you agree to the following Terms of Use.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Acceptable & Prohibited Use</h3>
+            <p>Users agree to use the system only for intended reporting purposes, provide accurate information, and maintain the strict confidentiality of their account credentials.</p>
+            <p className="mt-2 font-medium">Users must not:</p>
+            <ul className="list-disc pl-5 space-y-1 mt-1">
+              <li>Input patient-identifiable data or sensitive personal information in violation of the <strong>Data Privacy Act of 2012</strong>.</li>
+              <li>Attempt unauthorized access, "hacking," or any form of system data misuse.</li>
+              <li>Use the system for any illegal activities or unauthorized disclosure of aggregated health data.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Data Responsibility</h3>
+            <p>
+              In compliance with the <strong>Data Privacy Act of 2012</strong>, users are solely responsible for ensuring that no confidential patient 
+              information is entered into the system. The ABTC Reporting System and its developer assume no liability for any sensitive 
+              personal data entered in violation of these terms or applicable privacy laws.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Intellectual Property</h3>
+            <p>© 2026 Justice Belleza. This is an independent project. Use of the system does not grant any ownership rights to the users or their respective facilities.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Availability and Liability</h3>
+            <p>The system is provided “as is” without warranties of any kind. The developer shall not be held liable for data inaccuracies, system downtime, or any loss arising from the misuse of the application.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">Contact</h3>
+            <p>For inquiries regarding these terms: <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline">justice.belleza@icloud.com</a></p>
+          </div>
         </div>
       </div>
     </div>
@@ -1779,7 +1817,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                     <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Status</th>
                     <th colSpan={4} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>PEP</th>
                     <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Biting Animals</th>
-                    <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Washing</th>
+                    <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>No. Who Washed</th>
                     <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500', width: '150px', minWidth: '150px'}}>Remarks</th>
                   </tr>
                   <tr style={PDF_STYLES.subHeader}>
@@ -2162,7 +2200,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span>Author: Justice Belleza</span>
+            <span>GitHub Profile →</span>
             <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="text-zinc-900 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-gray-100">
               <Github size={16} />
             </a>
