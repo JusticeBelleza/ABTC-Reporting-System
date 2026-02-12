@@ -6,7 +6,8 @@ import {
   Building, List, Layers, UserPlus, Filter, Loader2, PlusCircle,
   Trash2, MessageSquare, Bell, User, Edit, UserCog, Phone, Briefcase, 
   Settings, Printer, Image as ImageIcon, FileDown, X, Lock, ArrowLeft,
-  Github, AlertTriangle, FileCheck, Scale, Hospital, Stethoscope, Building2
+  Github, AlertTriangle, FileCheck, Scale, Hospital, Stethoscope, Building2,
+  Eye, EyeOff
 } from 'lucide-react';
 import {Toaster, toast} from 'sonner';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
@@ -160,57 +161,45 @@ const hasCohortData = (row, category) => {
   return false;
 };
 
-// --- PDF DOWNLOAD HELPER (CLONE & EXPAND APPROACH) ---
+// --- PDF DOWNLOAD HELPER ---
 const downloadPDF = async (elementId, filename) => {
   const originalElement = document.getElementById(elementId);
   if(!originalElement) { toast.error("Nothing to print!"); return; }
 
-  // 1. Create a container for the clone that sits off-screen but has fixed large width
   const printContainer = document.createElement('div');
   printContainer.id = 'print-container-temp';
-  printContainer.style.position = 'fixed'; // Fixed to viewport
+  printContainer.style.position = 'fixed';
   printContainer.style.top = '0';
   printContainer.style.left = '0';
-  printContainer.style.width = '1600px'; // Force wide layout to prevent wrapping/cutting
-  printContainer.style.zIndex = '-9999'; // Hide behind everything
+  printContainer.style.width = '1600px';
+  printContainer.style.zIndex = '-9999';
   printContainer.style.backgroundColor = '#ffffff';
-  printContainer.style.visibility = 'hidden'; // Keep hidden from user
+  printContainer.style.visibility = 'hidden';
   
-  // 2. Clone the element
   const clone = originalElement.cloneNode(true);
   
-  // 3. Clean the clone (remove hidden elements from the clone specifically)
-  // Remove "no-print" elements
   const noPrints = clone.querySelectorAll('.no-print');
   noPrints.forEach(el => el.remove());
 
-  // Ensure "pdf-hide-empty" are actually hidden (should be handled by class, but just in case)
   const hiddenRows = clone.querySelectorAll('.pdf-hide-empty');
   hiddenRows.forEach(el => el.style.display = 'none');
   
-  // 4. FIX THE TABLE HEADERS IN THE CLONE
-  // This is the key fix: Find all headers and force them to auto height and allow wrapping
   const headers = clone.querySelectorAll('th');
   headers.forEach(th => {
     th.style.height = 'auto';
-    th.style.minHeight = '40px'; // Ensure at least this tall
-    th.style.whiteSpace = 'normal'; // Force text wrapping
-    th.style.overflow = 'visible';  // Allow content to spill if needed (though auto height should catch it)
+    th.style.minHeight = '40px';
+    th.style.whiteSpace = 'normal';
+    th.style.overflow = 'visible';
     th.style.verticalAlign = 'middle';
-    th.style.padding = '8px 4px'; // Add padding for breathing room
+    th.style.padding = '8px 4px';
   });
 
-  // Also fix rows
   const rows = clone.querySelectorAll('tr');
-  rows.forEach(tr => {
-      tr.style.height = 'auto';
-  });
+  rows.forEach(tr => { tr.style.height = 'auto'; });
 
-  // 5. Append clone to container, container to body
   printContainer.appendChild(clone);
   document.body.appendChild(printContainer);
 
-  // Load html2pdf if needed
   if (!window.html2pdf) {
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js';
@@ -227,28 +216,20 @@ const downloadPDF = async (elementId, filename) => {
   }
 
   if (window.html2pdf) {
-    // Show headers in clone
     const pdfHeader = clone.querySelector('#pdf-header');
     const pdfFooter = clone.querySelector('#pdf-footer');
     if(pdfHeader) { pdfHeader.style.display = 'flex'; }
     if(pdfFooter) { pdfFooter.style.display = 'flex'; }
 
     const opt = { 
-      margin: [0.3, 0.2, 0.3, 0.2], // Top, Left, Bottom, Right
+      margin: [0.3, 0.2, 0.3, 0.2],
       filename: filename, 
       image: { type: 'jpeg', quality: 0.98 }, 
-      html2canvas: { 
-        scale: 2, 
-        useCORS: true, 
-        logging: false,
-        windowWidth: 1600 // Tell canvas to capture at this width
-      }, 
+      html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 1600 }, 
       jsPDF: { unit: 'in', format: [13, 8.5], orientation: 'landscape' } 
     };
     
     try {
-      // Generate PDF from the CLONE, not the original element
-      // Make container visible to html2canvas (it handles visibility=hidden sometimes poorly, so we use z-index to hide)
       printContainer.style.visibility = 'visible'; 
       await window.html2pdf().set(opt).from(clone).save();
       toast.success("PDF Downloaded");
@@ -256,13 +237,12 @@ const downloadPDF = async (elementId, filename) => {
       console.error(err);
       toast.error("PDF Error: " + err.message);
     } finally {
-      // Clean up
       document.body.removeChild(printContainer);
     }
   }
 };
 
-// --- LOGIN COMPONENT ---
+// --- LOGIN COMPONENT (UPDATED WITH CAPTCHA & AUTO LOGOUT TIME) ---
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -270,23 +250,52 @@ function Login({ onLogin }) {
   const [error, setError] = useState('');
   const [isResetMode, setIsResetMode] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
+  
+  // Captcha State
+  const [captchaToken, setCaptchaToken] = useState();
+  const captcha = useRef();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true); setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
-    setLoading(false);
+    
+    try {
+      // Pass captchaToken in options
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password,
+        options: { captchaToken }
+      });
+
+      if (error) throw error;
+      
+      // Store login time for auto-logout feature
+      localStorage.setItem('abtc_login_time', Date.now().toString());
+
+    } catch (err) {
+      setError(err.message);
+      if (captcha.current) captcha.current.resetCaptcha();
+      setCaptchaToken(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setLoading(true); setError(''); setResetMessage('');
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { 
+        redirectTo: window.location.origin,
+        captchaToken
+      });
       if (error) throw error;
       setResetMessage('Reset link sent.');
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
+    } catch (err) { setError(err.message); } finally { 
+      setLoading(false); 
+      if (captcha.current) captcha.current.resetCaptcha();
+      setCaptchaToken(null);
+    }
   };
 
   return (
@@ -313,6 +322,16 @@ function Login({ onLogin }) {
               <label className="block text-xs font-medium text-gray-700 mb-1.5">Password</label>
               <input type="password" required className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder:text-gray-300" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
             </div>
+
+            {/* HCaptcha Widget */}
+            <div className="flex justify-center py-2">
+              <HCaptcha
+                ref={captcha}
+                sitekey={HCAPTCHA_SITE_KEY}
+                onVerify={(token) => setCaptchaToken(token)}
+              />
+            </div>
+
             <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium flex items-center justify-center gap-2">
               {loading ? <Loader2 size={16} className="animate-spin"/> : 'Sign In'}
             </button>
@@ -330,6 +349,13 @@ function Login({ onLogin }) {
               <label className="block text-xs font-medium text-gray-700 mb-1.5">Email address</label>
               <input type="email" required className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} />
             </div>
+            <div className="flex justify-center py-2">
+              <HCaptcha
+                ref={captcha}
+                sitekey={HCAPTCHA_SITE_KEY}
+                onVerify={(token) => setCaptchaToken(token)}
+              />
+            </div>
             <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium flex items-center justify-center gap-2">
               {loading ? <Loader2 size={16} className="animate-spin"/> : 'Send Link'}
             </button>
@@ -343,7 +369,7 @@ function Login({ onLogin }) {
   );
 }
 
-// --- UPDATE PASSWORD FORM ---
+// --- UPDATE PASSWORD FORM (RECOVERY FLOW) ---
 function UpdatePasswordForm({ onComplete }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -370,8 +396,7 @@ function UpdatePasswordForm({ onComplete }) {
   );
 }
 
-// --- MISSING COMPONENTS (ADDED TO FIX ERRORS) ---
-
+// --- ADD FACILITY FORM ---
 function AddFacilityForm({ onAdd, loading }) {
   const [name, setName] = useState('');
   const [type, setType] = useState('RHU');
@@ -410,6 +435,7 @@ function AddFacilityForm({ onAdd, loading }) {
   );
 }
 
+// --- REGISTER USER FORM ---
 function RegisterUserForm({ facilities, client, onSuccess }) {
   const [formData, setFormData] = useState({
     email: '', password: '', fullName: '', designation: '', contactNumber: '', facility: facilities[0] || '', role: 'user'
@@ -480,7 +506,7 @@ function RegisterUserForm({ facilities, client, onSuccess }) {
        <div className="flex justify-center my-4">
           <HCaptcha
             ref={captcha}
-            sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY || "INSERT_YOUR_SITE_KEY_HERE"}
+            sitekey={HCAPTCHA_SITE_KEY}
             onVerify={(token) => {
                 setCaptchaToken(token)
             }}
@@ -505,7 +531,6 @@ function PrivacyModal({ onClose }) {
              <h3 className="font-bold text-gray-900 mb-2">Effective Date: 2026</h3>
              <p>ABTC ReportSys respects user privacy and is committed to protecting any personal information collected through the system. This Privacy Policy explains what information is collected, how it is used, and how it is protected.</p>
            </div>
-           
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Information We Collect</h3>
              <p className="mb-2">ABTC ReportSys does not collect patient-identifiable data. The system only collects the following information for operational and reporting purposes:</p>
@@ -515,17 +540,14 @@ function PrivacyModal({ onClose }) {
              </ul>
              <p className="mt-2 italic text-xs text-gray-500">No patient names, addresses, medical records, or personally identifiable health information are collected or stored.</p>
            </div>
-
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Purpose of Data Collection</h3>
              <p>The collected information is used solely to generate reports, identify responsible personnel, support administration, and improve system reliability. Data is not used for marketing or commercial advertising.</p>
            </div>
-
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Data Sharing and Security</h3>
              <p>ABTC ReportSys does not sell, share, or disclose data to third parties. Access is limited to authorized users. Reasonable technical measures are implemented to protect information, though no system can guarantee absolute security.</p>
            </div>
-
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Contact</h3>
              <p>For questions regarding this Privacy Policy: <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline">justice.belleza@icloud.com</a></p>
@@ -550,7 +572,6 @@ function TermsModal({ onClose }) {
              <h3 className="font-bold text-gray-900 mb-2">Effective Date: 2026</h3>
              <p>By accessing or using ABTC ReportSys, you agree to the following Terms of Use.</p>
            </div>
-           
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Acceptable & Prohibited Use</h3>
              <p>Users agree to use the system only for intended reporting purposes, provide accurate info, and maintain credential confidentiality.</p>
@@ -561,22 +582,18 @@ function TermsModal({ onClose }) {
                <li>Use the system for illegal activities.</li>
              </ul>
            </div>
-
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Data Responsibility</h3>
              <p>Users are responsible for ensuring no confidential patient information is entered. ABTC ReportSys assumes no liability for data entered in violation of these terms.</p>
            </div>
-
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Intellectual Property</h3>
              <p>© 2026 Justice Belleza. Independent project. Use of the system does not grant ownership rights.</p>
            </div>
-
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Availability and Liability</h3>
              <p>The system is provided “as is”. The developer shall not be held liable for data inaccuracies, downtime, or loss arising from misuse.</p>
            </div>
-           
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Contact</h3>
              <p>For inquiries: <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline">justice.belleza@icloud.com</a></p>
@@ -604,9 +621,36 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (event === 'PASSWORD_RECOVERY') setShowPasswordUpdate(true);
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('abtc_login_time');
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // --- AUTO LOGOUT LOGIC (24 HOURS) ---
+  useEffect(() => {
+    if (!session) return;
+    
+    const checkSessionAge = () => {
+      const loginTime = localStorage.getItem('abtc_login_time');
+      if (loginTime) {
+        const timeElapsed = Date.now() - parseInt(loginTime, 10);
+        // 24 hours in milliseconds = 24 * 60 * 60 * 1000 = 86400000
+        if (timeElapsed > 86400000) {
+          toast.info("Session expired (24h limit). Please log in again.");
+          supabase.auth.signOut();
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkSessionAge();
+
+    // Check every minute
+    const interval = setInterval(checkSessionAge, 60000);
+    return () => clearInterval(interval);
+  }, [session]);
 
   useEffect(() => {
     if(supabase && session) {
@@ -812,11 +856,16 @@ function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onS
   );
 }
 
-// --- PROFILE MODAL (EDIT USER) ---
+// --- PROFILE MODAL (EDIT USER & CHANGE PASSWORD) ---
 function ProfileModal({ userId, onClose, isSelf = false }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({ full_name: '', designation: '', contact_number: '', email: '', facility_name: '' });
+  
+  // Password Change State
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -827,25 +876,73 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
     fetchProfile();
   }, [userId]);
 
+  const getPasswordStrength = (pass) => {
+    if (!pass) return 0;
+    let score = 0;
+    if (pass.length >= 6) score++;
+    if (pass.length >= 10) score++;
+    if (/[A-Z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+    return score; // Max 5
+  };
+
+  const passwordStrength = getPasswordStrength(newPassword);
+  
+  const getStrengthColor = (score) => {
+    if (score <= 2) return 'bg-red-500';
+    if (score <= 3) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase.from('profiles').update({
-      full_name: profile.full_name,
-      designation: profile.designation,
-      contact_number: profile.contact_number
-    }).eq('id', userId);
+    
+    try {
+      // 1. Update Profile Details
+      const { error: profileError } = await supabase.from('profiles').update({
+        full_name: profile.full_name,
+        designation: profile.designation,
+        contact_number: profile.contact_number
+      }).eq('id', userId);
 
-    if (error) toast.error("Failed");
-    else { toast.success("Saved"); onClose(); }
-    setSaving(false);
+      if (profileError) throw profileError;
+
+      // 2. Update Password if provided (Only for self)
+      if (isSelf && newPassword) {
+        if (newPassword !== confirmPassword) {
+          toast.error("Passwords do not match");
+          setSaving(false);
+          return;
+        }
+        if (newPassword.length < 6) {
+           toast.error("Password must be at least 6 characters");
+           setSaving(false);
+           return;
+        }
+
+        const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
+        if (authError) throw authError;
+        
+        toast.success("Profile and password updated");
+      } else {
+        toast.success("Profile updated");
+      }
+      onClose();
+
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return null;
 
   return (
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-md animate-in fade-in zoom-in">
+      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-md animate-in fade-in zoom-in overflow-y-auto max-h-[90vh]">
         <div className="flex justify-between items-center p-6 border-b border-gray-50">
           <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><UserCog size={20}/> {isSelf ? "Edit Profile" : "Edit User"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
@@ -858,6 +955,49 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
           <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Full Name</label><input type="text" className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={profile.full_name || ''} onChange={e => setProfile({...profile, full_name: e.target.value})} placeholder="e.g. Juan Dela Cruz" /></div>
           <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Designation</label><input type="text" className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={profile.designation || ''} onChange={e => setProfile({...profile, designation: e.target.value})} placeholder="e.g. Nurse II" /></div>
           <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Contact Number</label><input type="text" className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={profile.contact_number || ''} onChange={e => setProfile({...profile, contact_number: e.target.value})} placeholder="e.g. 0917..." /></div>
+          
+          {/* PASSWORD CHANGE SECTION (Only if self) */}
+          {isSelf && (
+             <div className="pt-4 mt-4 border-t border-gray-100">
+               <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2"><Lock size={14}/> Change Password</h3>
+               <div className="space-y-3">
+                 <div className="relative">
+                   <label className="block text-xs font-medium text-gray-700 mb-1">New Password</label>
+                   <input 
+                      type={showPassword ? "text" : "password"} 
+                      className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" 
+                      value={newPassword} 
+                      onChange={e => setNewPassword(e.target.value)} 
+                      placeholder="Leave blank to keep current" 
+                   />
+                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
+                     {showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
+                   </button>
+                 </div>
+                 
+                 {/* Strength Bar */}
+                 {newPassword && (
+                    <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+                       <div className={`h-full transition-all duration-300 ${getStrengthColor(passwordStrength)}`} style={{ width: `${(passwordStrength / 5) * 100}%` }}></div>
+                    </div>
+                 )}
+
+                 {newPassword && (
+                   <div>
+                     <label className="block text-xs font-medium text-gray-700 mb-1">Confirm Password</label>
+                     <input 
+                        type="password" 
+                        className={`w-full bg-white border p-2.5 rounded-lg text-sm focus:ring-2 outline-none transition ${confirmPassword && newPassword !== confirmPassword ? 'border-red-300 focus:ring-red-200' : 'border-gray-200 focus:ring-zinc-900'}`}
+                        value={confirmPassword} 
+                        onChange={e => setConfirmPassword(e.target.value)} 
+                        placeholder="Retype new password" 
+                     />
+                   </div>
+                 )}
+               </div>
+             </div>
+          )}
+
           <button type="submit" disabled={saving} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition font-medium mt-4 flex items-center justify-center gap-2">{saving ? <Loader2 size={16} className="animate-spin"/> : 'Save Changes'}</button>
         </form>
       </div>
