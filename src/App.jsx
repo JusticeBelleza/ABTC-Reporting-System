@@ -6,7 +6,7 @@ import {
   Building, List, Layers, UserPlus, Filter, Loader2, PlusCircle,
   Trash2, MessageSquare, Bell, User, Edit, UserCog, Phone, Briefcase, 
   Settings, Printer, Image as ImageIcon, FileDown, X, Lock, ArrowLeft,
-  Github, AlertTriangle 
+  Github, AlertTriangle, FileCheck, Scale, Hospital, Stethoscope, Building2
 } from 'lucide-react';
 import {Toaster, toast} from 'sonner';
 
@@ -118,12 +118,26 @@ const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["January", "F
 
 const StatusBadge = ({ status }) => { 
   const styles = { 
-    'Draft': 'bg-gray-100 text-gray-600 border border-gray-200', 
-    'Pending': 'bg-amber-50 text-amber-700 border border-amber-200', 
-    'Approved': 'bg-emerald-50 text-emerald-700 border border-emerald-200', 
-    'Rejected': 'bg-rose-50 text-rose-700 border border-rose-200' 
+    'Draft': { backgroundColor: '#f3f4f6', color: '#4b5563', border: '1px solid #e5e7eb' }, 
+    'Pending': { backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }, 
+    'Approved': { backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }, 
+    'Rejected': { backgroundColor: '#fff1f2', color: '#be123c', border: '1px solid #fecdd3' } 
   }; 
-  return <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${styles[status] || styles['Draft']}`}>{status || 'Draft'}</span>; 
+  
+  const style = styles[status] || styles['Draft'];
+  
+  return (
+    <span style={{ 
+      ...style, 
+      padding: '2px 8px', 
+      borderRadius: '4px', 
+      fontSize: '11px', 
+      fontWeight: '500',
+      display: 'inline-block'
+    }}>
+      {status || 'Draft'}
+    </span>
+  );
 };
 
 const hasData = (row) => {
@@ -177,7 +191,7 @@ const downloadPDF = async (elementId, filename) => {
   const headers = clone.querySelectorAll('th');
   headers.forEach(th => {
     th.style.height = 'auto';
-    th.style.minHeight = '60px'; // Ensure at least this tall
+    th.style.minHeight = '40px'; // Ensure at least this tall
     th.style.whiteSpace = 'normal'; // Force text wrapping
     th.style.overflow = 'visible';  // Allow content to spill if needed (though auto height should catch it)
     th.style.verticalAlign = 'middle';
@@ -278,10 +292,10 @@ function Login({ onLogin }) {
       <div className="w-full max-w-sm animate-in fade-in zoom-in duration-300">
         <div className="mb-10 text-center">
           <div className="inline-flex items-center justify-center p-3 rounded-xl bg-gray-50 text-zinc-900 mb-4 ring-1 ring-gray-200">
-            <Shield size={32} strokeWidth={1.5} />
+            <FileText size={32} strokeWidth={1.5} />
           </div>
-          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">ABTC Reporting</h1>
-          <p className="text-sm text-gray-500 mt-1">Provincial Health Office</p>
+          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">ABTC-Reporting System</h1>
+          <p className="text-sm text-gray-500 mt-1"> Developed by: Justice P. Belleza</p>
         </div>
         
         {error && <div className="bg-red-50 text-red-600 p-3 rounded text-xs mb-6 border border-red-100 flex gap-2"><AlertCircle size={14}/> {error}</div>}
@@ -349,6 +363,207 @@ function UpdatePasswordForm({ onComplete }) {
            <div><label className="block text-xs font-medium text-gray-700 mb-1">New Password</label><input type="password" required className="w-full border border-gray-200 p-2.5 rounded-lg focus:ring-2 focus:ring-zinc-900 outline-none text-sm" minLength={6} value={password} onChange={e => setPassword(e.target.value)} /></div>
            <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition font-medium text-sm flex items-center justify-center gap-2">{loading && <Loader2 size={16} className="animate-spin"/>} Update</button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// --- MISSING COMPONENTS (ADDED TO FIX ERRORS) ---
+
+function AddFacilityForm({ onAdd, loading }) {
+  const [name, setName] = useState('');
+  const [type, setType] = useState('RHU');
+  const [barangays, setBarangays] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onAdd(name, type, barangays);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Facility Name</label>
+        <input type="text" required value={name} onChange={e => setName(e.target.value)} className="w-full border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" placeholder="e.g. Bangued RHU" />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+        <select value={type} onChange={e => setType(e.target.value)} className="w-full border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none">
+          <option value="RHU">RHU</option>
+          <option value="Hospital">Hospital</option>
+          <option value="Clinic">Clinic</option>
+        </select>
+      </div>
+      {type === 'RHU' && (
+        <div>
+           <label className="block text-xs font-medium text-gray-700 mb-1">Barangays (comma separated)</label>
+           <textarea value={barangays} onChange={e => setBarangays(e.target.value)} className="w-full border border-gray-200 p-2 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" rows={3} placeholder="Zone 1, Zone 2, ..."></textarea>
+        </div>
+      )}
+      <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition text-sm font-medium flex items-center justify-center gap-2">
+        {loading && <Loader2 size={16} className="animate-spin" />}
+        Add Facility
+      </button>
+    </form>
+  );
+}
+
+function RegisterUserForm({ facilities, client, onSuccess }) {
+  const [formData, setFormData] = useState({
+    email: '', password: '', fullName: '', designation: '', contactNumber: '', facility: facilities[0] || '', role: 'user'
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data: authData, error: authError } = await client.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: { 
+            full_name: formData.fullName,
+            facility_name: formData.facility,
+            role: formData.role
+          }
+        }
+      });
+      if (authError) throw authError;
+      
+      if (authData.user) {
+         toast.success("User created successfully");
+         if(onSuccess) onSuccess();
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+       <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-xs font-medium text-gray-700 mb-1">Email</label><input type="email" required value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
+          <div><label className="block text-xs font-medium text-gray-700 mb-1">Password</label><input type="password" required minLength={6} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
+       </div>
+       <div><label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label><input type="text" required value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
+       <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-xs font-medium text-gray-700 mb-1">Designation</label><input type="text" value={formData.designation} onChange={e=>setFormData({...formData, designation: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
+          <div><label className="block text-xs font-medium text-gray-700 mb-1">Contact No.</label><input type="text" value={formData.contactNumber} onChange={e=>setFormData({...formData, contactNumber: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
+       </div>
+       <div className="grid grid-cols-2 gap-4">
+         <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Facility</label>
+            <select value={formData.facility} onChange={e=>setFormData({...formData, facility: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900">
+               {facilities.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+         </div>
+         <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+            <select value={formData.role} onChange={e=>setFormData({...formData, role: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900">
+               <option value="user">User</option>
+               <option value="admin">Admin</option>
+            </select>
+         </div>
+       </div>
+       <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition text-sm font-medium flex justify-center items-center gap-2">{loading && <Loader2 size={16} className="animate-spin"/>} Create User</button>
+    </form>
+  );
+}
+
+// --- PRIVACY POLICY MODAL ---
+function PrivacyModal({ onClose }) {
+  return (
+    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in">
+        <div className="flex justify-between items-center p-6 border-b border-gray-50">
+          <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><Shield size={20}/> Privacy Policy</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
+        </div>
+        <div className="p-6 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-6">
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Effective Date: 2026</h3>
+             <p>ABTC Reporting System respects user privacy and is committed to protecting any personal information collected through the system. This Privacy Policy explains what information is collected, how it is used, and how it is protected.</p>
+           </div>
+           
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Information We Collect</h3>
+             <p className="mb-2">ABTC Reporting System does not collect patient-identifiable data. The system only collects the following information for operational and reporting purposes:</p>
+             <ul className="list-disc pl-5 space-y-1">
+               <li><strong>Aggregated Case Data:</strong> Number of animal bite cases, statistical summaries, non-identifiable figures.</li>
+               <li><strong>User / Employee Information:</strong> Full name, designation, email address, contact number.</li>
+             </ul>
+             <p className="mt-2 italic text-xs text-gray-500">No patient names, addresses, medical records, or personally identifiable health information are collected or stored.</p>
+           </div>
+
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Purpose of Data Collection</h3>
+             <p>The collected information is used solely to generate reports, identify responsible personnel, support administration, and improve system reliability. Data is not used for marketing or commercial advertising.</p>
+           </div>
+
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Data Sharing and Security</h3>
+             <p>ABTC Reporting System does not sell, share, or disclose data to third parties. Access is limited to authorized users. Reasonable technical measures are implemented to protect information, though no system can guarantee absolute security.</p>
+           </div>
+
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Contact</h3>
+             <p>For questions regarding this Privacy Policy: <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline">justice.belleza@icloud.com</a></p>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- TERMS OF USE MODAL ---
+function TermsModal({ onClose }) {
+  return (
+    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in">
+        <div className="flex justify-between items-center p-6 border-b border-gray-50">
+          <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><FileCheck size={20}/> Terms of Use</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
+        </div>
+        <div className="p-6 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-6">
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Effective Date: 2026</h3>
+             <p>By accessing or using ABTC Reporting System, you agree to the following Terms of Use.</p>
+           </div>
+           
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Acceptable & Prohibited Use</h3>
+             <p>Users agree to use the system only for intended reporting purposes, provide accurate info, and maintain credential confidentiality.</p>
+             <p className="mt-2 font-medium">Users must not:</p>
+             <ul className="list-disc pl-5 space-y-1 mt-1">
+               <li>Input patient-identifiable or sensitive personal data.</li>
+               <li>Attempt unauthorized access or misuse system data.</li>
+               <li>Use the system for illegal activities.</li>
+             </ul>
+           </div>
+
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Data Responsibility</h3>
+             <p>Users are responsible for ensuring no confidential patient information is entered. ABTC Reporting System assumes no liability for data entered in violation of these terms.</p>
+           </div>
+
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Intellectual Property</h3>
+             <p>© 2026 Justice Belleza. Independent project. Use of the system does not grant ownership rights.</p>
+           </div>
+
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Availability and Liability</h3>
+             <p>The system is provided “as is”. The developer shall not be held liable for data inaccuracies, downtime, or loss arising from misuse.</p>
+           </div>
+           
+           <div>
+             <h3 className="font-bold text-gray-900 mb-2">Contact</h3>
+             <p>For inquiries: <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline">justice.belleza@icloud.com</a></p>
+           </div>
+        </div>
       </div>
     </div>
   );
@@ -638,30 +853,70 @@ function UserManagementModal({ onClose, facilities, client }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUserId, setEditingUserId] = useState(null);
+  
+  // Custom Delete Modal State
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    if (data) setUsers(data);
+    const { data } = await supabase.from('profiles').select('*');
+    if (data) {
+        // Sort: Admins first, then by date descending
+        const sorted = data.sort((a, b) => {
+            if (a.role === 'admin' && b.role !== 'admin') return -1;
+            if (a.role !== 'admin' && b.role === 'admin') return 1;
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
+        setUsers(sorted);
+    }
     setLoading(false);
   };
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleDelete = async (userId, name) => {
-    if (!window.confirm(`Delete "${name}"?`)) return;
+  const initiateDelete = (user) => {
+    setUserToDelete(user);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
     try {
-      const { error } = await supabase.rpc('delete_user_by_id', { target_user_id: userId });
+      const { error } = await supabase.rpc('delete_user_by_id', { target_user_id: userToDelete.id });
       if (error) throw error;
       toast.success("User deleted");
       fetchUsers();
     } catch(err) { toast.error("Error: " + err.message); }
+    setIsDeletingUser(false);
+    setUserToDelete(null);
   };
 
   return (
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       {editingUserId && <ProfileModal userId={editingUserId} onClose={() => { setEditingUserId(null); fetchUsers(); }} />}
       
+      {/* Custom Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
+            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">
+                 <div className="flex flex-col items-center text-center">
+                    <div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><Trash2 size={24} /></div>
+                    <h3 className="text-lg font-bold text-gray-900">Delete User?</h3>
+                    <p className="text-sm text-gray-500 mt-2 mb-6">
+                        Are you sure you want to delete <span className="font-semibold">{userToDelete.full_name || userToDelete.email}</span>? This action cannot be undone.
+                    </p>
+                    <div className="flex gap-3 w-full">
+                        <button onClick={() => setUserToDelete(null)} disabled={isDeletingUser} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancel</button>
+                        <button onClick={confirmDelete} disabled={isDeletingUser} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition flex justify-center items-center gap-2">
+                            {isDeletingUser && <Loader2 size={14} className="animate-spin"/>} Delete
+                        </button>
+                    </div>
+                 </div>
+            </div>
+        </div>
+      )}
+
       <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-4xl h-[85vh] flex flex-col animate-in fade-in zoom-in">
         <div className="flex justify-between items-center p-6 border-b border-gray-50">
           <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><Users size={20}/> User Management</h2>
@@ -685,7 +940,7 @@ function UserManagementModal({ onClose, facilities, client }) {
                     <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="p-3">
                         <div className="font-medium text-zinc-900">{u.facility_name}</div>
-                        <div className="text-[10px] uppercase font-bold tracking-wide text-gray-400 mt-0.5">{u.role}</div>
+                        <div className={`text-[10px] uppercase font-bold tracking-wide mt-0.5 ${u.role === 'admin' ? 'text-zinc-900' : 'text-gray-400'}`}>{u.role}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-gray-900">{u.full_name || '-'}</div>
@@ -695,7 +950,7 @@ function UserManagementModal({ onClose, facilities, client }) {
                       <td className="p-3 text-gray-600">{u.email}</td>
                       <td className="p-3 text-right whitespace-nowrap">
                         <button onClick={() => setEditingUserId(u.id)} className="text-zinc-600 hover:text-zinc-900 p-1.5 hover:bg-gray-100 rounded mr-1 transition"><Edit size={16}/></button>
-                        {u.role !== 'admin' && <button onClick={() => handleDelete(u.id, u.facility_name)} className="text-gray-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded transition"><Trash2 size={16}/></button>}
+                        {u.role !== 'admin' && <button onClick={() => initiateDelete(u)} className="text-gray-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded transition"><Trash2 size={16}/></button>}
                       </td>
                     </tr>
                   ))}
@@ -734,6 +989,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const [adminViewMode, setAdminViewMode] = useState('dashboard');
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [facilityStatuses, setFacilityStatuses] = useState({});
+  const [facilityTypes, setFacilityTypes] = useState({}); // New state for icons
   
   // Row visibility states
   const [visibleOtherMunicipalities, setVisibleOtherMunicipalities] = useState([]);
@@ -749,6 +1005,23 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
+  // Facility Deletion State
+  const [facilityToDelete, setFacilityToDelete] = useState(null);
+  const [isDeletingFacility, setIsDeletingFacility] = useState(false);
+  const [deleteFacilityInput, setDeleteFacilityInput] = useState('');
+  
+  // Adding Facility Loading State
+  const [isAddingFacility, setIsAddingFacility] = useState(false);
+  
+  // Report Deletion (Admin)
+  const [reportToDelete, setReportToDelete] = useState(null); 
+  const [isDeletingReport, setIsDeletingReport] = useState(false);
+  
+  // Legal Modals
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfUse, setShowTermsOfUse] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
@@ -757,43 +1030,107 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       const { data } = await supabase.from('facilities').select('*');
       let combinedFacilities = [...DEFAULT_FACILITIES];
       let combinedBarangays = { ...INITIAL_FACILITY_BARANGAYS };
+      let types = {};
+
+      // Initialize default types based on name pattern
+      DEFAULT_FACILITIES.forEach(f => {
+          if(f.includes("RHU")) types[f] = 'RHU';
+          else if(f.includes("Hospital") || f === 'APH') types[f] = 'Hospital';
+          else if(f.includes("Clinic") || f === 'AMDC') types[f] = 'Clinic';
+          else types[f] = 'RHU'; // Default
+      });
+
       if (data && data.length > 0) {
         const dbNames = data.map(f => f.name);
         const dbBarangays = {};
-        data.forEach(f => { if (f.barangays?.length > 0) dbBarangays[f.name] = f.barangays; });
+        
+        data.forEach(f => { 
+            if (f.barangays?.length > 0) dbBarangays[f.name] = f.barangays; 
+            types[f.name] = f.type || 'RHU';
+        });
+        
         combinedFacilities = [...new Set([...combinedFacilities, ...dbNames])];
         combinedBarangays = { ...combinedBarangays, ...dbBarangays };
       }
       setFacilities(combinedFacilities);
       setFacilityBarangays(combinedBarangays);
+      setFacilityTypes(types);
     } catch (err) {}
   };
   useEffect(() => { fetchFacilitiesList(); }, []);
 
   const handleAddFacility = async (name, type, barangaysList) => {
     if (facilities.includes(name)) { toast.error('Name exists'); return; }
+    setIsAddingFacility(true);
     try {
+      // FIX: Clean up any orphaned reports from previous facilities with the same name
+      // This prevents the "Rejected" status from reappearing if the name was used before
+      await supabase.from('abtc_reports').delete().eq('facility', name);
+      await supabase.from('abtc_cohort_reports').delete().eq('facility', name);
+
       let bArray = type === 'RHU' && barangaysList ? barangaysList.split(',').map(b => b.trim()).filter(b => b) : null;
       const { error } = await supabase.from('facilities').insert({ name, type, barangays: bArray });
       if (error) throw error;
+      
       setFacilities(prev => [...prev, name]);
       if (bArray) setFacilityBarangays(prev => ({ ...prev, [name]: bArray }));
-      toast.success("Facility added");
+      setFacilityTypes(prev => ({ ...prev, [name]: type }));
+      
+      // FIX: Explicitly set status to Draft for new facility so it doesn't show as Rejected
+      setFacilityStatuses(prev => ({ ...prev, [name]: 'Draft' }));
+      
+      toast.success("Facility added successfully");
       setShowAddFacilityModal(false);
     } catch (err) { toast.error(err.message); }
+    setIsAddingFacility(false);
   };
 
-  const handleDeleteFacility = async (facilityName) => {
-    const confirmation = window.prompt(`Type "delete" to confirm:`);
-    if (confirmation === "delete") {
-      try {
-        const { error } = await supabase.from('facilities').delete().eq('name', facilityName);
-        if (error) throw error;
-        setFacilities(prev => prev.filter(f => f !== facilityName));
-        setFacilityBarangays(prev => { const next = { ...prev }; delete next[facilityName]; return next; });
-        toast.success("Deleted");
-      } catch (err) { toast.error(err.message); }
+  const initiateDeleteFacility = (facilityName) => {
+    setFacilityToDelete(facilityName);
+    setDeleteFacilityInput('');
+  };
+
+  const confirmDeleteFacility = async () => {
+    if (deleteFacilityInput !== 'delete') {
+        toast.error('Please type "delete" to confirm.');
+        return;
     }
+    setIsDeletingFacility(true);
+    try {
+        // Delete reports first (Cascade logic simulation)
+        await supabase.from('abtc_reports').delete().eq('facility', facilityToDelete);
+        await supabase.from('abtc_cohort_reports').delete().eq('facility', facilityToDelete);
+        
+        // Delete facility
+        const { error } = await supabase.from('facilities').delete().eq('name', facilityToDelete);
+        if (error) throw error;
+        
+        setFacilities(prev => prev.filter(f => f !== facilityToDelete));
+        setFacilityBarangays(prev => { const next = { ...prev }; delete next[facilityToDelete]; return next; });
+        
+        // Remove from statuses
+        setFacilityStatuses(prev => { const next = {...prev}; delete next[facilityToDelete]; return next; });
+
+        toast.success("Deleted");
+        setFacilityToDelete(null);
+    } catch (err) { toast.error(err.message); }
+    setIsDeletingFacility(false);
+  };
+
+  const confirmDeleteReport = async () => {
+      setIsDeletingReport(true);
+      try {
+          const target = activeFacilityName; // Should match reportToDelete logic if passed, but simpler to use active
+          
+          await supabase.from('abtc_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
+          await supabase.from('abtc_cohort_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
+          
+          toast.success("Report data deleted");
+          setReportStatus('Draft');
+          fetchData(); // Reload to clear data
+          setReportToDelete(null);
+      } catch(err) { toast.error(err.message); }
+      setIsDeletingReport(false);
   };
 
   const handleDeleteRow = (key) => {
@@ -857,7 +1194,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       } else if (!forCohort) {
           visible = visibleOtherMunicipalities;
       }
-      // If forCohort is true but specificVisible is null, it means we are initializing or missing context, default to empty to be safe
       
       const visibleOther = other.filter(m => visible.includes(m));
       
@@ -889,7 +1225,8 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       if (adminViewMode === 'dashboard') fetchFacilityStatuses();
       else if (adminViewMode === 'consolidated' || (adminViewMode === 'review' && selectedFacility)) fetchData();
     } else fetchData();
-  }, [user, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab]);
+  // Added facilities to dependency array to ensure new facilities get statuses correctly
+  }, [user, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, facilities]);
 
   const fetchFacilityStatuses = async () => {
     if (periodType !== 'Monthly') return; 
@@ -1030,7 +1367,10 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
 
         if (newStatus === 'Pending') { await createDbNotification('PHO Admin', 'New Submission', `${target} report.`, 'info'); toast.success('Submitted'); }
         else if (newStatus === 'Approved') { await createDbNotification(target, 'Approved', `Report approved.`, 'success'); toast.success('Approved'); }
-        else if (newStatus === 'Rejected') { await createDbNotification(target, 'Rejected', `Report rejected.`, 'error'); toast.success('Rejected'); }
+        else if (newStatus === 'Rejected') { 
+            await createDbNotification(target, 'Report Rejected', `Your report has been rejected. Reason: ${reason}`, 'error'); 
+            toast.success('Rejected'); 
+        }
         else toast.success('Saved');
         
         if (user.role === 'admin' && (newStatus === 'Approved' || newStatus === 'Rejected')) { setAdminViewMode('dashboard'); setSelectedFacility(null); fetchFacilityStatuses(); }
@@ -1109,14 +1449,22 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     return t;
   }, [cohortData]);
 
+  // Helper for rendering icons
+  const getFacilityIcon = (facilityName) => {
+      const type = facilityTypes[facilityName] || 'RHU';
+      if (type === 'Hospital') return <Hospital size={20}/>;
+      if (type === 'Clinic') return <Stethoscope size={20}/>;
+      return <Building2 size={20}/>; // Default RHU
+  };
+
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans text-zinc-900">
       {/* --- Minimalist Header --- */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 no-print">
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-             <div className="bg-zinc-900 text-white p-1.5 rounded-lg"><Shield size={18} strokeWidth={2}/></div>
-             <span className="font-semibold tracking-tight text-lg">ABTC Reporting</span>
+             <div className="bg-zinc-900 text-white p-1.5 rounded-lg"><FileText size={18} strokeWidth={2}/></div>
+             <span className="font-semibold tracking-tight text-lg">ABTC-Reporting System</span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <NotificationBell user={user} />
@@ -1162,14 +1510,16 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                {facilities.map(f => (
                  <div key={f} className="bg-white p-5 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all group cursor-pointer" onClick={() => { setSelectedFacility(f); setAdminViewMode('review'); }}>
                     <div className="flex justify-between items-start mb-4">
-                      <div className="p-2 bg-gray-50 rounded-lg text-gray-600 group-hover:bg-zinc-900 group-hover:text-white transition-colors"><Building size={20}/></div>
+                      <div className="p-2 bg-gray-50 rounded-lg text-gray-600 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
+                          {getFacilityIcon(f)}
+                      </div>
                       <StatusBadge status={facilityStatuses[f]} />
                     </div>
                     <h3 className="font-semibold text-zinc-900 mb-1">{f}</h3>
                     <p className="text-xs text-gray-500 mb-4">Report for {periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</p>
                     <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
                        <span className="text-xs font-medium text-blue-600 group-hover:underline">View Report</span>
-                       {user.role === 'admin' && <button onClick={(e) => { e.stopPropagation(); handleDeleteFacility(f); }} className="text-gray-300 hover:text-red-500 transition"><Trash2 size={14} /></button>}
+                       {user.role === 'admin' && <button onClick={(e) => { e.stopPropagation(); initiateDeleteFacility(f); }} className="text-gray-300 hover:text-red-500 transition"><Trash2 size={14} /></button>}
                     </div>
                  </div>
                ))}
@@ -1213,13 +1563,16 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
 
                    {/* Actions */}
                    <button 
-                      onClick={() => {
+                      disabled={isDownloadingPdf}
+                      onClick={async () => {
+                        setIsDownloadingPdf(true);
                         const suffix = activeTab === 'cohort' ? (cohortSubTab === 'cat2' ? '_Category_II' : '_Category_III') : '';
-                        downloadPDF('report-content', `Report_${activeFacilityName}_${year}${suffix}.pdf`);
+                        await downloadPDF('report-content', `Report_${activeFacilityName}_${year}${suffix}.pdf`);
+                        setIsDownloadingPdf(false);
                       }} 
-                      className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition"
+                      className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition disabled:opacity-70"
                    >
-                     <FileDown size={16}/> PDF
+                     {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} PDF
                    </button>
                    
                    {!isConsolidatedView && !isAggregationMode && (
@@ -1228,6 +1581,13 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                           <>
                             <button onClick={() => handleSave('Approved')} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve</button>
                             <button onClick={() => handleSave('Rejected')} className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject</button>
+                            
+                            {/* DELETE REPORT DATA BUTTON (Only if data exists i.e., not Draft) */}
+                            {reportStatus !== 'Draft' && (
+                                <button onClick={() => setReportToDelete(true)} className="bg-red-50 border border-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-100 shadow-sm flex items-center gap-2 transition ml-2" title="Delete Report Data">
+                                    <Trash2 size={16}/>
+                                </button>
+                            )}
                           </>
                         ) : (
                           <>
@@ -1266,7 +1626,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                     <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Status</th>
                     <th colSpan={4} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>PEP</th>
                     <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Biting Animals</th>
-                    <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Washing</th>
+                    <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>No. Who Washed</th>
                     <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500', width: '150px', minWidth: '150px'}}>Remarks</th>
                   </tr>
                   <tr style={PDF_STYLES.subHeader}>
@@ -1378,22 +1738,19 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
 
                  {/* Category II Table */}
                  <div className={`cohort-table-hidden ${cohortSubTab === 'cat2' ? 'block' : 'hidden'}`}>
-                     <div className="bg-gray-50/50 p-2 font-bold text-center border border-gray-100 rounded-t-lg text-sm text-gray-600 mb-1">CATEGORY II - EXPOSURES</div>
+                     <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #e5e7eb', borderBottom: 'none', borderTopLeftRadius: '0.5rem', borderTopRightRadius: '0.5rem', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>CATEGORY II - EXPOSURES</div>
                      <table className="w-full border-collapse mb-8" style={{ borderColor: PDF_STYLES.border.borderColor }}>
                         <thead>
                             <tr style={PDF_STYLES.subHeader}>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', verticalAlign:'middle', width: '200px', minWidth: '200px'}}>Municipality</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '110px', minWidth: '110px'}}>Registered Exposures</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '110px', minWidth: '110px'}}>Patients w/ RIG</th>
-                                <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle'}}>Outcome of PEP</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width:'150px', minWidth: '150px'}}>Remarks</th>
-                            </tr>
-                            <tr style={PDF_STYLES.subHeader}>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Complete</th>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Incomplete</th>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Booster</th>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>None</th>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Died</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', width: '200px', minWidth: '200px'}}>Municipality</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width: '100px'}}>Registered Exposures</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width: '100px'}}>Patients w/ RIG</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Complete</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Incomplete</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Booster</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: None</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Died</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width:'150px', minWidth: '150px'}}>Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1458,22 +1815,19 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
 
                  {/* Category III Table */}
                  <div className={`cohort-table-hidden ${cohortSubTab === 'cat3' ? 'block' : 'hidden'}`}>
-                     <div className="bg-gray-50/50 p-2 font-bold text-center border border-gray-100 rounded-t-lg text-sm text-gray-600 mb-1">CATEGORY III - EXPOSURES</div>
+                     <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #e5e7eb', borderBottom: 'none', borderTopLeftRadius: '0.5rem', borderTopRightRadius: '0.5rem', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>CATEGORY III - EXPOSURES</div>
                      <table className="w-full border-collapse" style={{ borderColor: PDF_STYLES.border.borderColor }}>
                         <thead>
                             <tr style={PDF_STYLES.subHeader}>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', verticalAlign:'middle', width: '200px', minWidth: '200px'}}>Municipality</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '110px', minWidth: '110px'}}>Registered Exposures</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '110px', minWidth: '110px'}}>Patients w/ RIG</th>
-                                <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle'}}>Outcome of PEP</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width:'150px', minWidth: '150px'}}>Remarks</th>
-                            </tr>
-                            <tr style={PDF_STYLES.subHeader}>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Complete</th>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Incomplete</th>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Booster</th>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>None</th>
-                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Died</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', width: '200px', minWidth: '200px'}}>Municipality</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width: '100px'}}>Registered Exposures</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width: '100px'}}>Patients w/ RIG</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Complete</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Incomplete</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Booster</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: None</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Died</th>
+                                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width:'150px', minWidth: '150px'}}>Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1566,10 +1920,60 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
 
         {showManageUsers && <UserManagementModal onClose={() => setShowManageUsers(false)} facilities={facilities} client={adminHelperClient} />}
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
-        {showAddFacilityModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md"><div className="flex justify-between items-center mb-6"><h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2><button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button></div><AddFacilityForm onAdd={handleAddFacility} /></div></div>)}
+        {showAddFacilityModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md"><div className="flex justify-between items-center mb-6"><h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2><button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button></div><AddFacilityForm onAdd={handleAddFacility} loading={isAddingFacility} /></div></div>)}
         {showRejectModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200"><div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold text-rose-600 flex items-center gap-2"><MessageSquare size={20}/> Reject Report</h2><button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20}/></button></div><p className="text-gray-600 text-sm mb-4">Please provide a reason for rejecting this report.</p><textarea className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition" rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} autoFocus placeholder="e.g. Incomplete data for..."></textarea><div className="flex justify-end gap-3 mt-4"><button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition">Cancel</button><button onClick={confirmRejection} className="px-4 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-sm font-medium transition">Confirm Rejection</button></div></div></div>)}
         
-        {/* CUSTOM CONFIRMATION MODAL FOR DELETION */}
+        {/* CUSTOM CONFIRMATION MODAL FOR DELETING FACILITY */}
+        {facilityToDelete && (
+          <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
+              <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><AlertTriangle size={24} /></div>
+                    <h3 className="text-lg font-bold text-gray-900">Delete Facility?</h3>
+                    <p className="text-sm text-gray-500 mt-2 mb-4">
+                      This will remove <span className="font-semibold">{facilityToDelete}</span>. Type <span className="font-mono font-bold text-red-600">delete</span> to confirm.
+                    </p>
+                    <input 
+                      type="text" 
+                      value={deleteFacilityInput} 
+                      onChange={(e) => setDeleteFacilityInput(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg p-2 mb-4 text-center text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 transition"
+                      placeholder='Type "delete"'
+                      autoFocus
+                    />
+                    <div className="flex gap-3 w-full">
+                      <button onClick={() => setFacilityToDelete(null)} disabled={isDeletingFacility} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancel</button>
+                      <button onClick={confirmDeleteFacility} disabled={isDeletingFacility || deleteFacilityInput !== 'delete'} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex justify-center items-center gap-2">
+                        {isDeletingFacility && <Loader2 size={14} className="animate-spin"/>} Confirm
+                      </button>
+                    </div>
+                  </div>
+              </div>
+          </div>
+        )}
+
+        {/* CUSTOM CONFIRMATION MODAL FOR DELETING REPORT DATA */}
+        {reportToDelete && (
+          <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
+              <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><Trash2 size={24} /></div>
+                    <h3 className="text-lg font-bold text-gray-900">Delete Report Data?</h3>
+                    <p className="text-sm text-gray-500 mt-2 mb-6">
+                      Are you sure you want to delete all report data for <span className="font-semibold">{activeFacilityName}</span> for this period? This action cannot be undone.
+                    </p>
+                    <div className="flex gap-3 w-full">
+                      <button onClick={() => setReportToDelete(null)} disabled={isDeletingReport} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancel</button>
+                      <button onClick={confirmDeleteReport} disabled={isDeletingReport} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition flex justify-center items-center gap-2">
+                        {isDeletingReport && <Loader2 size={14} className="animate-spin"/>} Delete
+                      </button>
+                    </div>
+                  </div>
+              </div>
+          </div>
+        )}
+
+        {/* CUSTOM CONFIRMATION MODAL FOR DELETING ROW */}
         {deleteConfirmation.isOpen && (
           <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-sm animate-in fade-in zoom-in duration-200">
@@ -1587,17 +1991,26 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
             </div>
           </div>
         )}
+        
+        {/* LEGAL MODALS */}
+        {showPrivacyPolicy && <PrivacyModal onClose={() => setShowPrivacyPolicy(false)} />}
+        {showTermsOfUse && <TermsModal onClose={() => setShowTermsOfUse(false)} />}
       </main>
 
       {/* --- Footer --- */}
       <footer className="bg-white border-t border-gray-200 py-6 mt-auto no-print">
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} Abra Provincial Health Office. All rights reserved.
+          <div className="text-sm text-gray-500 flex flex-col md:flex-row items-center gap-4">
+            <span>&copy; 2026 Justice Belleza. Independent project.</span>
+            <div className="hidden md:block w-px h-3 bg-gray-300"></div>
+            <div className="flex items-center gap-4">
+              <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-zinc-900 hover:underline transition">Privacy Policy</button>
+              <button onClick={() => setShowTermsOfUse(true)} className="hover:text-zinc-900 hover:underline transition">Terms of Use</button>
+            </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span>Developed by Justice Belleza</span>
-            <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="text-zinc-900 hover:text-blue-600 transition-colors">
+            <span>Developed by: Justice Belleza</span>
+            <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="text-zinc-900 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-gray-100">
               <Github size={16} />
             </a>
           </div>
