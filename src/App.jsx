@@ -9,10 +9,12 @@ import {
   Github, AlertTriangle, FileCheck, Scale, Hospital, Stethoscope, Building2
 } from 'lucide-react';
 import {Toaster, toast} from 'sonner';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 // --- Configuration ---
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
 const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -295,7 +297,7 @@ function Login({ onLogin }) {
             <FileText size={32} strokeWidth={1.5} />
           </div>
           <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">ABTC-Reporting System</h1>
-          <p className="text-sm text-gray-500 mt-1"> Developed by: Justice P. Belleza</p>
+          <p className="text-sm text-gray-500 mt-1">Provincial Health Office</p>
         </div>
         
         {error && <div className="bg-red-50 text-red-600 p-3 rounded text-xs mb-6 border border-red-100 flex gap-2"><AlertCircle size={14}/> {error}</div>}
@@ -413,6 +415,8 @@ function RegisterUserForm({ facilities, client, onSuccess }) {
     email: '', password: '', fullName: '', designation: '', contactNumber: '', facility: facilities[0] || '', role: 'user'
   });
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState();
+  const captcha = useRef();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -422,6 +426,7 @@ function RegisterUserForm({ facilities, client, onSuccess }) {
         email: formData.email,
         password: formData.password,
         options: {
+          captchaToken,
           data: { 
             full_name: formData.fullName,
             facility_name: formData.facility,
@@ -435,8 +440,12 @@ function RegisterUserForm({ facilities, client, onSuccess }) {
          toast.success("User created successfully");
          if(onSuccess) onSuccess();
       }
+      if (captcha.current) captcha.current.resetCaptcha();
+      setCaptchaToken(null);
     } catch (err) {
       toast.error(err.message);
+      if (captcha.current) captcha.current.resetCaptcha();
+      setCaptchaToken(null);
     } finally {
       setLoading(false);
     }
@@ -468,6 +477,15 @@ function RegisterUserForm({ facilities, client, onSuccess }) {
             </select>
          </div>
        </div>
+       <div className="flex justify-center my-4">
+          <HCaptcha
+            ref={captcha}
+            sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY || "INSERT_YOUR_SITE_KEY_HERE"}
+            onVerify={(token) => {
+                setCaptchaToken(token)
+            }}
+          />
+       </div>
        <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition text-sm font-medium flex justify-center items-center gap-2">{loading && <Loader2 size={16} className="animate-spin"/>} Create User</button>
     </form>
   );
@@ -485,12 +503,12 @@ function PrivacyModal({ onClose }) {
         <div className="p-6 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-6">
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Effective Date: 2026</h3>
-             <p>ABTC Reporting System respects user privacy and is committed to protecting any personal information collected through the system. This Privacy Policy explains what information is collected, how it is used, and how it is protected.</p>
+             <p>ABTC ReportSys respects user privacy and is committed to protecting any personal information collected through the system. This Privacy Policy explains what information is collected, how it is used, and how it is protected.</p>
            </div>
            
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Information We Collect</h3>
-             <p className="mb-2">ABTC Reporting System does not collect patient-identifiable data. The system only collects the following information for operational and reporting purposes:</p>
+             <p className="mb-2">ABTC ReportSys does not collect patient-identifiable data. The system only collects the following information for operational and reporting purposes:</p>
              <ul className="list-disc pl-5 space-y-1">
                <li><strong>Aggregated Case Data:</strong> Number of animal bite cases, statistical summaries, non-identifiable figures.</li>
                <li><strong>User / Employee Information:</strong> Full name, designation, email address, contact number.</li>
@@ -505,7 +523,7 @@ function PrivacyModal({ onClose }) {
 
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Data Sharing and Security</h3>
-             <p>ABTC Reporting System does not sell, share, or disclose data to third parties. Access is limited to authorized users. Reasonable technical measures are implemented to protect information, though no system can guarantee absolute security.</p>
+             <p>ABTC ReportSys does not sell, share, or disclose data to third parties. Access is limited to authorized users. Reasonable technical measures are implemented to protect information, though no system can guarantee absolute security.</p>
            </div>
 
            <div>
@@ -530,7 +548,7 @@ function TermsModal({ onClose }) {
         <div className="p-6 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-6">
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Effective Date: 2026</h3>
-             <p>By accessing or using ABTC Reporting System, you agree to the following Terms of Use.</p>
+             <p>By accessing or using ABTC ReportSys, you agree to the following Terms of Use.</p>
            </div>
            
            <div>
@@ -546,7 +564,7 @@ function TermsModal({ onClose }) {
 
            <div>
              <h3 className="font-bold text-gray-900 mb-2">Data Responsibility</h3>
-             <p>Users are responsible for ensuring no confidential patient information is entered. ABTC Reporting System assumes no liability for data entered in violation of these terms.</p>
+             <p>Users are responsible for ensuring no confidential patient information is entered. ABTC ReportSys assumes no liability for data entered in violation of these terms.</p>
            </div>
 
            <div>
@@ -1063,11 +1081,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     if (facilities.includes(name)) { toast.error('Name exists'); return; }
     setIsAddingFacility(true);
     try {
-      // FIX: Clean up any orphaned reports from previous facilities with the same name
-      // This prevents the "Rejected" status from reappearing if the name was used before
-      await supabase.from('abtc_reports').delete().eq('facility', name);
-      await supabase.from('abtc_cohort_reports').delete().eq('facility', name);
-
       let bArray = type === 'RHU' && barangaysList ? barangaysList.split(',').map(b => b.trim()).filter(b => b) : null;
       const { error } = await supabase.from('facilities').insert({ name, type, barangays: bArray });
       if (error) throw error;
@@ -1079,7 +1092,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       // FIX: Explicitly set status to Draft for new facility so it doesn't show as Rejected
       setFacilityStatuses(prev => ({ ...prev, [name]: 'Draft' }));
       
-      toast.success("Facility added successfully");
+      toast.success("Facility added");
       setShowAddFacilityModal(false);
     } catch (err) { toast.error(err.message); }
     setIsAddingFacility(false);
@@ -1626,7 +1639,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                     <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Status</th>
                     <th colSpan={4} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>PEP</th>
                     <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Biting Animals</th>
-                    <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>No. Who Washed</th>
+                    <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Washing</th>
                     <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500', width: '150px', minWidth: '150px'}}>Remarks</th>
                   </tr>
                   <tr style={PDF_STYLES.subHeader}>
@@ -2009,7 +2022,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span>Developed by: Justice Belleza</span>
+            <span>Author: Justice Belleza</span>
             <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="text-zinc-900 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-gray-100">
               <Github size={16} />
             </a>
