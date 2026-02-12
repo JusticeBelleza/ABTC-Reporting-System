@@ -144,38 +144,57 @@ const hasCohortData = (row, category) => {
   return false;
 };
 
-// --- PDF DOWNLOAD HELPER ---
+// --- PDF DOWNLOAD HELPER (CLONE & EXPAND APPROACH) ---
 const downloadPDF = async (elementId, filename) => {
-  const element = document.getElementById(elementId);
-  if(!element) { toast.error("Nothing to print!"); return; }
+  const originalElement = document.getElementById(elementId);
+  if(!originalElement) { toast.error("Nothing to print!"); return; }
 
-  const style = document.createElement('style');
-  // FORCE OVERRIDE ALL COLORS TO HEX FOR PDF TO FIX OKLCH ERROR AND FIX ALIGNMENT
-  style.innerHTML = `
-    .pdf-hide-empty { display: none !important; }
-    .pdf-show-flex { display: flex !important; }
-    .no-print { display: none !important; }
-    .pdf-visible { display: block !important; } 
-    #${elementId}, #${elementId} * {
-      background-color: #ffffff !important;
-      color: #000000 !important;
-      border-color: #e5e7eb !important;
-    }
-    #${elementId} input {
-      color: #000000 !important;
-    }
-    /* Explicitly set header heights for PDF to avoid cutting off text in merged cells */
-    #${elementId} th[rowspan="2"] {
-      height: 60px !important; 
-      vertical-align: middle !important;
-    }
-  `;
-  document.head.appendChild(style);
+  // 1. Create a container for the clone that sits off-screen but has fixed large width
+  const printContainer = document.createElement('div');
+  printContainer.id = 'print-container-temp';
+  printContainer.style.position = 'fixed'; // Fixed to viewport
+  printContainer.style.top = '0';
+  printContainer.style.left = '0';
+  printContainer.style.width = '1600px'; // Force wide layout to prevent wrapping/cutting
+  printContainer.style.zIndex = '-9999'; // Hide behind everything
+  printContainer.style.backgroundColor = '#ffffff';
+  printContainer.style.visibility = 'hidden'; // Keep hidden from user
+  
+  // 2. Clone the element
+  const clone = originalElement.cloneNode(true);
+  
+  // 3. Clean the clone (remove hidden elements from the clone specifically)
+  // Remove "no-print" elements
+  const noPrints = clone.querySelectorAll('.no-print');
+  noPrints.forEach(el => el.remove());
 
-  // Temporarily reveal all cohort tables for the PDF snapshot
-  const hiddenCohortTables = document.querySelectorAll('.cohort-table-hidden');
-  hiddenCohortTables.forEach(el => el.classList.add('pdf-visible'));
+  // Ensure "pdf-hide-empty" are actually hidden (should be handled by class, but just in case)
+  const hiddenRows = clone.querySelectorAll('.pdf-hide-empty');
+  hiddenRows.forEach(el => el.style.display = 'none');
+  
+  // 4. FIX THE TABLE HEADERS IN THE CLONE
+  // This is the key fix: Find all headers and force them to auto height and allow wrapping
+  const headers = clone.querySelectorAll('th');
+  headers.forEach(th => {
+    th.style.height = 'auto';
+    th.style.minHeight = '60px'; // Ensure at least this tall
+    th.style.whiteSpace = 'normal'; // Force text wrapping
+    th.style.overflow = 'visible';  // Allow content to spill if needed (though auto height should catch it)
+    th.style.verticalAlign = 'middle';
+    th.style.padding = '8px 4px'; // Add padding for breathing room
+  });
 
+  // Also fix rows
+  const rows = clone.querySelectorAll('tr');
+  rows.forEach(tr => {
+      tr.style.height = 'auto';
+  });
+
+  // 5. Append clone to container, container to body
+  printContainer.appendChild(clone);
+  document.body.appendChild(printContainer);
+
+  // Load html2pdf if needed
   if (!window.html2pdf) {
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js';
@@ -183,35 +202,46 @@ const downloadPDF = async (elementId, filename) => {
     document.head.appendChild(script);
     await new Promise((resolve, reject) => {
       script.onload = resolve;
-      script.onerror = () => { toast.error("Failed to load PDF engine."); reject(); };
+      script.onerror = () => { 
+        document.body.removeChild(printContainer);
+        toast.error("Failed to load PDF engine."); 
+        reject(); 
+      };
     });
   }
 
   if (window.html2pdf) {
-    const pdfHeader = document.getElementById('pdf-header');
-    const pdfFooter = document.getElementById('pdf-footer');
-    if(pdfHeader) pdfHeader.style.display = 'flex';
-    if(pdfFooter) pdfFooter.style.display = 'flex';
+    // Show headers in clone
+    const pdfHeader = clone.querySelector('#pdf-header');
+    const pdfFooter = clone.querySelector('#pdf-footer');
+    if(pdfHeader) { pdfHeader.style.display = 'flex'; }
+    if(pdfFooter) { pdfFooter.style.display = 'flex'; }
 
     const opt = { 
-      margin: 0.2, 
+      margin: [0.3, 0.2, 0.3, 0.2], // Top, Left, Bottom, Right
       filename: filename, 
       image: { type: 'jpeg', quality: 0.98 }, 
-      html2canvas: { scale: 2, useCORS: true, logging: false }, 
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false,
+        windowWidth: 1600 // Tell canvas to capture at this width
+      }, 
       jsPDF: { unit: 'in', format: [13, 8.5], orientation: 'landscape' } 
     };
     
     try {
-      await window.html2pdf().set(opt).from(element).save();
+      // Generate PDF from the CLONE, not the original element
+      // Make container visible to html2canvas (it handles visibility=hidden sometimes poorly, so we use z-index to hide)
+      printContainer.style.visibility = 'visible'; 
+      await window.html2pdf().set(opt).from(clone).save();
       toast.success("PDF Downloaded");
     } catch (err) {
       console.error(err);
       toast.error("PDF Error: " + err.message);
     } finally {
-      if(pdfHeader) pdfHeader.style.display = 'none';
-      if(pdfFooter) pdfFooter.style.display = 'none';
-      hiddenCohortTables.forEach(el => el.classList.remove('pdf-visible'));
-      document.head.removeChild(style);
+      // Clean up
+      document.body.removeChild(printContainer);
     }
   }
 };
@@ -1182,7 +1212,15 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                    <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block"></div>
 
                    {/* Actions */}
-                   <button onClick={() => downloadPDF('report-content', `Report_${activeFacilityName}_${year}.pdf`)} className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition"><FileDown size={16}/> PDF</button>
+                   <button 
+                      onClick={() => {
+                        const suffix = activeTab === 'cohort' ? (cohortSubTab === 'cat2' ? '_Category_II' : '_Category_III') : '';
+                        downloadPDF('report-content', `Report_${activeFacilityName}_${year}${suffix}.pdf`);
+                      }} 
+                      className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition"
+                   >
+                     <FileDown size={16}/> PDF
+                   </button>
                    
                    {!isConsolidatedView && !isAggregationMode && (
                      <>
@@ -1208,7 +1246,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                 <div style={PDF_STYLES.centerText}>
                    <h1 style={{fontSize:'12px', fontWeight:'bold', textTransform:'uppercase', letterSpacing:'1px', color:'#000'}}>National Rabies Prevention and Control Program</h1>
                    <h2 style={{fontSize:'14px', fontWeight:'bold', textTransform:'uppercase', margin:'4px 0', color:'#000'}}>
-                     {activeTab === 'main' ? 'National Rabies and Bite Victims Report' : 'Consolidated Cohort Report'}
+                     {activeTab === 'main' ? 'National Rabies and Bite Victims Report' : `Cohort Report - ${cohortSubTab === 'cat2' ? 'Category II' : 'Category III'}`}
                    </h2>
                    <p style={{fontSize:'11px', fontWeight:'bold', color:'#000'}}>{periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`)}</p>
                 </div>
@@ -1345,8 +1383,8 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                         <thead>
                             <tr style={PDF_STYLES.subHeader}>
                                 <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', verticalAlign:'middle', width: '200px', minWidth: '200px'}}>Municipality</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '80px', minWidth: '80px'}}>Registered Exposures</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '80px', minWidth: '80px'}}>Patients w/ RIG</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '110px', minWidth: '110px'}}>Registered Exposures</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '110px', minWidth: '110px'}}>Patients w/ RIG</th>
                                 <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle'}}>Outcome of PEP</th>
                                 <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width:'150px', minWidth: '150px'}}>Remarks</th>
                             </tr>
@@ -1425,8 +1463,8 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                         <thead>
                             <tr style={PDF_STYLES.subHeader}>
                                 <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', verticalAlign:'middle', width: '200px', minWidth: '200px'}}>Municipality</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '80px', minWidth: '80px'}}>Registered Exposures</th>
-                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '80px', minWidth: '80px'}}>Patients w/ RIG</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '110px', minWidth: '110px'}}>Registered Exposures</th>
+                                <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width: '110px', minWidth: '110px'}}>Patients w/ RIG</th>
                                 <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle'}}>Outcome of PEP</th>
                                 <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, verticalAlign:'middle', width:'150px', minWidth: '150px'}}>Remarks</th>
                             </tr>
