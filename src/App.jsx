@@ -242,7 +242,7 @@ const downloadPDF = async (elementId, filename) => {
   }
 };
 
-// --- LOGIN COMPONENT (UPDATED WITH CAPTCHA & AUTO LOGOUT TIME) ---
+// --- LOGIN COMPONENT ---
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -260,7 +260,6 @@ function Login({ onLogin }) {
     setLoading(true); setError('');
     
     try {
-      // Pass captchaToken in options
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email, 
         password,
@@ -268,8 +267,6 @@ function Login({ onLogin }) {
       });
 
       if (error) throw error;
-      
-      // Store login time for auto-logout feature
       localStorage.setItem('abtc_login_time', Date.now().toString());
 
     } catch (err) {
@@ -323,7 +320,6 @@ function Login({ onLogin }) {
               <input type="password" required className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder:text-gray-300" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
             </div>
 
-            {/* HCaptcha Widget */}
             <div className="flex justify-center py-2">
               <HCaptcha
                 ref={captcha}
@@ -369,7 +365,7 @@ function Login({ onLogin }) {
   );
 }
 
-// --- UPDATE PASSWORD FORM (RECOVERY FLOW) ---
+// --- UPDATE PASSWORD FORM ---
 function UpdatePasswordForm({ onComplete }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -384,12 +380,7 @@ function UpdatePasswordForm({ onComplete }) {
     toast.error(error.message);
   } else {
     toast.success("Password updated. Please log in with your new password.");
-    
-    // Sign out the user to destroy the recovery session
-    // This will trigger onAuthStateChange, setting session to null
-    // and automatically showing the Login component.
     await supabase.auth.signOut(); 
-    
     onComplete(); 
   }
   setLoading(false);
@@ -534,7 +525,7 @@ function RegisterUserForm({ facilities, client, onSuccess }) {
 function PrivacyModal({ onClose }) {
   return (
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in">
+      <div className="bg-white border border-gray-200 shadow-xl rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in">
         <div className="flex justify-between items-center p-6 border-b border-gray-50">
           <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><Shield size={20}/> Privacy Policy</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
@@ -596,7 +587,7 @@ function PrivacyModal({ onClose }) {
 function TermsModal({ onClose }) {
   return (
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in">
+      <div className="bg-white border border-gray-200 shadow-xl rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in">
         <div className="flex justify-between items-center p-6 border-b border-gray-50">
           <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><FileCheck size={20}/> Terms of Use</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
@@ -682,10 +673,7 @@ export default function App() {
       }
     };
 
-    // Check immediately on mount
     checkSessionAge();
-
-    // Check every minute
     const interval = setInterval(checkSessionAge, 60000);
     return () => clearInterval(interval);
   }, [session]);
@@ -778,7 +766,7 @@ function NotificationBell({ user }) {
         {notifications.filter(n => !n.is_read).length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>}
       </button>
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 w-[90vw] max-w-sm md:absolute md:top-full md:left-auto md:right-0 md:translate-x-0 md:w-80 md:mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
           <div className="px-4 py-3 border-b border-gray-50 flex justify-between items-center bg-white"><h3 className="font-medium text-sm text-zinc-900">Notifications</h3></div>
           <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? <div className="p-8 text-center text-gray-400 text-xs">No notifications</div> : notifications.map((n) => (
@@ -839,7 +827,7 @@ function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onS
 
   return (
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+      <div className="bg-white border border-gray-200 shadow-xl rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
         <div className="flex justify-between items-center p-6 border-b border-gray-50">
           <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><Settings size={20}/> Settings</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
@@ -894,13 +882,12 @@ function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onS
   );
 }
 
-// --- PROFILE MODAL (EDIT USER & CHANGE PASSWORD) ---
+// --- PROFILE MODAL ---
 function ProfileModal({ userId, onClose, isSelf = false }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({ full_name: '', designation: '', contact_number: '', email: '', facility_name: '' });
   
-  // Password Change State
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -922,7 +909,7 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
     if (/[A-Z]/.test(pass)) score++;
     if (/[0-9]/.test(pass)) score++;
     if (/[^A-Za-z0-9]/.test(pass)) score++;
-    return score; // Max 5
+    return score; 
   };
 
   const passwordStrength = getPasswordStrength(newPassword);
@@ -938,7 +925,6 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
     setSaving(true);
     
     try {
-      // 1. Update Profile Details
       const { error: profileError } = await supabase.from('profiles').update({
         full_name: profile.full_name,
         designation: profile.designation,
@@ -947,7 +933,6 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
 
       if (profileError) throw profileError;
 
-      // 2. Update Password if provided (Only for self)
       if (isSelf && newPassword) {
         if (newPassword !== confirmPassword) {
           toast.error("Passwords do not match");
@@ -980,7 +965,7 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
 
   return (
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-md animate-in fade-in zoom-in overflow-y-auto max-h-[90vh]">
+      <div className="bg-white border border-gray-200 shadow-xl rounded-xl w-full max-w-md animate-in fade-in zoom-in overflow-y-auto max-h-[90vh]">
         <div className="flex justify-between items-center p-6 border-b border-gray-50">
           <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><UserCog size={20}/> {isSelf ? "Edit Profile" : "Edit User"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
@@ -994,7 +979,6 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
           <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Designation</label><input type="text" className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={profile.designation || ''} onChange={e => setProfile({...profile, designation: e.target.value})} placeholder="e.g. Nurse II" /></div>
           <div><label className="block text-xs font-medium text-gray-700 mb-1.5">Contact Number</label><input type="text" className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 outline-none" value={profile.contact_number || ''} onChange={e => setProfile({...profile, contact_number: e.target.value})} placeholder="e.g. 0917..." /></div>
           
-          {/* PASSWORD CHANGE SECTION (Only if self) */}
           {isSelf && (
              <div className="pt-4 mt-4 border-t border-gray-100">
                <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2"><Lock size={14}/> Change Password</h3>
@@ -1013,7 +997,6 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
                    </button>
                  </div>
                  
-                 {/* Strength Bar */}
                  {newPassword && (
                     <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
                        <div className={`h-full transition-all duration-300 ${getStrengthColor(passwordStrength)}`} style={{ width: `${(passwordStrength / 5) * 100}%` }}></div>
@@ -1043,14 +1026,13 @@ function ProfileModal({ userId, onClose, isSelf = false }) {
   );
 }
 
-// --- USER MANAGEMENT MODAL (ADMIN) ---
+// --- USER MANAGEMENT MODAL ---
 function UserManagementModal({ onClose, facilities, client }) {
   const [activeTab, setActiveTab] = useState('list'); 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUserId, setEditingUserId] = useState(null);
   
-  // Custom Delete Modal State
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
 
@@ -1058,7 +1040,6 @@ function UserManagementModal({ onClose, facilities, client }) {
     setLoading(true);
     const { data } = await supabase.from('profiles').select('*');
     if (data) {
-        // Sort: Admins first, then by date descending
         const sorted = data.sort((a, b) => {
             if (a.role === 'admin' && b.role !== 'admin') return -1;
             if (a.role !== 'admin' && b.role === 'admin') return 1;
@@ -1092,7 +1073,6 @@ function UserManagementModal({ onClose, facilities, client }) {
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       {editingUserId && <ProfileModal userId={editingUserId} onClose={() => { setEditingUserId(null); fetchUsers(); }} />}
       
-      {/* Custom Delete Confirmation Modal */}
       {userToDelete && (
         <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
             <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">
@@ -1113,7 +1093,7 @@ function UserManagementModal({ onClose, facilities, client }) {
         </div>
       )}
 
-      <div className="bg-white border border-gray-100 shadow-xl rounded-xl w-full max-w-4xl h-[85vh] flex flex-col animate-in fade-in zoom-in">
+      <div className="bg-white border border-gray-200 shadow-xl rounded-xl w-full max-w-4xl h-[85vh] flex flex-col animate-in fade-in zoom-in">
         <div className="flex justify-between items-center p-6 border-b border-gray-50">
           <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><Users size={20}/> User Management</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
@@ -1170,8 +1150,8 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const currentRealMonth = currentDate.getMonth();
   const availableYears = useMemo(() => { const years = []; for (let y = 2024; y <= currentRealYear; y++) years.push(y); return years; }, [currentRealYear]);
   
-  const [activeTab, setActiveTab] = useState('main'); // 'main' or 'cohort'
-  const [cohortSubTab, setCohortSubTab] = useState('cat2'); // 'cat2' or 'cat3'
+  const [activeTab, setActiveTab] = useState('main'); 
+  const [cohortSubTab, setCohortSubTab] = useState('cat2'); 
   const [year, setYear] = useState(currentRealYear);
   const [periodType, setPeriodType] = useState('Monthly'); 
   const [month, setMonth] = useState(MONTHS[currentRealMonth]);
@@ -1185,9 +1165,8 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const [adminViewMode, setAdminViewMode] = useState('dashboard');
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [facilityStatuses, setFacilityStatuses] = useState({});
-  const [facilityTypes, setFacilityTypes] = useState({}); // New state for icons
+  const [facilityTypes, setFacilityTypes] = useState({}); 
   
-  // Row visibility states
   const [visibleOtherMunicipalities, setVisibleOtherMunicipalities] = useState([]);
   const [visibleCat2, setVisibleCat2] = useState([]);
   const [visibleCat3, setVisibleCat3] = useState([]);
@@ -1201,19 +1180,15 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Facility Deletion State
   const [facilityToDelete, setFacilityToDelete] = useState(null);
   const [isDeletingFacility, setIsDeletingFacility] = useState(false);
   const [deleteFacilityInput, setDeleteFacilityInput] = useState('');
   
-  // Adding Facility Loading State
   const [isAddingFacility, setIsAddingFacility] = useState(false);
   
-  // Report Deletion (Admin)
   const [reportToDelete, setReportToDelete] = useState(null); 
   const [isDeletingReport, setIsDeletingReport] = useState(false);
   
-  // Legal Modals
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -1228,12 +1203,11 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       let combinedBarangays = { ...INITIAL_FACILITY_BARANGAYS };
       let types = {};
 
-      // Initialize default types based on name pattern
       DEFAULT_FACILITIES.forEach(f => {
           if(f.includes("RHU")) types[f] = 'RHU';
           else if(f.includes("Hospital") || f === 'APH') types[f] = 'Hospital';
           else if(f.includes("Clinic") || f === 'AMDC') types[f] = 'Clinic';
-          else types[f] = 'RHU'; // Default
+          else types[f] = 'RHU'; 
       });
 
       if (data && data.length > 0) {
@@ -1267,7 +1241,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       if (bArray) setFacilityBarangays(prev => ({ ...prev, [name]: bArray }));
       setFacilityTypes(prev => ({ ...prev, [name]: type }));
       
-      // FIX: Explicitly set status to Draft for new facility so it doesn't show as Rejected
       setFacilityStatuses(prev => ({ ...prev, [name]: 'Draft' }));
       
       toast.success("Facility added");
@@ -1288,18 +1261,15 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     }
     setIsDeletingFacility(true);
     try {
-        // Delete reports first (Cascade logic simulation)
         await supabase.from('abtc_reports').delete().eq('facility', facilityToDelete);
         await supabase.from('abtc_cohort_reports').delete().eq('facility', facilityToDelete);
         
-        // Delete facility
         const { error } = await supabase.from('facilities').delete().eq('name', facilityToDelete);
         if (error) throw error;
         
         setFacilities(prev => prev.filter(f => f !== facilityToDelete));
         setFacilityBarangays(prev => { const next = { ...prev }; delete next[facilityToDelete]; return next; });
         
-        // Remove from statuses
         setFacilityStatuses(prev => { const next = {...prev}; delete next[facilityToDelete]; return next; });
 
         toast.success("Deleted");
@@ -1311,14 +1281,14 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   const confirmDeleteReport = async () => {
       setIsDeletingReport(true);
       try {
-          const target = activeFacilityName; // Should match reportToDelete logic if passed, but simpler to use active
+          const target = activeFacilityName; 
           
           await supabase.from('abtc_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
           await supabase.from('abtc_cohort_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
           
           toast.success("Report data deleted");
           setReportStatus('Draft');
-          fetchData(); // Reload to clear data
+          fetchData();
           setReportToDelete(null);
       } catch(err) { toast.error(err.message); }
       setIsDeletingReport(false);
@@ -1339,7 +1309,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
             const currentRow = prev[key] || { ...INITIAL_COHORT_ROW };
             let updatedRow = { ...currentRow };
             
-            // Explicit separation: Clear only the current category's fields and update only current visibility
             if (cohortSubTab === 'cat2') {
                 updatedRow = {
                     ...updatedRow,
@@ -1365,7 +1334,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); }
   };
 
-  // Helper to get visible rows based on context
   const getRowKeysForFacility = (facilityName, consolidated = false, returnAll = false, forCohort = false, specificVisible = null) => {
     if (!facilityName) return []; 
     if (consolidated) return MUNICIPALITIES;
@@ -1378,7 +1346,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       const other = MUNICIPALITIES.filter(m => m !== hostMunicipality);
       if (returnAll) return [hostMunicipality, ...barangays, "Others:", ...other];
       
-      // Select correct visibility array
       let visible = [];
       if (specificVisible) {
           visible = specificVisible;
@@ -1397,7 +1364,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
   
   const currentRows = useMemo(() => (user.role === 'admin' && adminViewMode === 'dashboard') ? [] : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, false, visibleOtherMunicipalities), [activeFacilityName, isConsolidatedView, facilityBarangays, user.role, adminViewMode, visibleOtherMunicipalities]);
   
-  // Independent memoized rows for Cat 2 and Cat 3
   const cohortRowsCat2 = useMemo(() => (user.role === 'admin' && adminViewMode === 'dashboard') ? [] : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, true, visibleCat2), [activeFacilityName, isConsolidatedView, facilityBarangays, user.role, adminViewMode, visibleCat2]);
   const cohortRowsCat3 = useMemo(() => (user.role === 'admin' && adminViewMode === 'dashboard') ? [] : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, true, visibleCat3), [activeFacilityName, isConsolidatedView, facilityBarangays, user.role, adminViewMode, visibleCat3]);
   
@@ -1416,7 +1382,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       if (adminViewMode === 'dashboard') fetchFacilityStatuses();
       else if (adminViewMode === 'consolidated' || (adminViewMode === 'review' && selectedFacility)) fetchData();
     } else fetchData();
-  // Added facilities to dependency array to ensure new facilities get statuses correctly
   }, [user, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, facilities]);
 
   const fetchFacilityStatuses = async () => {
@@ -1434,7 +1399,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     const target = user.role === 'admin' ? (isConsolidatedView ? null : selectedFacility) : user.name;
     const fullRowKeys = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView, true, false);
     
-    // --- MAIN REPORT FETCH ---
     if (activeTab === 'main') {
         const newData = initData(fullRowKeys, false);
         let query = supabase.from('abtc_reports').select('*').eq('year', year);
@@ -1467,7 +1431,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
         setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
     }
     
-    // --- COHORT FETCH ---
     if (activeTab === 'cohort') {
         const newCohort = initData(fullRowKeys, true);
         let query = supabase.from('abtc_cohort_reports').select('*').eq('year', year);
@@ -1525,7 +1488,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     const target = user.role === 'admin' ? selectedFacility : user.name;
     setLoading(true);
     
-    const targetKey = currentHostMunicipality || MUNICIPALITIES[0]; // fallback
+    const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
 
     try {
         if (activeTab === 'main') {
@@ -1540,10 +1503,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
             if(payload.length > 0) await supabase.from('abtc_reports').insert(payload);
             setReportStatus(newStatus);
         } else {
-            // Cohort Save
-            // Check both categories for visible rows to determine what to save
             const payload = Object.entries(cohortData).map(([m, row]) => {
-                // If it has no data AND isn't in any visible list, skip it
                 if (!hasCohortData(row, 'cat2') && !hasCohortData(row, 'cat3') && 
                     !getRowKeysForFacility(target, false, false, true, visibleCat2).includes(m) && 
                     !getRowKeysForFacility(target, false, false, true, visibleCat3).includes(m)) return null;
@@ -1584,11 +1544,9 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
             return n;
         });
     } else {
-        // Cohort Change
         if (user.role === 'admin' || m === currentHostMunicipality) return;
         setCohortData(prev => {
             const n = { ...prev }; n[m] = { ...n[m], [f]: v };
-            // Auto compute host municipality total
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const tot = { ...INITIAL_COHORT_ROW };
                 const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
@@ -1640,17 +1598,15 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     return t;
   }, [cohortData]);
 
-  // Helper for rendering icons
   const getFacilityIcon = (facilityName) => {
       const type = facilityTypes[facilityName] || 'RHU';
       if (type === 'Hospital') return <Hospital size={20}/>;
       if (type === 'Clinic') return <Stethoscope size={20}/>;
-      return <Building2 size={20}/>; // Default RHU
+      return <Building2 size={20}/>; 
   };
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans text-zinc-900">
-      {/* --- Minimalist Header --- */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 no-print">
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1660,13 +1616,15 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
           <div className="flex items-center gap-2 md:gap-4">
             <NotificationBell user={user} />
             <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
-            <div className="hidden md:flex items-center gap-3 cursor-pointer p-1.5 rounded-lg hover:bg-gray-50 transition" onClick={() => setShowProfileModal(true)}>
-              <div className="text-right">
+            
+            <div className="flex items-center gap-3 cursor-pointer p-1.5 rounded-lg hover:bg-gray-50 transition" onClick={() => setShowProfileModal(true)}>
+              <div className="text-right hidden md:block">
                 <div className="text-sm font-medium leading-none">{userProfile?.full_name || user.fullName || user.name}</div>
                 <div className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mt-1">{user.role}</div>
               </div>
               <div className="bg-gray-100 p-2 rounded-full text-gray-600"><User size={16}/></div>
             </div>
+
             <button onClick={() => setShowSettingsModal(true)} className="text-gray-500 hover:text-zinc-900 p-2 transition"><Settings size={20} strokeWidth={1.5} /></button>
             <button onClick={onLogout} className="text-gray-500 hover:text-red-600 p-2 transition ml-2"><LogOut size={20} strokeWidth={1.5} /></button>
           </div>
@@ -1735,13 +1693,11 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                   {/* TAB SWITCHER */}
                    <div className="bg-white border border-gray-200 rounded-lg p-1 flex shadow-sm mr-4">
                       <button onClick={() => setActiveTab('main')} className={`px-4 py-1.5 text-sm font-medium rounded transition ${activeTab==='main'?'bg-zinc-900 text-white shadow':'text-gray-600 hover:bg-gray-50'}`}>ABTC Reporting</button>
                       <button onClick={() => setActiveTab('cohort')} className={`px-4 py-1.5 text-sm font-medium rounded transition ${activeTab==='cohort'?'bg-zinc-900 text-white shadow':'text-gray-600 hover:bg-gray-50'}`}>Cohort</button>
                    </div>
 
-                   {/* Filters */}
                    <div className="bg-white border border-gray-200 rounded-lg p-1 flex items-center shadow-sm">
                       <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-transparent text-sm font-medium text-zinc-900 p-1.5 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
                       <div className="w-px h-4 bg-gray-200"></div>
@@ -1752,7 +1708,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
 
                    <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block"></div>
 
-                   {/* Actions */}
                    <button 
                       disabled={isDownloadingPdf}
                       onClick={async () => {
@@ -1773,7 +1728,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                             <button onClick={() => handleSave('Approved')} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve</button>
                             <button onClick={() => handleSave('Rejected')} className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject</button>
                             
-                            {/* DELETE REPORT DATA BUTTON (Only if data exists i.e., not Draft) */}
                             {reportStatus !== 'Draft' && (
                                 <button onClick={() => setReportToDelete(true)} className="bg-red-50 border border-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-100 shadow-sm flex items-center gap-2 transition ml-2" title="Delete Report Data">
                                     <Trash2 size={16}/>
@@ -1791,7 +1745,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                 </div>
              </div>
              
-             {/* PRINT HEADER */}
              <div className="hidden print:flex mb-6 items-center justify-between gap-6 pt-4 px-8" style={{ ...PDF_STYLES.headerContainer, display: 'none' }} id="pdf-header">
                 <div style={PDF_STYLES.logoBox}>{globalSettings?.logo_base64 && <img src={globalSettings.logo_base64} alt="Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}</div>
                 <div style={PDF_STYLES.centerText}>
@@ -1800,6 +1753,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                      {activeTab === 'main' ? 'National Rabies and Bite Victims Report' : `Cohort Report - ${cohortSubTab === 'cat2' ? 'Category II' : 'Category III'}`}
                    </h2>
                    <p style={{fontSize:'11px', fontWeight:'bold', color:'#000'}}>{periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`)}</p>
+                   <p style={{fontSize:'10px', fontWeight:'bold', marginTop:'4px', color:'#000'}}>Facility Name: {activeFacilityName}</p>
                 </div>
                 <div style={PDF_STYLES.logoBox}>{userProfile?.facility_logo && <img src={userProfile.facility_logo} alt="Facility Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}</div>
              </div>
@@ -1899,7 +1853,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                       </tr>
                     );
                   })}
-                  {/* Grand Total */}
                   <tr style={{ ...PDF_STYLES.bgDark, fontWeight:'bold', fontSize:'11px' }}>
                     <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46', textAlign:'left', paddingLeft:'0.75rem'}}>{isConsolidatedView ? "PROVINCIAL TOTAL" : "GRAND TOTAL"}</td>
                     {['male','female'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals[k]}</td>)}
@@ -1919,15 +1872,12 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                 </tbody>
                </table>
                ) : (
-               // --- COHORT TABLE ---
                <div className="p-4">
-                 {/* Cohort Category Switcher */}
                  <div className="flex gap-4 mb-4 border-b border-gray-100 pb-2 no-print">
                     <button onClick={() => setCohortSubTab('cat2')} className={`text-sm font-semibold pb-1 border-b-2 transition ${cohortSubTab==='cat2' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Category II</button>
                     <button onClick={() => setCohortSubTab('cat3')} className={`text-sm font-semibold pb-1 border-b-2 transition ${cohortSubTab==='cat3' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Category III</button>
                  </div>
 
-                 {/* Category II Table */}
                  <div className={`cohort-table-hidden ${cohortSubTab === 'cat2' ? 'block' : 'hidden'}`}>
                      <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #e5e7eb', borderBottom: 'none', borderTopLeftRadius: '0.5rem', borderTopRightRadius: '0.5rem', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>CATEGORY II - EXPOSURES</div>
                      <table className="w-full border-collapse mb-8" style={{ borderColor: PDF_STYLES.border.borderColor }}>
@@ -2004,7 +1954,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                      </table>
                  </div>
 
-                 {/* Category III Table */}
                  <div className={`cohort-table-hidden ${cohortSubTab === 'cat3' ? 'block' : 'hidden'}`}>
                      <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #e5e7eb', borderBottom: 'none', borderTopLeftRadius: '0.5rem', borderTopRightRadius: '0.5rem', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>CATEGORY III - EXPOSURES</div>
                      <table className="w-full border-collapse" style={{ borderColor: PDF_STYLES.border.borderColor }}>
@@ -2084,7 +2033,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                )}
              </div>
 
-             {/* PRINT FOOTER */}
              <div className="hidden print:flex justify-around mt-12 text-center text-sm" style={{ display: 'none', justifyContent:'space-around', marginTop:'3rem', textAlign:'center', fontSize:'11px' }} id="pdf-footer">
                 {userProfile?.signatories?.length > 0 ? userProfile.signatories.map((sig, idx) => (
                   <div key={idx} className="flex flex-col items-center" style={{ minWidth: '150px', display:'flex', flexDirection:'column', alignItems:'center' }}>
@@ -2111,10 +2059,9 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
 
         {showManageUsers && <UserManagementModal onClose={() => setShowManageUsers(false)} facilities={facilities} client={adminHelperClient} />}
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
-        {showAddFacilityModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md"><div className="flex justify-between items-center mb-6"><h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2><button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button></div><AddFacilityForm onAdd={handleAddFacility} loading={isAddingFacility} /></div></div>)}
-        {showRejectModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200"><div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold text-rose-600 flex items-center gap-2"><MessageSquare size={20}/> Reject Report</h2><button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20}/></button></div><p className="text-gray-600 text-sm mb-4">Please provide a reason for rejecting this report.</p><textarea className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition" rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} autoFocus placeholder="e.g. Incomplete data for..."></textarea><div className="flex justify-end gap-3 mt-4"><button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition">Cancel</button><button onClick={confirmRejection} className="px-4 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-sm font-medium transition">Confirm Rejection</button></div></div></div>)}
+        {showAddFacilityModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-md"><div className="flex justify-between items-center mb-6"><h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2><button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button></div><AddFacilityForm onAdd={handleAddFacility} loading={isAddingFacility} /></div></div>)}
+        {showRejectModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200"><div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold text-rose-600 flex items-center gap-2"><MessageSquare size={20}/> Reject Report</h2><button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20}/></button></div><p className="text-gray-600 text-sm mb-4">Please provide a reason for rejecting this report.</p><textarea className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition" rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} autoFocus placeholder="e.g. Incomplete data for..."></textarea><div className="flex justify-end gap-3 mt-4"><button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition">Cancel</button><button onClick={confirmRejection} className="px-4 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-sm font-medium transition">Confirm Rejection</button></div></div></div>)}
         
-        {/* CUSTOM CONFIRMATION MODAL FOR DELETING FACILITY */}
         {facilityToDelete && (
           <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
               <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">
@@ -2143,7 +2090,6 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
           </div>
         )}
 
-        {/* CUSTOM CONFIRMATION MODAL FOR DELETING REPORT DATA */}
         {reportToDelete && (
           <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
               <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">
@@ -2164,10 +2110,9 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
           </div>
         )}
 
-        {/* CUSTOM CONFIRMATION MODAL FOR DELETING ROW */}
         {deleteConfirmation.isOpen && (
           <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xl w-full max-w-sm animate-in fade-in zoom-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-sm animate-in fade-in zoom-in duration-200">
               <div className="flex flex-col items-center text-center">
                 <div className="bg-red-50 p-3 rounded-full mb-4 text-red-600">
                   <AlertTriangle size={24} strokeWidth={2} />
@@ -2183,12 +2128,10 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
           </div>
         )}
         
-        {/* LEGAL MODALS */}
         {showPrivacyPolicy && <PrivacyModal onClose={() => setShowPrivacyPolicy(false)} />}
         {showTermsOfUse && <TermsModal onClose={() => setShowTermsOfUse(false)} />}
       </main>
 
-      {/* --- Footer --- */}
       <footer className="bg-white border-t border-gray-200 py-6 mt-auto no-print">
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-sm text-gray-500 flex flex-col md:flex-row items-center gap-4">
