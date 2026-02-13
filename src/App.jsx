@@ -303,7 +303,7 @@ function Login({ onLogin }) {
             <FileText size={32} strokeWidth={1.5} />
           </div>
           <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">ABTC-Reporting System</h1>
-          <p className="text-sm text-gray-500 mt-1">Developed by: Justice P. Belleza</p>
+          <p className="text-sm text-gray-500 mt-1 italic">For ABTC facility registration and account creation, please contact the Program Coordinator.</p>
         </div>
         
         {error && <div className="bg-red-50 text-red-600 p-3 rounded text-xs mb-6 border border-red-100 flex gap-2"><AlertCircle size={14}/> {error}</div>}
@@ -1360,7 +1360,7 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
     return barangays.length > 0 ? [...barangays, "Others:", ...MUNICIPALITIES] : MUNICIPALITIES;
   };
 
-  const activeFacilityName = user.role === 'admin' ? (isConsolidatedView ? 'PHO Consolidated' : selectedFacility) : user.name;
+  const activeFacilityName = user.role === 'admin' ? (isConsolidatedView ? 'PHO' : selectedFacility) : user.name;
   
   const currentRows = useMemo(() => (user.role === 'admin' && adminViewMode === 'dashboard') ? [] : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, false, visibleOtherMunicipalities), [activeFacilityName, isConsolidatedView, facilityBarangays, user.role, adminViewMode, visibleOtherMunicipalities]);
   
@@ -1604,6 +1604,22 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       if (type === 'Clinic') return <Stethoscope size={20}/>;
       return <Building2 size={20}/>; 
   };
+  
+  // --- HELPER FOR COHORT PREVIOUS PERIOD ---
+  const getPreviousPeriodText = () => {
+    if (periodType === 'Annual') {
+      return `Annual ${year - 1}`;
+    }
+    if (periodType === 'Quarterly') {
+      const idx = QUARTERS.indexOf(quarter);
+      if (idx === 0) return `4th Quarter ${year - 1}`;
+      return `${QUARTERS[idx - 1]} ${year}`;
+    }
+    // Monthly
+    const idx = MONTHS.indexOf(month);
+    if (idx === 0) return `December ${year - 1}`;
+    return `${MONTHS[idx - 1]} ${year}`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans text-zinc-900">
@@ -1611,7 +1627,8 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
              <div className="bg-zinc-900 text-white p-1.5 rounded-lg"><FileText size={18} strokeWidth={2}/></div>
-             <span className="font-semibold tracking-tight text-lg">ABTC-Reporting System</span>
+             {/* UPDATED: Added text-sm for mobile, md:text-lg for desktop */}
+             <span className="font-semibold tracking-tight text-sm md:text-lg">ABTC-Reporting System</span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <NotificationBell user={user} />
@@ -1745,15 +1762,30 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                 </div>
              </div>
              
+             {/* --- UPDATED PDF HEADER --- */}
              <div className="hidden print:flex mb-6 items-center justify-between gap-6 pt-4 px-8" style={{ ...PDF_STYLES.headerContainer, display: 'none' }} id="pdf-header">
                 <div style={PDF_STYLES.logoBox}>{globalSettings?.logo_base64 && <img src={globalSettings.logo_base64} alt="Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}</div>
                 <div style={PDF_STYLES.centerText}>
                    <h1 style={{fontSize:'12px', fontWeight:'bold', textTransform:'uppercase', letterSpacing:'1px', color:'#000'}}>National Rabies Prevention and Control Program</h1>
+                   
+                   {/* UPDATED: Dynamic Title based on Tab */}
                    <h2 style={{fontSize:'14px', fontWeight:'bold', textTransform:'uppercase', margin:'4px 0', color:'#000'}}>
-                     {activeTab === 'main' ? 'National Rabies and Bite Victims Report' : `Cohort Report - ${cohortSubTab === 'cat2' ? 'Category II' : 'Category III'}`}
+                     {activeTab === 'main' 
+                        ? 'Form 1 - Accomplishment Report' 
+                        : `Cohort Report - ${cohortSubTab === 'cat2' ? 'Category II' : 'Category III'}`}
                    </h2>
-                   <p style={{fontSize:'11px', fontWeight:'bold', color:'#000'}}>{periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`)}</p>
-                   <p style={{fontSize:'10px', fontWeight:'bold', marginTop:'4px', color:'#000'}}>Facility Name: {activeFacilityName}</p>
+
+                   {/* UPDATED: Date Logic (Current for Main, Previous for Cohort) */}
+                   <p style={{fontSize:'11px', fontWeight:'bold', color:'#000'}}>
+                     {activeTab === 'cohort' 
+                        ? `Reporting For: ${getPreviousPeriodText()}`
+                        : (periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`))}
+                   </p>
+
+                   {/* UPDATED: Specific text format for Facility */}
+                   <p style={{fontSize:'10px', fontWeight:'bold', marginTop:'4px', color:'#000'}}>
+                      Health Facility: {activeFacilityName}
+                   </p>
                 </div>
                 <div style={PDF_STYLES.logoBox}>{userProfile?.facility_logo && <img src={userProfile.facility_logo} alt="Facility Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}</div>
              </div>
@@ -1873,6 +1905,18 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                </table>
                ) : (
                <div className="p-4">
+                 
+                 {/* --- NEW COHORT GUIDE --- */}
+                 {activeTab === 'cohort' && (
+                    <div className="mb-4 p-3 bg-blue-50 text-blue-700 text-xs italic rounded-lg border border-blue-100 flex items-center gap-2 no-print">
+                        <AlertCircle size={14} />
+                        <span>
+                            <strong>Guide:</strong> You are currently viewing the Cohort Report.
+                            Please ensure you are reporting outcome data for the <u>previous period</u>: <strong>{getPreviousPeriodText()}</strong>.
+                        </span>
+                    </div>
+                 )}
+
                  <div className="flex gap-4 mb-4 border-b border-gray-100 pb-2 no-print">
                     <button onClick={() => setCohortSubTab('cat2')} className={`text-sm font-semibold pb-1 border-b-2 transition ${cohortSubTab==='cat2' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Category II</button>
                     <button onClick={() => setCohortSubTab('cat3')} className={`text-sm font-semibold pb-1 border-b-2 transition ${cohortSubTab==='cat3' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Category III</button>
@@ -2033,15 +2077,26 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
                )}
              </div>
 
-             <div className="hidden print:flex justify-around mt-12 text-center text-sm" style={{ display: 'none', justifyContent:'space-around', marginTop:'3rem', textAlign:'center', fontSize:'11px' }} id="pdf-footer">
-                {userProfile?.signatories?.length > 0 ? userProfile.signatories.map((sig, idx) => (
-                  <div key={idx} className="flex flex-col items-center" style={{ minWidth: '150px', display:'flex', flexDirection:'column', alignItems:'center' }}>
-                    <div style={{marginBottom:'0.5rem', fontWeight:'bold', fontSize:'10px', textTransform:'uppercase', color:'#4b5563'}}>{sig.label}</div>
-                    <div style={{height:'3.5rem', width:'100%'}}></div>
-                    <p style={{fontWeight:'bold', textTransform:'uppercase', borderTop:'1px solid #000', padding:'0.25rem 2rem', marginTop:'0.25rem', width:'100%', color: '#000'}}>{sig.name}</p>
-                    <p style={{fontSize:'10px', color:'#374151'}}>{sig.title}</p>
-                  </div>
-                )) : null}
+             {/* --- UPDATED PDF FOOTER --- */}
+             <div className="hidden print:flex flex-col mt-auto" style={{ display: 'none', marginTop:'auto' }} id="pdf-footer">
+                
+                {/* SIGNATORIES */}
+                <div className="flex justify-around text-center text-sm" style={{ display: 'flex', justifyContent:'space-around', marginBottom:'20px' }}>
+                  {userProfile?.signatories?.length > 0 ? userProfile.signatories.map((sig, idx) => (
+                    <div key={idx} className="flex flex-col items-center" style={{ minWidth: '150px', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                      <div style={{marginBottom:'0.5rem', fontWeight:'bold', fontSize:'10px', textTransform:'uppercase', color:'#4b5563'}}>{sig.label}</div>
+                      <div style={{height:'3.5rem', width:'100%'}}></div>
+                      <p style={{fontWeight:'bold', textTransform:'uppercase', borderTop:'1px solid #000', padding:'0.25rem 2rem', marginTop:'0.25rem', width:'100%', color: '#000'}}>{sig.name}</p>
+                      <p style={{fontSize:'10px', color:'#374151'}}>{sig.title}</p>
+                    </div>
+                  )) : null}
+                </div>
+
+                {/* GENERATED INFO */}
+                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '10px', fontSize: '8px', color: '#9ca3af', display: 'flex', justifyContent: 'space-between' }}>
+                   <span>Generated on: {new Date().toLocaleString()}</span>
+                   <span>Generated by: {userProfile?.full_name || user.fullName || user.name}</span>
+                </div>
              </div>
           </div>
         )}
@@ -2133,23 +2188,32 @@ function Dashboard({ user, facilities, setFacilities, facilityBarangays, setFaci
       </main>
 
       <footer className="bg-white border-t border-gray-200 py-6 mt-auto no-print">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-sm text-gray-500 flex flex-col md:flex-row items-center gap-4">
-            <span>&copy; 2026 Justice Belleza. Independent project.</span>
-            <div className="hidden md:block w-px h-3 bg-gray-300"></div>
-            <div className="flex items-center gap-4">
-              <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-zinc-900 hover:underline transition">Privacy Policy</button>
-              <button onClick={() => setShowTermsOfUse(true)} className="hover:text-zinc-900 hover:underline transition">Terms of Use</button>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span>GitHub Profile →</span>
-            <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="text-zinc-900 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-gray-100">
-              <Github size={16} />
-            </a>
-          </div>
-        </div>
-      </footer>
+  <div className="max-w-[1600px] mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div className="text-sm text-gray-500 flex flex-col md:flex-row items-center gap-4">
+      <span>&copy; 2026 Justice Belleza. Independent project.</span>
+      <div className="hidden md:block w-px h-3 bg-gray-300"></div>
+      <div className="flex items-center gap-4">
+        <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-zinc-900 hover:underline transition">Privacy Policy</button>
+        <button onClick={() => setShowTermsOfUse(true)} className="hover:text-zinc-900 hover:underline transition">Terms of Use</button>
+        <a 
+          href="/images/System_Manual.pdf" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="hover:text-zinc-900 hover:underline transition"
+        >
+          User Manual
+        </a>
+
+      </div>
+    </div>
+    <div className="flex items-center gap-2 text-sm text-gray-500">
+      <span>GitHub Profile →</span>
+      <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="text-zinc-900 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-gray-100">
+        <Github size={16} />
+      </a>
+    </div>
+  </div>
+</footer>
     </div>
   );
 }
