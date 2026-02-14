@@ -1,7 +1,6 @@
-# ABTC ReportSys
+# ABTC Reporting System
 
-**Animal Bite Treatment Center Reporting System**  
-Developed independently by Justice Belleza.
+**Animal Bite Treatment Center Reporting System** Developed independently by Justice Belleza.
 
 ---
 
@@ -15,7 +14,7 @@ No organization or workplace holds ownership or authorship over this system.
 
 ## Overview
 
-ABTC ReportSys is a reporting system for Animal Bite Treatment Centers.  
+**ABTC Reporting System** is a reporting system for Animal Bite Treatment Centers.  
 The system **does not collect patient-identifiable data**; it only collects:
 
 - Number of animal bite cases
@@ -54,7 +53,6 @@ The system provides a **secure, fast, and easy-to-use tool** for reporting and r
 
 ## Author
 
-**Justice Belleza**  
-Email: justice.belleza@icloud.com  
+**Justice Belleza** Email: justice.belleza@icloud.com  
 Domain: [abtcrs.com](https://abtcrs.com)  
 © 2026 Justice Belleza. Independent project.
