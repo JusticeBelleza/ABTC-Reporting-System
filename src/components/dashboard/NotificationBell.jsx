@@ -3,19 +3,30 @@ import { Bell } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
-export default function NotificationBell() {
+export default function NotificationBell({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
 
+  // Determine the recipient strictly.
+  // Admin sees 'PHO Admin', Facilities see their specific Name.
+  const recipient = user?.role === 'admin' ? 'PHO Admin' : user?.name;
+
   // 1. Fetch & Subscribe
   useEffect(() => {
+    if (!recipient) return;
+    
     fetchNotifications();
 
     const subscription = supabase
       .channel('public:notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'notifications',
+        filter: `recipient=eq.${recipient}` 
+      }, (payload) => {
         setNotifications((prev) => [payload.new, ...prev]);
         setUnreadCount((prev) => prev + 1);
         toast.info("New Notification received");
@@ -23,7 +34,7 @@ export default function NotificationBell() {
       .subscribe();
 
     return () => { supabase.removeChannel(subscription); };
-  }, []);
+  }, [recipient]);
 
   // 2. Click Outside Listener
   useEffect(() => {
@@ -42,13 +53,13 @@ export default function NotificationBell() {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
+        .eq('recipient', recipient) // STRICTLY filter by recipient
         .order('created_at', { ascending: false })
         .limit(20);
 
       if (error) throw error;
 
       setNotifications(data || []);
-      // Calculate unread count strictly from the DB data
       const unread = data ? data.filter(n => !n.read).length : 0;
       setUnreadCount(unread);
     } catch (error) {
@@ -58,14 +69,15 @@ export default function NotificationBell() {
 
   // 4. Mark All Read Logic
   const markAllAsRead = async () => {
-    // 1. Immediately update UI (Optimistic)
     const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
     if (unreadIds.length === 0) return;
 
-    setUnreadCount(0); // Clear red dot immediately
-    setNotifications(prev => prev.map(n => ({ ...n, read: true }))); // Remove blue highlights
+    // 1. Optimistic Update (Clear UI immediately)
+    const prevCount = unreadCount;
+    setUnreadCount(0); 
+    setNotifications(prev => prev.map(n => ({ ...n, read: true }))); 
 
-    // 2. Update Supabase in Background
+    // 2. Update Supabase
     try {
       const { error } = await supabase
         .from('notifications')
@@ -73,20 +85,22 @@ export default function NotificationBell() {
         .in('id', unreadIds);
 
       if (error) {
-        console.error("Supabase Update Failed:", error.message);
-        // Optional: Revert UI if needed, but usually better to fail silently 
-        // or show a toast if strictly necessary.
+        throw error; // Trigger catch block
       }
     } catch (err) {
-      console.error("System Error:", err);
+      console.error("Supabase Update Failed:", err.message);
+      toast.error(`Could not save 'Read' status: ${err.message}`);
+      
+      // Revert UI changes because save failed
+      setUnreadCount(prevCount);
+      fetchNotifications(); 
     }
   };
 
-  // 5. Handle Toggle
   const handleToggle = () => {
     if (!isOpen) {
         setIsOpen(true);
-        markAllAsRead(); // Triggers DB update
+        markAllAsRead(); 
     } else {
         setIsOpen(false);
     }
@@ -94,7 +108,6 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bell Trigger */}
       <button 
         onClick={handleToggle} 
         className="relative p-2 text-gray-600 hover:text-zinc-900 transition-colors rounded-full hover:bg-gray-100 outline-none focus:ring-2 focus:ring-zinc-200"
@@ -105,22 +118,11 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* Dropdown */}
       {isOpen && (
-        <div className={`
-            /* MOBILE STYLES: Fixed position, centered with margins */
-            fixed top-16 left-4 right-4 z-50
-            
-            /* DESKTOP STYLES: Absolute position, right-aligned */
-            sm:absolute sm:top-full sm:right-0 sm:left-auto sm:w-96 sm:mt-2
-            
-            bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right
-        `}>
-          
+        <div className="fixed top-16 left-4 right-4 z-50 sm:absolute sm:top-full sm:right-0 sm:left-auto sm:w-96 sm:mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
           <div className="flex items-center justify-between p-4 border-b border-gray-50 bg-gray-50/50">
             <h3 className="font-semibold text-zinc-900">Notifications</h3>
           </div>
-
           <div className="max-h-[60vh] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-8 text-center text-gray-500 text-sm">
@@ -130,10 +132,7 @@ export default function NotificationBell() {
             ) : (
               <div className="divide-y divide-gray-50">
                 {notifications.map((notification) => (
-                  <div 
-                    key={notification.id} 
-                    className={`p-4 hover:bg-gray-50 transition-colors flex gap-3 ${!notification.read ? 'bg-blue-50/10' : ''}`}
-                  >
+                  <div key={notification.id} className={`p-4 hover:bg-gray-50 transition-colors flex gap-3 ${!notification.read ? 'bg-blue-50/10' : ''}`}>
                     <div className="flex-1">
                       <p className={`text-sm ${!notification.read ? 'text-zinc-900 font-semibold' : 'text-gray-600'}`}>
                         {notification.message || notification.content}
