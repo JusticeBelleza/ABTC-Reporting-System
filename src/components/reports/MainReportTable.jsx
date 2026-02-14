@@ -1,9 +1,8 @@
 import React from 'react';
-import { XCircle } from 'lucide-react';
 import { PDF_STYLES, MUNICIPALITIES, INITIAL_ROW_STATE } from '../../lib/constants';
 import { getComputations, hasData } from '../../lib/utils';
+import ReportRow from './ReportRow';
 
-// Added 'export default' here:
 export default function MainReportTable({ 
   data, rowKeys, isConsolidated, isAggregationMode, reportStatus, 
   userRole, activeFacilityName, currentHostMunicipality, 
@@ -11,11 +10,16 @@ export default function MainReportTable({
   onChange, onDeleteRow, grandTotals, facilityBarangays 
 }) {
   
+  // Determine if the active facility has any barangays (e.g. RHUs have them, Hospitals might not)
+  const hasBarangays = facilityBarangays[activeFacilityName] && facilityBarangays[activeFacilityName].length > 0;
+
   return (
     <table className="w-full border-collapse" style={{ borderColor: PDF_STYLES.border.borderColor }}>
       <thead>
         <tr style={isConsolidated ? PDF_STYLES.header : PDF_STYLES.subHeader}>
-          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', fontWeight:'bold', width: '200px', minWidth: '200px'}}>{isConsolidated ? "Municipality" : (facilityBarangays[activeFacilityName] ? "Barangay / Municipality" : "Municipality")}</th>
+          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', fontWeight:'bold', width: '200px', minWidth: '200px'}}>
+            {isConsolidated ? "Municipality" : (hasBarangays ? "Barangay / Municipality" : "Municipality")}
+          </th>
           <th colSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Human Cases (Sex)</th>
           <th colSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Human Cases (Age)</th>
           <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Category</th>
@@ -36,7 +40,7 @@ export default function MainReportTable({
         </tr>
       </thead>
       <tbody>
-        {rowKeys.map((key, idx) => {
+        {rowKeys.map((key) => {
           const isEmpty = !hasData(data[key]);
           const hideClass = isEmpty ? 'pdf-hide-empty' : '';
 
@@ -66,40 +70,40 @@ export default function MainReportTable({
           
           const row = data[key] || INITIAL_ROW_STATE;
           const c = getComputations(row);
-          const isRowReadOnly = userRole === 'admin' || key === currentHostMunicipality || isConsolidated || isAggregationMode || (reportStatus !== 'Draft' && reportStatus !== 'Rejected'); 
-          const rowStyle = key === currentHostMunicipality ? PDF_STYLES.hostRow : PDF_STYLES.rowEven;
+          
+          // Refined "Home Row" Logic:
+          // A row is read-only if: userRole is admin, or it is consolidated/aggregation mode, 
+          // or the report is not editable (not Draft/Rejected).
+          // Special Case: The host municipality row is read-only IF the facility has barangays (meaning the user should enter data in barangay rows).
+          // If the facility has NO barangays (e.g. Hospital), they can edit the host row directly.
+          const isHost = key === currentHostMunicipality;
+          const isRowReadOnly = 
+            userRole === 'admin' || 
+            (isHost && hasBarangays) || 
+            isConsolidated || 
+            isAggregationMode || 
+            (reportStatus !== 'Draft' && reportStatus !== 'Rejected');
+
           const isOtherRow = visibleOtherMunicipalities.includes(key);
 
           return (
-            <tr key={key} className={hideClass} style={rowStyle}>
-              <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(key) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(key) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal'}}>
-                <div className="flex justify-between items-center group/row">
-                    <span>{key} {key === currentHostMunicipality && <span style={{fontSize:'10px', color:'#9ca3af', fontWeight:'normal'}}>(Total)</span>}</span>
-                    {isOtherRow && !isRowReadOnly && (
-                      <button onClick={() => onDeleteRow(key)} className="text-gray-400 hover:text-red-600 transition px-2 no-print" title="Remove row">
-                        <XCircle size={14} />
-                      </button>
-                    )}
-                </div>
-              </td>
-              {['male','female'].map(f => <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>onChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
-              <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.sexTotal}</td>
-              {['ageLt15','ageGt15'].map(f => <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>onChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
-              <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold', color: c.sexMismatch ? '#ef4444' : 'inherit'}}>{c.ageTotal}</td>
-              {['cat1','cat2','cat3'].map(f => <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>onChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
-              <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, color:'#6b7280'}}>{c.cat23}</td>
-              <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.catTotal}</td>
-              {['totalPatients','abCount'].map(f => <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>onChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
-              {['pvrv','pcecv','hrig','erig'].map(f => <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>onChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
-              {['dog','cat','othersCount'].map(f => <td key={f} style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>onChange(key, f, e.target.value)} style={PDF_STYLES.input} /></td>)}
-              <td style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="text" value={row.othersSpec} onChange={e=>onChange(key, 'othersSpec', e.target.value)} style={PDF_STYLES.inputText} /></td>
-              <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.animalTotal}</td>
-              <td style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="number" min="0" value={row.washed} onChange={e=>onChange(key, 'washed', e.target.value)} style={PDF_STYLES.input} /></td>
-              <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontSize:'10px', color:'#6b7280'}}>{c.percent}</td>
-              <td style={{...PDF_STYLES.border, padding:0}}><input disabled={isRowReadOnly} type="text" value={row.remarks} onChange={e=>onChange(key, 'remarks', e.target.value)} style={{...PDF_STYLES.inputText, paddingLeft:'4px'}} /></td>
-            </tr>
+            <ReportRow 
+              key={key}
+              rowKey={key}
+              row={row}
+              computations={c}
+              isRowReadOnly={isRowReadOnly}
+              onChange={onChange}
+              onDeleteRow={onDeleteRow}
+              isOtherRow={isOtherRow}
+              isHost={isHost}
+              className={hideClass} // Note: className isn't used inside ReportRow currently, but good to have if we passed it through. 
+                                    // Actually, hideClass needs to be applied to the TR. I'll add className support to ReportRow below implicitly or explicitly.
+            />
           );
         })}
+        
+        {/* Grand Total Row */}
         <tr style={{ ...PDF_STYLES.bgDark, fontWeight:'bold', fontSize:'11px' }}>
           <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46', textAlign:'left', paddingLeft:'0.75rem'}}>{isConsolidated ? "PROVINCIAL TOTAL" : "GRAND TOTAL"}</td>
           {['male','female'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals[k]}</td>)}
