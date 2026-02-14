@@ -10,7 +10,8 @@ const ReportRow = React.memo(({
   onChange, 
   onDeleteRow, 
   isOtherRow,
-  isHost 
+  isHost,
+  className // 1. Accept the className prop here
 }) => {
   
   const rowStyle = isHost ? PDF_STYLES.hostRow : PDF_STYLES.rowEven;
@@ -21,7 +22,8 @@ const ReportRow = React.memo(({
   };
 
   return (
-    <tr style={rowStyle}>
+    // 2. Apply the className to the table row
+    <tr style={rowStyle} className={className}>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(rowKey) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
         <div className="flex justify-between items-center group/row">
             <span>{rowKey} {isHost && <span style={{fontSize:'10px', color:'#9ca3af', fontWeight:'normal'}}>(Total)</span>}</span>
@@ -103,7 +105,9 @@ const ReportRow = React.memo(({
     prevProps.isOtherRow === nextProps.isOtherRow &&
     prevProps.isHost === nextProps.isHost &&
     // Check computations object equality (values)
-    JSON.stringify(prevProps.computations) === JSON.stringify(nextProps.computations)
+    JSON.stringify(prevProps.computations) === JSON.stringify(nextProps.computations) &&
+    // 3. Ensure className is included in comparison so it re-renders if visibility changes
+    prevProps.className === nextProps.className 
   );
 });
 
