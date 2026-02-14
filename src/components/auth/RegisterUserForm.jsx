@@ -5,10 +5,15 @@ import { toast } from 'sonner';
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
-// Added 'export default' here:
 export default function RegisterUserForm({ facilities, client, onSuccess }) {
   const [formData, setFormData] = useState({
-    email: '', password: '', fullName: '', designation: '', contactNumber: '', facility: facilities[0] || '', role: 'user'
+    email: '', 
+    password: '', 
+    fullName: '', 
+    designation: '', 
+    contactNumber: '', 
+    facility: facilities[0] || '', 
+    role: 'user'
   });
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState();
@@ -23,8 +28,11 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
         password: formData.password,
         options: {
           captchaToken,
+          // DATA PASSED HERE IS ACCESSIBLE VIA raw_user_meta_data IN SQL
           data: { 
             full_name: formData.fullName,
+            designation: formData.designation,      // Added this
+            phone_number: formData.contactNumber,   // Added this (mapped to phone_number)
             facility_name: formData.facility,
             role: formData.role
           }
@@ -34,6 +42,16 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
       
       if (authData.user) {
          toast.success("User created successfully");
+         // Reset form
+         setFormData({
+            email: '', 
+            password: '', 
+            fullName: '', 
+            designation: '', 
+            contactNumber: '', 
+            facility: facilities[0] || '', 
+            role: 'user'
+         });
          if(onSuccess) onSuccess();
       }
       if (captcha.current) captcha.current.resetCaptcha();
@@ -50,13 +68,28 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
        <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-xs font-medium text-gray-700 mb-1">Email</label><input type="email" required value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
-          <div><label className="block text-xs font-medium text-gray-700 mb-1">Password</label><input type="password" required minLength={6} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+            <input type="email" required value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
+            <input type="password" required minLength={6} value={formData.password} onChange={e=>setFormData({...formData, password: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" />
+          </div>
        </div>
-       <div><label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label><input type="text" required value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
+       <div>
+         <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+         <input type="text" required value={formData.fullName} onChange={e=>setFormData({...formData, fullName: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" />
+       </div>
        <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-xs font-medium text-gray-700 mb-1">Designation</label><input type="text" value={formData.designation} onChange={e=>setFormData({...formData, designation: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
-          <div><label className="block text-xs font-medium text-gray-700 mb-1">Contact No.</label><input type="text" value={formData.contactNumber} onChange={e=>setFormData({...formData, contactNumber: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" /></div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
+            <input type="text" value={formData.designation} onChange={e=>setFormData({...formData, designation: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Contact No.</label>
+            <input type="text" value={formData.contactNumber} onChange={e=>setFormData({...formData, contactNumber: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" />
+          </div>
        </div>
        <div className="grid grid-cols-2 gap-4">
          <div>

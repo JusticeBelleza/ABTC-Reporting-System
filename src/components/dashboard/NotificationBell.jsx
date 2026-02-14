@@ -1,118 +1,153 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 export default function NotificationBell() {
+  const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
+  // 1. Fetch & Subscribe
   useEffect(() => {
-    // 1. Create the channel
-    const channel = supabase
-      .channel('public:notifications') 
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new, ...prev]);
-          setUnreadCount((prev) => prev + 1);
-        }
-      )
+    fetchNotifications();
+
+    const subscription = supabase
+      .channel('public:notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        setNotifications((prev) => [payload.new, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+        toast.info("New Notification received");
+      })
       .subscribe();
 
-    // 2. Fetch initial data
-    const fetchNotifications = async () => {
-      const { data } = await supabase
+    return () => { supabase.removeChannel(subscription); };
+  }, []);
+
+  // 2. Click Outside Listener
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownRef]);
+
+  // 3. Fetch Notifications from DB
+  const fetchNotifications = async () => {
+    try {
+      const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (data) {
-        setNotifications(data);
-        setUnreadCount(data.length); 
+        .limit(20);
+
+      if (error) throw error;
+
+      setNotifications(data || []);
+      // Calculate unread count strictly from the DB data
+      const unread = data ? data.filter(n => !n.read).length : 0;
+      setUnreadCount(unread);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  // 4. Mark All Read Logic
+  const markAllAsRead = async () => {
+    // 1. Immediately update UI (Optimistic)
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length === 0) return;
+
+    setUnreadCount(0); // Clear red dot immediately
+    setNotifications(prev => prev.map(n => ({ ...n, read: true }))); // Remove blue highlights
+
+    // 2. Update Supabase in Background
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .in('id', unreadIds);
+
+      if (error) {
+        console.error("Supabase Update Failed:", error.message);
+        // Optional: Revert UI if needed, but usually better to fail silently 
+        // or show a toast if strictly necessary.
       }
-    };
+    } catch (err) {
+      console.error("System Error:", err);
+    }
+  };
 
-    fetchNotifications();
-
-    // 3. CLEANUP FUNCTION
-    // We explicitly catch errors here to suppress the "await in removeChannel" 
-    // error that occurs during React Strict Mode's rapid unmounting.
-    return () => {
-      if (channel) {
-        // We use a try-catch block around the promise chain as a safeguard
-        try {
-          supabase.removeChannel(channel).catch((err) => {
-            // Intentionally empty: suppress "WebSocket is closed" errors 
-            // caused by Strict Mode unmounting before connection is established.
-          });
-        } catch (e) {
-          // Ignore synchronous errors if any
-        }
-      }
-    };
-  }, []);
-
-  const handleOpen = () => {
-    setIsOpen(!isOpen);
+  // 5. Handle Toggle
+  const handleToggle = () => {
     if (!isOpen) {
-      setUnreadCount(0);
+        setIsOpen(true);
+        markAllAsRead(); // Triggers DB update
+    } else {
+        setIsOpen(false);
     }
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
+      {/* Bell Trigger */}
       <button 
-        onClick={handleOpen} 
-        className="relative p-2 text-gray-400 hover:text-white transition-colors focus:outline-none"
+        onClick={handleToggle} 
+        className="relative p-2 text-gray-600 hover:text-zinc-900 transition-colors rounded-full hover:bg-gray-100 outline-none focus:ring-2 focus:ring-zinc-200"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
-            {unreadCount}
-          </span>
+          <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
         )}
       </button>
 
+      {/* Dropdown */}
       {isOpen && (
-        <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setIsOpen(false)}
-          />
-          
-          <div className="absolute right-0 w-80 mt-2 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={14} />
-              </button>
-            </div>
+        <div className={`
+            /* MOBILE STYLES: Fixed position, centered with margins */
+            fixed top-16 left-4 right-4 z-50
             
-            <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
-                <div className="px-4 py-6 text-center text-sm text-gray-500">
-                  No new notifications
-                </div>
-              ) : (
-                notifications.map((n, i) => (
-                  <div key={n.id || i} className="px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <p className="text-sm text-gray-800">{n.message}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(n.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
+            /* DESKTOP STYLES: Absolute position, right-aligned */
+            sm:absolute sm:top-full sm:right-0 sm:left-auto sm:w-96 sm:mt-2
+            
+            bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right
+        `}>
+          
+          <div className="flex items-center justify-between p-4 border-b border-gray-50 bg-gray-50/50">
+            <h3 className="font-semibold text-zinc-900">Notifications</h3>
           </div>
-        </>
+
+          <div className="max-h-[60vh] overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 text-sm">
+                <Bell className="mx-auto mb-3 opacity-20" size={32} />
+                No notifications yet
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {notifications.map((notification) => (
+                  <div 
+                    key={notification.id} 
+                    className={`p-4 hover:bg-gray-50 transition-colors flex gap-3 ${!notification.read ? 'bg-blue-50/10' : ''}`}
+                  >
+                    <div className="flex-1">
+                      <p className={`text-sm ${!notification.read ? 'text-zinc-900 font-semibold' : 'text-gray-600'}`}>
+                        {notification.message || notification.content}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(notification.created_at).toLocaleDateString()} • {new Date(notification.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
