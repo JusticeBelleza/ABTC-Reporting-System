@@ -74,8 +74,8 @@ export default function MainReportTable({
           // Refined "Home Row" Logic:
           // A row is read-only if: userRole is admin, or it is consolidated/aggregation mode, 
           // or the report is not editable (not Draft/Rejected).
-          // Special Case: The host municipality row is read-only IF the facility has barangays (meaning the user should enter data in barangay rows).
-          // If the facility has NO barangays (e.g. Hospital), they can edit the host row directly.
+          // Special Case: The host municipality row is read-only IF the facility has barangays.
+          // IF hasBarangays is FALSE (Hospital), then (isHost && hasBarangays) evaluates to FALSE, unlocking the row.
           const isHost = key === currentHostMunicipality;
           const isRowReadOnly = 
             userRole === 'admin' || 
@@ -97,8 +97,7 @@ export default function MainReportTable({
               onDeleteRow={onDeleteRow}
               isOtherRow={isOtherRow}
               isHost={isHost}
-              className={hideClass} // Note: className isn't used inside ReportRow currently, but good to have if we passed it through. 
-                                    // Actually, hideClass needs to be applied to the TR. I'll add className support to ReportRow below implicitly or explicitly.
+              className={hideClass} 
             />
           );
         })}

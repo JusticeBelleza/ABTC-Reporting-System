@@ -1,7 +1,6 @@
 import React from 'react';
 import { Shield, X } from 'lucide-react';
 
-// Added 'export default'
 export default function PrivacyModal({ onClose }) {
   return (
     <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
@@ -16,19 +15,29 @@ export default function PrivacyModal({ onClose }) {
             <p>
               The ABTC Reporting System respects user privacy and is committed to protecting any personal information 
               collected through the system in accordance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>. 
+              This Privacy Policy explains what information is collected, how it is used, and how it is protected.
             </p>
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 mb-2">1. Information Collection</h3>
-            <p>We collect minimal information required for the operation of the rabies reporting facility, including facility names, authorized user accounts, and aggregated patient statistics.</p>
+            <h3 className="font-bold text-gray-900 mb-2">1. Information We Collect</h3>
+            <p>The ABTC Reporting System <strong>does not collect patient-identifiable data</strong>. In compliance with transparency principles, the system only collects the following information for operational and reporting purposes:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li><strong>Aggregated Case Data:</strong> Number of animal bite cases, statistical summaries, and non-identifiable figures.</li>
+                <li><strong>User / Employee Information:</strong> Full name, designation, email address, and contact number.</li>
+            </ul>
+            <p className="mt-2">No patient names, addresses, medical records, or personally identifiable health information are collected or stored.</p>
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 mb-2">2. Use of Information</h3>
-            <p>Data is used solely for the purpose of generating consolidated reports for the Provincial Health Office. No personal patient information (PII) is exposed to unauthorized users.</p>
+            <h3 className="font-bold text-gray-900 mb-2">2. Purpose of Data Collection</h3>
+            <p>The collected information is processed solely to generate reports, identify responsible personnel, support administration, and improve system reliability. All data processing is conducted for legitimate purposes and is not used for marketing or commercial advertising.</p>
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 mb-2">3. Data Security</h3>
-            <p>We implement appropriate technical and organizational measures to protect the stored data against unauthorized access.</p>
+            <h3 className="font-bold text-gray-900 mb-2">3. Data Sharing and Security</h3>
+            <p>The ABTC Reporting System does not sell, share, or disclose data to third parties. Access is strictly limited to authorized users. In line with the Data Privacy Act of 2012, reasonable technical and organizational measures are implemented to protect information against unauthorized access or processing, though no system can guarantee absolute security.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 mb-2">4. Contact</h3>
+            <p>For questions regarding this Privacy Policy or to exercise your rights under the Data Privacy Act of 2012, please contact: <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:underline">justice.belleza@icloud.com</a></p>
           </div>
         </div>
       </div>

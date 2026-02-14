@@ -375,6 +375,32 @@ export default function Dashboard({ user, facilities, setFacilities, facilityBar
     const idx = MONTHS.indexOf(month); if (idx === 0) return `December ${year - 1}`; return `${MONTHS[idx - 1]} ${year}`;
   };
 
+  // --- NEW HANDLER FOR DATA-DRIVEN PDF ---
+  const handleDownloadClick = async () => {
+    setIsDownloadingPdf(true);
+    const periodText = activeTab === 'cohort' 
+        ? getPreviousPeriodText() 
+        : (periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`));
+    
+    const suffix = activeTab === 'cohort' ? (cohortSubTab === 'cat2' ? '_Category_II' : '_Category_III') : '';
+    const filename = `Report_${activeFacilityName.replace(/\s+/g,'_')}_${year}${suffix}.pdf`;
+
+    await downloadPDF({
+        type: activeTab,
+        cohortType: cohortSubTab,
+        filename,
+        data: activeTab === 'main' ? data : cohortData,
+        rowKeys: activeTab === 'main' ? currentRows : (cohortSubTab === 'cat2' ? cohortRowsCat2 : cohortRowsCat3),
+        grandTotals,
+        cohortTotals,
+        periodText,
+        facilityName: activeFacilityName,
+        userProfile,
+        globalSettings
+    });
+    setIsDownloadingPdf(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans text-zinc-900">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 no-print">
@@ -465,9 +491,12 @@ export default function Dashboard({ user, facilities, setFacilities, facilityBar
                       <select value={year} onChange={e => setYear(Number(e.target.value))} disabled={loading} className="bg-transparent text-sm text-gray-600 p-1.5 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded">{availableYears.map(y => <option key={y}>{y}</option>)}</select>
                    </div>
                    <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block"></div>
-                   <button disabled={isDownloadingPdf} onClick={async () => { setIsDownloadingPdf(true); const suffix = activeTab === 'cohort' ? (cohortSubTab === 'cat2' ? '_Category_II' : '_Category_III') : ''; await downloadPDF('report-content', `Report_${activeFacilityName}_${year}${suffix}.pdf`); setIsDownloadingPdf(false); }} className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition disabled:opacity-70">
+                   
+                   {/* UPDATED: Button calls handleDownloadClick */}
+                   <button disabled={isDownloadingPdf} onClick={handleDownloadClick} className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition disabled:opacity-70">
                      {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} PDF
                    </button>
+
                    {!isConsolidatedView && !isAggregationMode && (
                      <>
                         {user.role === 'admin' ? (
@@ -486,20 +515,7 @@ export default function Dashboard({ user, facilities, setFacilities, facilityBar
                    )}
                 </div>
              </div>
-             <div className="hidden print:flex mb-6 items-center justify-between gap-6 pt-4 px-8" style={{ ...PDF_STYLES.headerContainer, display: 'none' }} id="pdf-header">
-                <div style={PDF_STYLES.logoBox}>{globalSettings?.logo_base64 && <img src={globalSettings.logo_base64} alt="Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}</div>
-                <div style={PDF_STYLES.centerText}>
-                   <h1 style={{fontSize:'12px', fontWeight:'bold', textTransform:'uppercase', letterSpacing:'1px', color:'#000'}}>National Rabies Prevention and Control Program</h1>
-                   <h2 style={{fontSize:'14px', fontWeight:'bold', textTransform:'uppercase', margin:'4px 0', color:'#000'}}>
-                     {activeTab === 'main' ? 'Form 1 - Accomplishment Report' : `Cohort Report - ${cohortSubTab === 'cat2' ? 'Category II' : 'Category III'}`}
-                   </h2>
-                   <p style={{fontSize:'11px', fontWeight:'bold', color:'#000'}}>
-                     {activeTab === 'cohort' ? `Reporting For: ${getPreviousPeriodText()}` : (periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`))}
-                   </p>
-                   <p style={{fontSize:'10px', fontWeight:'bold', marginTop:'4px', color:'#000'}}>Health Facility: {activeFacilityName}</p>
-                </div>
-                <div style={PDF_STYLES.logoBox}>{userProfile?.facility_logo && <img src={userProfile.facility_logo} alt="Facility Logo" style={{height:'60px', width:'auto', objectFit:'contain'}} />}</div>
-             </div>
+             {/* PDF Header - Hidden (Removed ID) */}
              <div className="overflow-x-auto shadow-sm rounded-xl bg-white border border-gray-200 print:shadow-none print:border-none" style={{...PDF_STYLES.container, ...PDF_STYLES.border}}>
                {activeTab === 'main' ? (
                  <MainReportTable 
@@ -521,22 +537,6 @@ export default function Dashboard({ user, facilities, setFacilities, facilityBar
                    />
                  </div>
                )}
-             </div>
-             <div className="hidden print:flex flex-col mt-auto" style={{ display: 'none', marginTop:'auto' }} id="pdf-footer">
-                <div className="flex justify-around text-center text-sm" style={{ display: 'flex', justifyContent:'space-around', marginBottom:'20px' }}>
-                  {userProfile?.signatories?.length > 0 ? userProfile.signatories.map((sig, idx) => (
-                    <div key={idx} className="flex flex-col items-center" style={{ minWidth: '150px', display:'flex', flexDirection:'column', alignItems:'center' }}>
-                      <div style={{marginBottom:'0.5rem', fontWeight:'bold', fontSize:'10px', textTransform:'uppercase', color:'#4b5563'}}>{sig.label}</div>
-                      <div style={{height:'3.5rem', width:'100%'}}></div>
-                      <p style={{fontWeight:'bold', textTransform:'uppercase', borderTop:'1px solid #000', padding:'0.25rem 2rem', marginTop:'0.25rem', width:'100%', color: '#000'}}>{sig.name}</p>
-                      <p style={{fontSize:'10px', color:'#374151'}}>{sig.title}</p>
-                    </div>
-                  )) : null}
-                </div>
-                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '10px', fontSize: '8px', color: '#9ca3af', display: 'flex', justifyContent: 'space-between' }}>
-                   <span>Generated on: {new Date().toLocaleString()}</span>
-                   <span>Generated by: {userProfile?.full_name || user.fullName || user.name}</span>
-                </div>
              </div>
           </div>
         )}

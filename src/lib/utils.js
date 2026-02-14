@@ -1,4 +1,6 @@
 import { toast } from 'sonner';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { INITIAL_ROW_STATE, INITIAL_COHORT_ROW } from './constants';
 
 export const toInt = (val) => val === '' ? 0 : Number(val);
@@ -28,7 +30,6 @@ export const hasData = (row) => {
   return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '');
 };
 
-// This is the function that was missing:
 export const hasCohortData = (row, category) => {
   if(!row) return false;
   if (category === 'cat2') {
@@ -52,82 +53,219 @@ export const getComputations = (row) => {
   return { sexTotal, ageTotal, cat23, catTotal, animalTotal, percent, sexMismatch: sexTotal !== ageTotal };
 };
 
-export const downloadPDF = async (elementId, filename) => {
-  const originalElement = document.getElementById(elementId);
-  if(!originalElement) { toast.error("Nothing to print!"); return; }
+// --- DATA-DRIVEN PDF ENGINE (JSPDF + AUTOTABLE) ---
 
-  const printContainer = document.createElement('div');
-  printContainer.id = 'print-container-temp';
-  printContainer.style.position = 'fixed';
-  printContainer.style.top = '0';
-  printContainer.style.left = '0';
-  printContainer.style.width = '1600px';
-  printContainer.style.zIndex = '-9999';
-  printContainer.style.backgroundColor = '#ffffff';
-  printContainer.style.visibility = 'hidden';
-  
-  const clone = originalElement.cloneNode(true);
-  
-  const noPrints = clone.querySelectorAll('.no-print');
-  noPrints.forEach(el => el.remove());
-
-  const hiddenRows = clone.querySelectorAll('.pdf-hide-empty');
-  hiddenRows.forEach(el => el.style.display = 'none');
-  
-  const headers = clone.querySelectorAll('th');
-  headers.forEach(th => {
-    th.style.height = 'auto';
-    th.style.minHeight = '40px';
-    th.style.whiteSpace = 'normal';
-    th.style.overflow = 'visible';
-    th.style.verticalAlign = 'middle';
-    th.style.padding = '8px 4px';
-  });
-
-  const rows = clone.querySelectorAll('tr');
-  rows.forEach(tr => { tr.style.height = 'auto'; });
-
-  printContainer.appendChild(clone);
-  document.body.appendChild(printContainer);
-
-  if (!window.html2pdf) {
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js';
-    script.crossOrigin = "anonymous"; 
-    document.head.appendChild(script);
-    await new Promise((resolve, reject) => {
-      script.onload = resolve;
-      script.onerror = () => { 
-        document.body.removeChild(printContainer);
-        toast.error("Failed to load PDF engine."); 
-        reject(); 
-      };
-    });
-  }
-
-  if (window.html2pdf) {
-    const pdfHeader = clone.querySelector('#pdf-header');
-    const pdfFooter = clone.querySelector('#pdf-footer');
-    if(pdfHeader) { pdfHeader.style.display = 'flex'; }
-    if(pdfFooter) { pdfFooter.style.display = 'flex'; }
-
-    const opt = { 
-      margin: [0.3, 0.2, 0.3, 0.2],
-      filename: filename, 
-      image: { type: 'jpeg', quality: 0.98 }, 
-      html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 1600 }, 
-      jsPDF: { unit: 'in', format: [13, 8.5], orientation: 'landscape' } 
-    };
+export const downloadPDF = async ({ 
+  type, // 'main' | 'cohort'
+  cohortType, // 'cat2' | 'cat3'
+  filename, 
+  data, 
+  rowKeys, 
+  grandTotals, 
+  cohortTotals, 
+  periodText, 
+  facilityName, 
+  userProfile, 
+  globalSettings 
+}) => {
+  try {
+    const doc = new jsPDF('landscape', 'pt', 'legal'); // Legal Landscape
+    const width = doc.internal.pageSize.getWidth();
     
-    try {
-      printContainer.style.visibility = 'visible'; 
-      await window.html2pdf().set(opt).from(clone).save();
-      toast.success("PDF Downloaded");
-    } catch (err) {
-      console.error(err);
-      toast.error("PDF Error: " + err.message);
-    } finally {
-      document.body.removeChild(printContainer);
+    // --- BRANDING ---
+    // System Logo (Top-Left)
+    if (globalSettings?.logo_base64) {
+      try { doc.addImage(globalSettings.logo_base64, 'PNG', 40, 20, 50, 50); } catch(e) { console.warn("Logo error", e); }
     }
+    // Facility Logo (Top-Right)
+    if (userProfile?.facility_logo) {
+      try { doc.addImage(userProfile.facility_logo, 'PNG', width - 90, 20, 50, 50); } catch(e) { console.warn("Facility logo error", e); }
+    }
+
+    // --- HEADERS ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text("NATIONAL RABIES PREVENTION AND CONTROL PROGRAM", width / 2, 35, { align: 'center' });
+    
+    doc.setFontSize(12);
+    const title = type === 'main' ? "FORM 1 - ACCOMPLISHMENT REPORT" : `COHORT REPORT - ${cohortType === 'cat2' ? 'CATEGORY II' : 'CATEGORY III'}`;
+    doc.text(title, width / 2, 50, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text(`Reporting For: ${periodText}`, width / 2, 65, { align: 'center' });
+    doc.text(`Health Facility: ${facilityName}`, width / 2, 78, { align: 'center' });
+
+    // --- TABLE GENERATION ---
+    let head = [];
+    let body = [];
+    
+    if (type === 'main') {
+      head = [
+        [
+          { content: 'Municipality', rowSpan: 2, styles: { valign: 'middle', halign: 'left' } },
+          { content: 'Human Cases (Sex)', colSpan: 3 },
+          { content: 'Human Cases (Age)', colSpan: 3 },
+          { content: 'Category', colSpan: 5 },
+          { content: 'Status', colSpan: 2 },
+          { content: 'PEP', colSpan: 4 },
+          { content: 'Biting Animals', colSpan: 5 },
+          { content: 'Washed', colSpan: 2 },
+          { content: 'Remarks', rowSpan: 2, styles: { valign: 'middle' } }
+        ],
+        ['M', 'F', 'Tot', '<15', '>15', 'Tot', 'I', 'II', 'III', 'II+III', 'Tot', 'Pat', 'AB', 'PVRV', 'PCECV', 'HRIG', 'ERIG', 'Dog', 'Cat', 'Oth', 'Spec', 'Tot', 'No.', '%']
+      ];
+
+      // Body Rows - FILTERED for Empty/Zero rows
+      body = rowKeys.map(key => {
+        // Skip "Others" separator if strictly hiding blank rows, or check if user wants it.
+        // Usually, the "Others" key itself has no data, so !hasData(data[key]) is true.
+        // This effectively hides the "Others" separator row as well.
+        if (key === "Others:") return null; 
+        
+        const row = data[key] || INITIAL_ROW_STATE;
+        // Check if row has data
+        if (!hasData(row)) return null;
+
+        const c = getComputations(row);
+        
+        return [
+          { content: key, styles: { fontStyle: 'bold', halign: 'left' } },
+          row.male, row.female, { content: c.sexTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
+          row.ageLt15, row.ageGt15, { content: c.ageTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
+          row.cat1, row.cat2, row.cat3, c.cat23, { content: c.catTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
+          row.totalPatients, row.abCount,
+          row.pvrv, row.pcecv, row.hrig, row.erig,
+          row.dog, row.cat, row.othersCount, row.othersSpec, { content: c.animalTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
+          row.washed, { content: c.percent, styles: { fontSize: 8 } },
+          row.remarks
+        ];
+      }).filter(row => row !== null); // Remove nulls
+
+      // Grand Total Row
+      const gt = grandTotals;
+      body.push([
+        { content: 'GRAND TOTAL', styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255], halign: 'left' } },
+        { content: gt.male, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.female, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.sexTotal, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
+        { content: gt.ageLt15, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.ageGt15, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.ageTotal, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
+        { content: gt.cat1, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.cat2, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.cat3, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.cat23, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
+        { content: gt.catTotal, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
+        { content: gt.totalPatients, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.abCount, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.pvrv, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.pcecv, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.hrig, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.erig, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.dog, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.cat, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.othersCount, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: '', styles: { fillColor: [50, 50, 50] } },
+        { content: gt.animalTotal, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
+        { content: gt.washed, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.percent, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
+        { content: '', styles: { fillColor: [50, 50, 50] } }
+      ]);
+    } 
+    else {
+      // Cohort Table
+      head = [[
+        { content: 'Municipality', styles: { halign: 'left', valign: 'middle' } },
+        'Registered', 'W/ RIG', 'Complete', 'Incomplete', 'Booster', 'None', 'Died', 'Remarks'
+      ]];
+      
+      const prefix = cohortType === 'cat2' ? 'cat2' : 'cat3';
+      body = rowKeys.map(key => {
+        if (key === "Others:") return null;
+        
+        const row = data[key] || INITIAL_COHORT_ROW;
+        if (!hasCohortData(row, cohortType)) return null;
+
+        return [
+          { content: key, styles: { fontStyle: 'bold', halign: 'left' } },
+          row[`${prefix}_registered`], row[`${prefix}_rig`],
+          row[`${prefix}_complete`], row[`${prefix}_incomplete`],
+          row[`${prefix}_booster`], row[`${prefix}_none`],
+          row[`${prefix}_died`], row[`${prefix}_remarks`]
+        ];
+      }).filter(Boolean); // Filter nulls
+
+      // Cohort Total
+      const ct = cohortTotals;
+      body.push([
+        { content: 'TOTAL', styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255], halign: 'left' } },
+        { content: ct[`${prefix}_registered`], styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: ct[`${prefix}_rig`], styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: ct[`${prefix}_complete`], styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: ct[`${prefix}_incomplete`], styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: ct[`${prefix}_booster`], styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: ct[`${prefix}_none`], styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: ct[`${prefix}_died`], styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: '', styles: { fillColor: [50, 50, 50] } }
+      ]);
+    }
+
+    autoTable(doc, {
+      startY: 90,
+      head: head,
+      body: body,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 3, halign: 'center', lineWidth: 0.5, lineColor: [200, 200, 200] },
+      headStyles: { fillColor: [250, 250, 250], textColor: [50, 50, 50], lineWidth: 0.5, lineColor: [200, 200, 200] },
+      // Signatories on Last Page
+      didDrawPage: (data) => {
+        // Optional: Add page numbers or footer here if needed
+      }
+    });
+
+    // --- SIGNATORIES (Manual Placement after Table) ---
+    let finalY = doc.lastAutoTable.finalY + 30;
+    
+    // Check if we have space, else add page
+    if (finalY + 100 > doc.internal.pageSize.getHeight()) {
+      doc.addPage();
+      finalY = 40;
+    }
+
+    if (userProfile?.signatories?.length > 0) {
+      const sigCount = userProfile.signatories.length;
+      const sectionWidth = width / sigCount;
+      
+      userProfile.signatories.forEach((sig, index) => {
+        const xPos = (index * sectionWidth) + (sectionWidth / 2);
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100);
+        doc.text(sig.label || '', xPos, finalY, { align: 'center' });
+        
+        doc.setLineWidth(1);
+        doc.line(xPos - 60, finalY + 50, xPos + 60, finalY + 50); // Signature Line
+        
+        doc.setFontSize(10);
+        doc.setTextColor(0);
+        doc.text(sig.name || '', xPos, finalY + 65, { align: 'center' });
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(sig.title || '', xPos, finalY + 75, { align: 'center' });
+      });
+    }
+
+    // Generated Footer
+    doc.setFontSize(7);
+    doc.setTextColor(150);
+    doc.text(`Generated on: ${new Date().toLocaleString()} by ${userProfile?.full_name || 'System'}`, 40, doc.internal.pageSize.getHeight() - 10);
+    
+    doc.save(filename);
+    toast.success("PDF Downloaded");
+  } catch (err) {
+    console.error(err);
+    toast.error("PDF Error: " + err.message);
   }
 };
