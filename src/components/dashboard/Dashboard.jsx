@@ -28,7 +28,15 @@ import UserManagementModal from '../modals/UserManagementModal';
 import ErrorBoundary from '../ErrorBoundary';
 
 function DashboardContent({ user, facilities, setFacilities, facilityBarangays, setFacilityBarangays, onLogout, globalSettings, setGlobalSettings, userProfile, setUserProfile }) {
-  const currentDate = new Date();
+  // Minor Suggestion: Use PH Time for default Year/Month to ensure consistency across timezones
+  const currentDate = useMemo(() => {
+    try {
+      return new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Manila"}));
+    } catch (e) {
+      return new Date(); // Fallback
+    }
+  }, []);
+  
   const currentRealYear = currentDate.getFullYear();
   const currentRealMonth = currentDate.getMonth();
   const availableYears = useMemo(() => { const years = []; for (let y = 2024; y <= currentRealYear; y++) years.push(y); return years; }, [currentRealYear]);

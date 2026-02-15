@@ -27,7 +27,8 @@ export const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["Janua
 export const hasData = (row) => {
   if (!row) return false;
   const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-  return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '');
+  // Added check for othersSpec so rows with text descriptions but no numbers are not hidden
+  return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '') || (row.othersSpec && row.othersSpec.trim() !== '');
 };
 
 export const hasCohortData = (row, category) => {
@@ -117,13 +118,11 @@ export const downloadPDF = async ({
 
       // Body Rows - FILTERED for Empty/Zero rows
       body = rowKeys.map(key => {
-        // Skip "Others" separator if strictly hiding blank rows, or check if user wants it.
-        // Usually, the "Others" key itself has no data, so !hasData(data[key]) is true.
-        // This effectively hides the "Others" separator row as well.
+        // Explicitly hide the "Others:" separator row in PDF.
         if (key === "Others:") return null; 
         
         const row = data[key] || INITIAL_ROW_STATE;
-        // Check if row has data
+        // Check if row has data (now includes othersSpec check)
         if (!hasData(row)) return null;
 
         const c = getComputations(row);
@@ -217,7 +216,6 @@ export const downloadPDF = async ({
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 3, halign: 'center', lineWidth: 0.5, lineColor: [200, 200, 200] },
       headStyles: { fillColor: [250, 250, 250], textColor: [50, 50, 50], lineWidth: 0.5, lineColor: [200, 200, 200] },
-      // Signatories on Last Page
       didDrawPage: (data) => {
         // Optional: Add page numbers or footer here if needed
       }
@@ -257,10 +255,11 @@ export const downloadPDF = async ({
       });
     }
 
-    // Generated Footer
+    // Generated Footer with Explicit Philippine Locale/Timezone
+    const phTime = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
     doc.setFontSize(7);
     doc.setTextColor(150);
-    doc.text(`Generated on: ${new Date().toLocaleString()} by ${userProfile?.full_name || 'System'}`, 40, doc.internal.pageSize.getHeight() - 10);
+    doc.text(`Generated on: ${phTime} by ${userProfile?.full_name || 'System'}`, 40, doc.internal.pageSize.getHeight() - 10);
     
     doc.save(filename);
     toast.success("PDF Downloaded");
