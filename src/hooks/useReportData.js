@@ -358,6 +358,7 @@ export function useReportData({
 
   const createDbNotification = async (recipient, title, message, type='info') => { try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); } };
 
+  // --- CRITICAL FIX: Error Handling Added Here ---
   const handleSave = async (newStatus, reason = null) => {
     if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
     
@@ -380,11 +381,21 @@ export function useReportData({
                 return { ...mapRowToDb(row), year, month, municipality: m, facility: target, status: newStatus, remarks: rem };
             }).filter(x => x !== null);
             
-            // Attempt delete. If this fails due to RLS, duplicates will exist.
-            // Our updated fetchData logic handles duplicates by prioritizing the newest record.
-            await supabase.from('abtc_reports').delete().eq('year', year).eq('month', month).eq('facility', target);
+            // 1. Explicitly check for DELETE errors (likely caused by RLS)
+            const { error: deleteError } = await supabase.from('abtc_reports')
+                .delete()
+                .eq('year', year)
+                .eq('month', month)
+                .eq('facility', target);
             
-            if(payload.length > 0) await supabase.from('abtc_reports').insert(payload);
+            if (deleteError) throw new Error(`Delete failed: ${deleteError.message}`);
+            
+            // 2. Explicitly check for INSERT errors
+            if(payload.length > 0) {
+                const { error: insertError } = await supabase.from('abtc_reports').insert(payload);
+                if (insertError) throw new Error(`Insert failed: ${insertError.message}`);
+            }
+
             setReportStatus(newStatus);
         } else {
             const payload = Object.entries(cohortData).map(([m, row]) => {
@@ -392,9 +403,21 @@ export function useReportData({
                 return { ...mapCohortRowToDb(row), year, month: periodType === 'Monthly' ? month : quarter, municipality: m, facility: target, status: newStatus };
             }).filter(x => x !== null);
 
-            await supabase.from('abtc_cohort_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
+            // DELETE Cohort with error check
+            const { error: deleteCohortError } = await supabase.from('abtc_cohort_reports')
+                .delete()
+                .eq('year', year)
+                .eq('month', periodType === 'Monthly' ? month : quarter)
+                .eq('facility', target);
             
-            if(payload.length > 0) await supabase.from('abtc_cohort_reports').insert(payload);
+            if (deleteCohortError) throw new Error(`Delete failed: ${deleteCohortError.message}`);
+            
+            // INSERT Cohort with error check
+            if(payload.length > 0) {
+                const { error: insertCohortError } = await supabase.from('abtc_cohort_reports').insert(payload);
+                if (insertCohortError) throw new Error(`Insert failed: ${insertCohortError.message}`);
+            }
+
             setReportStatus(newStatus);
         }
         
@@ -409,7 +432,8 @@ export function useReportData({
         return true; 
     } catch (err) { 
         console.error("Save Error:", err);
-        toast.error(err.message); 
+        // Display the actual error message to the user/developer
+        toast.error(err.message || "An unexpected error occurred during save");
         return false;
     } finally { 
         setIsSaving(false); 
@@ -419,8 +443,12 @@ export function useReportData({
   const confirmDeleteReport = async () => {
     try {
         const target = activeFacilityName; 
-        await supabase.from('abtc_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
-        await supabase.from('abtc_cohort_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
+        const { error: e1 } = await supabase.from('abtc_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
+        if (e1) throw e1;
+        
+        const { error: e2 } = await supabase.from('abtc_cohort_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
+        if (e2) throw e2;
+
         toast.success("Report data deleted"); 
         setReportStatus('Draft'); 
         fetchData(); 
