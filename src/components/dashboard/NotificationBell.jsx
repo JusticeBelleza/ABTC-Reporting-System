@@ -110,7 +110,7 @@ export default function NotificationBell({ user }) {
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={handleToggle} 
-        className="relative p-2 text-gray-600 hover:text-zinc-900 transition-colors rounded-full hover:bg-gray-100 outline-none focus:ring-2 focus:ring-zinc-200"
+        className="relative p-2 text-gray-500 hover:text-zinc-900 hover:bg-zinc-100 transition-all rounded-full outline-none focus:ring-2 focus:ring-zinc-200"
       >
         <Bell size={20} />
         {unreadCount > 0 && (

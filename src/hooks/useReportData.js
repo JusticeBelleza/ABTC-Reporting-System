@@ -19,7 +19,6 @@ import {
   getComputations 
 } from '../lib/utils';
 
-// START OF THE EXPORTED FUNCTION
 export function useReportData({
   user,
   facilities,
@@ -37,7 +36,9 @@ export function useReportData({
   const [data, setData] = useState({});
   const [cohortData, setCohortData] = useState({});
   const [reportStatus, setReportStatus] = useState('Draft');
-  const [loading, setLoading] = useState(false);
+  // FIX: Start loading as true to prevent "Active -> Disabled" flicker on mount
+  const [loading, setLoading] = useState(true); 
+  const [isSaving, setIsSaving] = useState(false);
   const [facilityStatuses, setFacilityStatuses] = useState({}); 
   
   const [visibleOtherMunicipalities, setVisibleOtherMunicipalities] = useState([]);
@@ -108,97 +109,134 @@ export function useReportData({
   // --- Actions ---
 
   const fetchFacilityStatuses = useCallback(async () => {
-    if (periodType !== 'Monthly') return; 
     setLoading(true);
-    const { data: reportData } = await supabase.from('abtc_reports').select('facility, status').eq('year', year).eq('month', month);
-    const statuses = {}; 
-    facilities.forEach(f => statuses[f] = 'Draft');
-    if (reportData) reportData.forEach(r => statuses[r.facility] = r.status);
-    setFacilityStatuses(statuses);
-    setLoading(false);
+    try {
+      // FIX: Handle non-monthly case gracefully within the try/finally block
+      if (periodType !== 'Monthly') {
+        setFacilityStatuses({});
+        return; 
+      }
+
+      const { data: reportData } = await supabase.from('abtc_reports').select('facility, status').eq('year', year).eq('month', month);
+      const statuses = {}; 
+      facilities.forEach(f => statuses[f] = 'Draft');
+      if (reportData) reportData.forEach(r => statuses[r.facility] = r.status);
+      setFacilityStatuses(statuses);
+    } catch (error) {
+      console.error("Error fetching statuses:", error);
+      toast.error("Failed to load facility statuses");
+    } finally {
+      setLoading(false);
+    }
   }, [periodType, year, month, facilities]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const target = user.role === 'admin' ? (isConsolidatedView ? null : selectedFacility) : user.name;
-    const fullRowKeys = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView, true, false, []);
-    
-    if (activeTab === 'main') {
-        const newData = initData(fullRowKeys, false);
-        let query = supabase.from('abtc_reports').select('*').eq('year', year);
-        if (periodType === 'Monthly') query = query.eq('month', month);
-        else if (periodType === 'Quarterly') query = query.in('month', getQuarterMonths(quarter));
-        
-        if (isConsolidatedView) query = query.eq('status', 'Approved'); 
-        else if (target) query = query.eq('facility', target);
-        
-        const { data: records } = await query;
-        const newVisibleOthers = new Set();
-        
-        if (records && records.length > 0) {
-          records.forEach(record => {
-            const m = record.municipality;
-            if (newData[m]) {
-               const r = mapDbToRow(record);
-               const c = newData[m];
-               const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-               keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
-               c.remarks = record.remarks || c.remarks;
-               
-               const isBarangay = facilityBarangays[target]?.includes(m);
-               const host = MUNICIPALITIES.find(mun => target?.includes(mun));
-               if (!isBarangay && m !== host && hasData(r)) { newVisibleOthers.add(m); }
-            }
-          });
-          setData(newData);
-          setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[0].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
-        } else { 
-          setData(newData); 
-          setReportStatus('Draft'); 
-        }
-        setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
-    } else {
-        const newCohort = initData(fullRowKeys, true);
-        let query = supabase.from('abtc_cohort_reports').select('*').eq('year', year);
-        if (periodType === 'Monthly') query = query.eq('month', month);
-        else if (periodType === 'Quarterly') query = query.in('month', getQuarterMonths(quarter)); 
-        
-        if (isConsolidatedView) query = query.eq('status', 'Approved'); 
-        else if (target) query = query.eq('facility', target);
-        
-        const { data: records } = await query;
-        const newVisibleCat2 = new Set(); 
-        const newVisibleCat3 = new Set();
-        
-        if (records && records.length > 0) {
+    try {
+      const target = user.role === 'admin' ? (isConsolidatedView ? null : selectedFacility) : user.name;
+      const fullRowKeys = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView, true, false, []);
+      
+      if (activeTab === 'main') {
+          const newData = initData(fullRowKeys, false);
+          let query = supabase.from('abtc_reports').select('*').eq('year', year);
+          if (periodType === 'Monthly') query = query.eq('month', month);
+          else if (periodType === 'Quarterly') query = query.in('month', getQuarterMonths(quarter));
+          
+          if (isConsolidatedView) query = query.eq('status', 'Approved'); 
+          else if (target) query = query.eq('facility', target);
+          
+          const { data: records, error } = await query;
+          if (error) throw error;
+
+          const newVisibleOthers = new Set();
+          
+          if (records && records.length > 0) {
             records.forEach(record => {
-                const m = record.municipality;
-                if(newCohort[m]) {
-                    const r = mapCohortDbToRow(record);
-                    const c = newCohort[m];
-                    const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-                    keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
-                    c.cat2_remarks = r.cat2_remarks || c.cat2_remarks || ''; 
-                    c.cat3_remarks = r.cat3_remarks || c.cat3_remarks || '';
-                    
-                    const isBarangay = facilityBarangays[target]?.includes(m);
-                    const host = MUNICIPALITIES.find(mun => target?.includes(mun));
-                    if (!isBarangay && m !== host) {
-                        if (hasCohortData(r, 'cat2')) newVisibleCat2.add(m);
-                        if (hasCohortData(r, 'cat3')) newVisibleCat3.add(m);
-                    }
-                }
+              const m = record.municipality;
+              if (newData[m]) {
+                 const r = mapDbToRow(record);
+                 const c = newData[m];
+                 const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
+                 keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
+                 c.remarks = record.remarks || c.remarks;
+                 
+                 const isBarangay = facilityBarangays[target]?.includes(m);
+                 const host = MUNICIPALITIES.find(mun => target?.includes(mun));
+                 if (!isBarangay && m !== host && hasData(r)) { newVisibleOthers.add(m); }
+              }
             });
-            setCohortData(newCohort);
+            setData(newData);
             setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[0].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
-        } else { 
-          setCohortData(newCohort); 
-          setReportStatus('Draft'); 
-        }
-        setVisibleCat2(Array.from(newVisibleCat2)); 
-        setVisibleCat3(Array.from(newVisibleCat3));
+          } else { 
+            setData(newData); 
+            setReportStatus('Draft'); 
+          }
+          
+          // Only update state if different to prevent loops
+          setVisibleOtherMunicipalities(prev => {
+            const newVal = Array.from(newVisibleOthers);
+            if (prev.length === newVal.length && prev.every(v => newVisibleOthers.has(v))) return prev;
+            return newVal;
+          });
+
+      } else {
+          const newCohort = initData(fullRowKeys, true);
+          let query = supabase.from('abtc_cohort_reports').select('*').eq('year', year);
+          if (periodType === 'Monthly') query = query.eq('month', month);
+          else if (periodType === 'Quarterly') query = query.in('month', getQuarterMonths(quarter)); 
+          
+          if (isConsolidatedView) query = query.eq('status', 'Approved'); 
+          else if (target) query = query.eq('facility', target);
+          
+          const { data: records, error } = await query;
+          if (error) throw error;
+
+          const newVisibleCat2 = new Set(); 
+          const newVisibleCat3 = new Set();
+          
+          if (records && records.length > 0) {
+              records.forEach(record => {
+                  const m = record.municipality;
+                  if(newCohort[m]) {
+                      const r = mapCohortDbToRow(record);
+                      const c = newCohort[m];
+                      const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
+                      keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
+                      c.cat2_remarks = r.cat2_remarks || c.cat2_remarks || ''; 
+                      c.cat3_remarks = r.cat3_remarks || c.cat3_remarks || '';
+                      
+                      const isBarangay = facilityBarangays[target]?.includes(m);
+                      const host = MUNICIPALITIES.find(mun => target?.includes(mun));
+                      if (!isBarangay && m !== host) {
+                          if (hasCohortData(r, 'cat2')) newVisibleCat2.add(m);
+                          if (hasCohortData(r, 'cat3')) newVisibleCat3.add(m);
+                      }
+                  }
+              });
+              setCohortData(newCohort);
+              setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[0].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
+          } else { 
+            setCohortData(newCohort); 
+            setReportStatus('Draft'); 
+          }
+          
+          setVisibleCat2(prev => {
+            const newVal = Array.from(newVisibleCat2);
+            if (prev.length === newVal.length && prev.every(v => newVisibleCat2.has(v))) return prev;
+            return newVal;
+          });
+          setVisibleCat3(prev => {
+            const newVal = Array.from(newVisibleCat3);
+            if (prev.length === newVal.length && prev.every(v => newVisibleCat3.has(v))) return prev;
+            return newVal;
+          });
+      }
+    } catch (err) {
+      console.error("Fetch Error:", err);
+      toast.error("Failed to load report data");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, isConsolidatedView, facilityBarangays, getRowKeysForFacility]);
 
   useEffect(() => {
@@ -266,7 +304,7 @@ export function useReportData({
     if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
     
     const target = user.role === 'admin' ? selectedFacility : user.name;
-    setLoading(true);
+    setIsSaving(true);
     const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
     
     try {
@@ -299,7 +337,7 @@ export function useReportData({
         toast.error(err.message); 
         return false;
     } finally { 
-        setLoading(false); 
+        setIsSaving(false); 
     }
   };
 
@@ -340,6 +378,7 @@ export function useReportData({
     cohortData,
     reportStatus,
     loading,
+    isSaving,
     facilityStatuses,
     currentRows,
     cohortRowsCat2,

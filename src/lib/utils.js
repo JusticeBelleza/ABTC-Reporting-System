@@ -113,7 +113,7 @@ export const downloadPDF = async ({
           { content: 'Washed', colSpan: 2 },
           { content: 'Remarks', rowSpan: 2, styles: { valign: 'middle' } }
         ],
-        ['M', 'F', 'Tot', '<15', '>15', 'Tot', 'I', 'II', 'III', 'II+III', 'Tot', 'Pat', 'AB', 'PVRV', 'PCECV', 'HRIG', 'ERIG', 'Dog', 'Cat', 'Oth', 'Spec', 'Tot', 'No.', '%']
+        ['M', 'F', 'Tot', '<15', '>15', 'Tot', 'I', 'II', 'III', 'II+III', 'Tot', 'Total', 'AB', 'PVRV', 'PCECV', 'HRIG', 'ERIG', 'Dog', 'Cat', 'Others', 'Specify', 'Tot', 'No.', '%']
       ];
 
       // Body Rows - FILTERED for Empty/Zero rows

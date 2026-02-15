@@ -77,7 +77,8 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
 
   // --- Initialize Custom Hook ---
   const {
-    data, cohortData, reportStatus, loading, facilityStatuses,
+    data, cohortData, reportStatus, loading, isSaving, 
+    facilityStatuses,
     currentRows, cohortRowsCat2, cohortRowsCat3, activeFacilityName, currentHostMunicipality,
     grandTotals, cohortTotals,
     visibleOtherMunicipalities, setVisibleOtherMunicipalities,
@@ -220,14 +221,16 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
           <div className="flex items-center gap-2 md:gap-4">
             <NotificationBell user={user} />
             <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
-            <div className="flex items-center gap-3 cursor-pointer p-1.5 rounded-lg hover:bg-gray-50 transition" onClick={() => setShowProfileModal(true)}>
+            {/* Profile Button with Hover */}
+            <div className="flex items-center gap-3 cursor-pointer p-1.5 rounded-lg hover:bg-zinc-100 transition" onClick={() => setShowProfileModal(true)}>
               <div className="text-right hidden md:block">
                 <div className="text-sm font-medium leading-none">{userProfile?.full_name || user.fullName || user.name}</div>
                 <div className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mt-1">{user.role}</div>
               </div>
               <div className="bg-gray-100 p-2 rounded-full text-gray-600"><User size={16}/></div>
             </div>
-            <button onClick={() => setShowSettingsModal(true)} className="text-gray-500 hover:text-zinc-900 p-2 transition"><Settings size={20} strokeWidth={1.5} /></button>
+            {/* Settings Button with Hover */}
+            <button onClick={() => setShowSettingsModal(true)} className="text-gray-500 hover:text-zinc-900 p-2 rounded-lg hover:bg-zinc-100 transition"><Settings size={20} strokeWidth={1.5} /></button>
             <button onClick={onLogout} className="text-gray-500 hover:text-red-600 p-2 transition ml-2"><LogOut size={20} strokeWidth={1.5} /></button>
           </div>
         </div>
@@ -238,8 +241,10 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div><h2 className="text-2xl font-bold tracking-tight text-zinc-900">Dashboard</h2><p className="text-gray-500 text-sm mt-1">Overview of facility submissions and statuses</p></div>
                 <div className="flex gap-3">
-                  <button onClick={() => setShowAddFacilityModal(true)} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition"><Plus size={16} /> Add Facility</button>
-                  <button onClick={() => setShowManageUsers(true)} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition"><Users size={16} /> Users</button>
+                  {/* Add Facility with BLUE hover */}
+                  <button onClick={() => setShowAddFacilityModal(true)} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 transition hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"><Plus size={16} /> Add Facility</button>
+                  {/* Users with INDIGO hover */}
+                  <button onClick={() => setShowManageUsers(true)} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 transition hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"><Users size={16} /> Users</button>
                   <button onClick={() => setAdminViewMode('consolidated')} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2 transition"><Layers size={16} /> Consolidated</button>
                 </div>
              </div>
@@ -300,7 +305,8 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
                    </div>
                    <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block"></div>
                    
-                   <button disabled={isDownloadingPdf} onClick={handleDownloadClick} className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 transition disabled:opacity-70">
+                   {/* PDF Button with RED hover */}
+                   <button disabled={isDownloadingPdf} onClick={handleDownloadClick} className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 transition disabled:opacity-70 hover:bg-red-50 hover:text-red-700 hover:border-red-200">
                      {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} PDF
                    </button>
 
@@ -308,14 +314,16 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
                      <>
                         {user.role === 'admin' ? (
                           <>
-                            <button onClick={() => onSaveClick('Approved')} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve</button>
-                            <button onClick={() => onSaveClick('Rejected')} className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject</button>
+                            {/* Approve Button: Emerald Green Base with darker hover */}
+                            <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 shadow-sm flex items-center gap-2 transition disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve</button>
+                            {/* Reject Button: RED hover */}
+                            <button onClick={() => onSaveClick('Rejected')} disabled={loading || isSaving} className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 hover:border-red-200 hover:text-red-700 shadow-sm flex items-center gap-2 transition disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject</button>
                             {reportStatus !== 'Draft' && <button onClick={() => setReportToDelete(true)} className="bg-red-50 border border-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-100 shadow-sm flex items-center gap-2 transition ml-2" title="Delete Report Data"><Trash2 size={16}/></button>}
                           </>
                         ) : (
                           <>
-                            <button onClick={() => onSaveClick('Draft')} disabled={loading || reportStatus === 'Pending' || reportStatus === 'Approved'} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 disabled:opacity-50 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Save</button>
-                            <button onClick={() => onSaveClick('Pending')} disabled={loading || reportStatus === 'Pending' || reportStatus === 'Approved'} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2 disabled:opacity-50 transition">{loading ? <Loader2 size={16} className="animate-spin"/> : 'Submit'}</button>
+                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 disabled:opacity-50 transition">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Save</button>
+                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2 disabled:opacity-50 transition">{isSaving ? <Loader2 size={16} className="animate-spin"/> : 'Submit'}</button>
                           </>
                         )}
                      </>
