@@ -32,11 +32,14 @@ export function useReportData({
   adminViewMode,
   selectedFacility
 }) {
+  // --- Decompose User to Primitive Values (Fixes Alt+Tab Refresh) ---
+  const userRole = user?.role;
+  const userName = user?.name;
+
   // --- Local State ---
   const [data, setData] = useState({});
   const [cohortData, setCohortData] = useState({});
   const [reportStatus, setReportStatus] = useState('Draft');
-  // FIX: Start loading as true to prevent "Active -> Disabled" flicker on mount
   const [loading, setLoading] = useState(true); 
   const [isSaving, setIsSaving] = useState(false);
   const [facilityStatuses, setFacilityStatuses] = useState({}); 
@@ -47,7 +50,7 @@ export function useReportData({
 
   // --- Derived State Helpers ---
   const isConsolidatedView = adminViewMode === 'consolidated';
-  const activeFacilityName = user.role === 'admin' ? (isConsolidatedView ? 'PHO' : selectedFacility) : user.name;
+  const activeFacilityName = userRole === 'admin' ? (isConsolidatedView ? 'PHO' : selectedFacility) : userName;
   
   const currentHostMunicipality = useMemo(() => {
     if (!activeFacilityName || isConsolidatedView || activeFacilityName === "AMDC" || activeFacilityName === "APH") return null;
@@ -78,24 +81,24 @@ export function useReportData({
   }, [facilityBarangays, visibleOtherMunicipalities]);
 
   const currentRows = useMemo(() => 
-    (user.role === 'admin' && adminViewMode === 'dashboard') 
+    (userRole === 'admin' && adminViewMode === 'dashboard') 
       ? [] 
       : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, false, visibleOtherMunicipalities),
-    [activeFacilityName, isConsolidatedView, user.role, adminViewMode, visibleOtherMunicipalities, getRowKeysForFacility]
+    [activeFacilityName, isConsolidatedView, userRole, adminViewMode, visibleOtherMunicipalities, getRowKeysForFacility]
   );
 
   const cohortRowsCat2 = useMemo(() => 
-    (user.role === 'admin' && adminViewMode === 'dashboard') 
+    (userRole === 'admin' && adminViewMode === 'dashboard') 
       ? [] 
       : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, true, visibleCat2),
-    [activeFacilityName, isConsolidatedView, user.role, adminViewMode, visibleCat2, getRowKeysForFacility]
+    [activeFacilityName, isConsolidatedView, userRole, adminViewMode, visibleCat2, getRowKeysForFacility]
   );
 
   const cohortRowsCat3 = useMemo(() => 
-    (user.role === 'admin' && adminViewMode === 'dashboard') 
+    (userRole === 'admin' && adminViewMode === 'dashboard') 
       ? [] 
       : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, true, visibleCat3),
-    [activeFacilityName, isConsolidatedView, user.role, adminViewMode, visibleCat3, getRowKeysForFacility]
+    [activeFacilityName, isConsolidatedView, userRole, adminViewMode, visibleCat3, getRowKeysForFacility]
   );
 
   const initData = (rowKeys, isCohort = false) => { 
@@ -111,7 +114,6 @@ export function useReportData({
   const fetchFacilityStatuses = useCallback(async () => {
     setLoading(true);
     try {
-      // FIX: Handle non-monthly case gracefully within the try/finally block
       if (periodType !== 'Monthly') {
         setFacilityStatuses({});
         return; 
@@ -130,10 +132,11 @@ export function useReportData({
     }
   }, [periodType, year, month, facilities]);
 
+  // FIX: Depend on userRole/userName primitives instead of 'user' object
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const target = user.role === 'admin' ? (isConsolidatedView ? null : selectedFacility) : user.name;
+      const target = userRole === 'admin' ? (isConsolidatedView ? null : selectedFacility) : userName;
       const fullRowKeys = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView, true, false, []);
       
       if (activeTab === 'main') {
@@ -145,7 +148,8 @@ export function useReportData({
           if (isConsolidatedView) query = query.eq('status', 'Approved'); 
           else if (target) query = query.eq('facility', target);
           
-          const { data: records, error } = await query;
+          // FIX: Sort by created_at so newer rows overwrite older ones (handling duplicates)
+          const { data: records, error } = await query.order('created_at', { ascending: true });
           if (error) throw error;
 
           const newVisibleOthers = new Set();
@@ -157,7 +161,15 @@ export function useReportData({
                  const r = mapDbToRow(record);
                  const c = newData[m];
                  const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-                 keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
+                 
+                 // FIX: Assign (=) instead of Add (+=) to prevent summing duplicates
+                 keys.forEach(k => { c[k] = toInt(r[k]); });
+                 
+                 if (r.othersSpec && r.othersSpec.trim()) {
+                   // For duplicates, prefer the latest text
+                   c.othersSpec = r.othersSpec.trim();
+                 }
+
                  c.remarks = record.remarks || c.remarks;
                  
                  const isBarangay = facilityBarangays[target]?.includes(m);
@@ -166,18 +178,14 @@ export function useReportData({
               }
             });
             setData(newData);
-            setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[0].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
+            // FIX: Use status from LAST record (latest)
+            setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
           } else { 
             setData(newData); 
             setReportStatus('Draft'); 
           }
           
-          // Only update state if different to prevent loops
-          setVisibleOtherMunicipalities(prev => {
-            const newVal = Array.from(newVisibleOthers);
-            if (prev.length === newVal.length && prev.every(v => newVisibleOthers.has(v))) return prev;
-            return newVal;
-          });
+          setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
 
       } else {
           const newCohort = initData(fullRowKeys, true);
@@ -188,7 +196,8 @@ export function useReportData({
           if (isConsolidatedView) query = query.eq('status', 'Approved'); 
           else if (target) query = query.eq('facility', target);
           
-          const { data: records, error } = await query;
+          // FIX: Sort by created_at
+          const { data: records, error } = await query.order('created_at', { ascending: true });
           if (error) throw error;
 
           const newVisibleCat2 = new Set(); 
@@ -201,7 +210,8 @@ export function useReportData({
                       const r = mapCohortDbToRow(record);
                       const c = newCohort[m];
                       const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-                      keys.forEach(k => { c[k] = (toInt(c[k]) + toInt(r[k])) || ''; if(c[k] === 0) c[k] = ''; });
+                      // FIX: Assign (=) instead of Add (+=)
+                      keys.forEach(k => { c[k] = toInt(r[k]); });
                       c.cat2_remarks = r.cat2_remarks || c.cat2_remarks || ''; 
                       c.cat3_remarks = r.cat3_remarks || c.cat3_remarks || '';
                       
@@ -214,22 +224,15 @@ export function useReportData({
                   }
               });
               setCohortData(newCohort);
-              setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[0].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
+              // FIX: Use status from LAST record
+              setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
           } else { 
             setCohortData(newCohort); 
             setReportStatus('Draft'); 
           }
           
-          setVisibleCat2(prev => {
-            const newVal = Array.from(newVisibleCat2);
-            if (prev.length === newVal.length && prev.every(v => newVisibleCat2.has(v))) return prev;
-            return newVal;
-          });
-          setVisibleCat3(prev => {
-            const newVal = Array.from(newVisibleCat3);
-            if (prev.length === newVal.length && prev.every(v => newVisibleCat3.has(v))) return prev;
-            return newVal;
-          });
+          setVisibleCat2(Array.from(newVisibleCat2));
+          setVisibleCat3(Array.from(newVisibleCat3));
       }
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -237,16 +240,17 @@ export function useReportData({
     } finally {
       setLoading(false);
     }
-  }, [user, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, isConsolidatedView, facilityBarangays, getRowKeysForFacility]);
+  }, [userRole, userName, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, isConsolidatedView, facilityBarangays]); 
 
+  // FIX: Depend on userRole primitive
   useEffect(() => {
-    if (user.role === 'admin') {
+    if (userRole === 'admin') {
       if (adminViewMode === 'dashboard') fetchFacilityStatuses();
       else if (adminViewMode === 'consolidated' || (adminViewMode === 'review' && selectedFacility)) fetchData();
     } else {
       fetchData();
     }
-  }, [user, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, fetchData, fetchFacilityStatuses]);
+  }, [userRole, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, fetchData, fetchFacilityStatuses]);
 
   const handleDeleteRow = (key) => {
     if (activeTab === 'main') {
@@ -270,22 +274,37 @@ export function useReportData({
 
   const handleChange = (m, f, v) => {
     if (activeTab === 'main') {
-        if (periodType !== 'Monthly' || user.role === 'admin' || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
+        if (periodType !== 'Monthly' || userRole === 'admin' || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
         setData(prev => {
-            const n = { ...prev }; n[m] = { ...n[m], [f]: v };
+            const n = { ...prev }; 
+            n[m] = { ...(n[m] || INITIAL_ROW_STATE), [f]: v };
+            
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const tot = { ...INITIAL_ROW_STATE };
                 const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-                facilityBarangays[activeFacilityName].forEach(b => { const r = n[b] || INITIAL_ROW_STATE; keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); });
+                
+                facilityBarangays[activeFacilityName].forEach(b => { 
+                  const r = n[b] || INITIAL_ROW_STATE; 
+                  keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); 
+                  
+                  if (r.othersSpec && r.othersSpec.trim()) {
+                     const spec = r.othersSpec.trim();
+                     if (!tot.othersSpec.includes(spec)) {
+                        tot.othersSpec = tot.othersSpec ? `${tot.othersSpec}, ${spec}` : spec;
+                     }
+                  }
+                });
                 keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
                 n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot, remarks: 'Auto-computed' };
             }
             return n;
         });
     } else {
-        if (user.role === 'admin' || m === currentHostMunicipality) return;
+        if (userRole === 'admin' || m === currentHostMunicipality) return;
         setCohortData(prev => {
-            const n = { ...prev }; n[m] = { ...n[m], [f]: v };
+            const n = { ...prev }; 
+            n[m] = { ...(n[m] || INITIAL_COHORT_ROW), [f]: v };
+
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const tot = { ...INITIAL_COHORT_ROW };
                 const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
@@ -303,7 +322,7 @@ export function useReportData({
   const handleSave = async (newStatus, reason = null) => {
     if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
     
-    const target = user.role === 'admin' ? selectedFacility : user.name;
+    const target = userRole === 'admin' ? selectedFacility : userName;
     setIsSaving(true);
     const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
     

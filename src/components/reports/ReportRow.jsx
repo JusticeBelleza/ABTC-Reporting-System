@@ -12,7 +12,7 @@ const ReportRow = React.memo(({
   onDeleteRow, 
   isOtherRow,
   isHost,
-  className // 1. Accept the className prop here for visibility toggling
+  className 
 }) => {
   
   const rowStyle = isHost ? PDF_STYLES.hostRow : PDF_STYLES.rowEven;
@@ -23,7 +23,6 @@ const ReportRow = React.memo(({
   };
 
   return (
-    // 2. Apply the className to the table row (critical for filtering "Others")
     <tr style={rowStyle} className={className}>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(rowKey) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
         <div className="flex justify-between items-center group/row">
@@ -82,7 +81,22 @@ const ReportRow = React.memo(({
         </td>
       ))}
       <td style={{...PDF_STYLES.border, padding:0}}>
-        <input disabled={isRowReadOnly} type="text" value={row.othersSpec} onChange={e=>handleChange('othersSpec', e.target.value)} style={PDF_STYLES.inputText} />
+        {/* Changed to Textarea for wrapping */}
+        <textarea 
+          disabled={isRowReadOnly} 
+          value={row.othersSpec} 
+          onChange={e=>handleChange('othersSpec', e.target.value)} 
+          style={{
+            ...PDF_STYLES.inputText, 
+            height: 'auto', 
+            minHeight: '30px', 
+            resize: 'vertical', 
+            whiteSpace: 'pre-wrap', 
+            lineHeight: '1.2', 
+            padding: '4px'
+          }} 
+          rows={2}
+        />
       </td>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.animalTotal}</td>
       
@@ -94,20 +108,32 @@ const ReportRow = React.memo(({
       
       {/* Remarks */}
       <td style={{...PDF_STYLES.border, padding:0}}>
-        <input disabled={isRowReadOnly} type="text" value={row.remarks} onChange={e=>handleChange('remarks', e.target.value)} style={{...PDF_STYLES.inputText, paddingLeft:'4px'}} />
+        {/* Changed to Textarea for wrapping */}
+        <textarea 
+          disabled={isRowReadOnly} 
+          value={row.remarks} 
+          onChange={e=>handleChange('remarks', e.target.value)} 
+          style={{
+            ...PDF_STYLES.inputText, 
+            height: 'auto', 
+            minHeight: '30px', 
+            resize: 'vertical', 
+            whiteSpace: 'pre-wrap', 
+            lineHeight: '1.2', 
+            padding: '4px'
+          }} 
+          rows={2}
+        />
       </td>
     </tr>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison to ensure strict memoization
   return (
     prevProps.row === nextProps.row &&
     prevProps.isRowReadOnly === nextProps.isRowReadOnly &&
     prevProps.isOtherRow === nextProps.isOtherRow &&
     prevProps.isHost === nextProps.isHost &&
-    // Check computations object equality (values)
     JSON.stringify(prevProps.computations) === JSON.stringify(nextProps.computations) &&
-    // 3. Ensure className is included in comparison so it re-renders if visibility changes
     prevProps.className === nextProps.className 
   );
 });

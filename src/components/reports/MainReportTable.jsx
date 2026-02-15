@@ -59,7 +59,15 @@ export default function MainReportTable({
                             <option value="">Select Municipality...</option>
                             {availableOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                           </select>
-                          <button type="button" onClick={() => { const select = document.getElementById('other-mun-select'); const val = select.value; if(val) { setVisibleOtherMunicipalities(prev => [...prev, val]); select.value = ""; } }} className="bg-zinc-900 text-white px-2 py-1 rounded text-xs hover:bg-zinc-800 transition">+ Add Row</button>
+                          <button type="button" onClick={(e) => { 
+                            e.preventDefault();
+                            const select = document.getElementById('other-mun-select'); 
+                            const val = select.value; 
+                            if(val) { 
+                                setVisibleOtherMunicipalities(prev => [...prev, val]); 
+                                select.value = ""; 
+                            } 
+                          }} className="bg-zinc-900 text-white px-2 py-1 rounded text-xs hover:bg-zinc-800 transition">+ Add Row</button>
                         </div>
                       )}
                     </div>
@@ -71,11 +79,6 @@ export default function MainReportTable({
           const row = data[key] || INITIAL_ROW_STATE;
           const c = getComputations(row);
           
-          // Refined "Home Row" Logic:
-          // A row is read-only if: userRole is admin, or it is consolidated/aggregation mode, 
-          // or the report is not editable (not Draft/Rejected).
-          // Special Case: The host municipality row is read-only IF the facility has barangays.
-          // IF hasBarangays is FALSE (Hospital), then (isHost && hasBarangays) evaluates to FALSE, unlocking the row.
           const isHost = key === currentHostMunicipality;
           const isRowReadOnly = 
             userRole === 'admin' || 

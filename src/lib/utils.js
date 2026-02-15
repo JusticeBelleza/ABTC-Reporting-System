@@ -5,7 +5,30 @@ import { INITIAL_ROW_STATE, INITIAL_COHORT_ROW } from './constants';
 
 export const toInt = (val) => val === '' ? 0 : Number(val);
 
-export const mapDbToRow = (r) => ({ ...INITIAL_ROW_STATE, ...r, male: r.male ?? '', female: r.female ?? '', ageLt15: r.age_lt_15 ?? '', ageGt15: r.age_gt_15 ?? '', cat1: r.cat_1 ?? '', cat2: r.cat_2 ?? '', cat3: r.cat_3 ?? '', totalPatients: r.total_patients ?? '', abCount: r.ab_count ?? '', hrCount: r.hr_count ?? '', pvrv: r.pvrv ?? '', pcecv: r.pcecv ?? '', hrig: r.hrig ?? '', erig: r.erig ?? '', dog: r.dog ?? '', cat: r.cat ?? '', othersCount: r.others_count ?? '', othersSpec: r.others_spec ?? '', washed: r.washed ?? '', remarks: r.remarks ?? '' });
+export const mapDbToRow = (r) => ({ 
+  ...INITIAL_ROW_STATE, 
+  ...r, 
+  male: r.male ?? '', 
+  female: r.female ?? '', 
+  ageLt15: r.age_lt_15 ?? '', 
+  ageGt15: r.age_gt_15 ?? '', 
+  cat1: r.cat_1 ?? '', 
+  cat2: r.cat_2 ?? '', 
+  cat3: r.cat_3 ?? '', 
+  totalPatients: r.total_patients ?? '', 
+  abCount: r.ab_count ?? '', 
+  hrCount: r.hr_count ?? '', 
+  pvrv: r.pvrv ?? '', 
+  pcecv: r.pcecv ?? '', 
+  hrig: r.hrig ?? '', 
+  erig: r.erig ?? '', 
+  dog: r.dog ?? '', 
+  cat: r.cat ?? '', 
+  othersCount: r.others_count ?? '', 
+  othersSpec: r.others_spec ?? '', 
+  washed: r.washed ?? '', 
+  remarks: r.remarks ?? '' 
+});
 
 export const mapCohortDbToRow = (r) => {
   const safe = (v) => (v === 0 || v === null) ? '' : v;
@@ -15,8 +38,10 @@ export const mapCohortDbToRow = (r) => {
   };
 };
 
+// REVERTED: Use toInt (converts '' to 0, which is standard)
 export const mapRowToDb = (r) => ({ male: toInt(r.male), female: toInt(r.female), age_lt_15: toInt(r.ageLt15), age_gt_15: toInt(r.ageGt15), cat_1: toInt(r.cat1), cat_2: toInt(r.cat2), cat_3: toInt(r.cat3), total_patients: toInt(r.totalPatients), ab_count: toInt(r.abCount), hr_count: toInt(r.hrCount), pvrv: toInt(r.pvrv), pcecv: toInt(r.pcecv), hrig: toInt(r.hrig), erig: toInt(r.erig), dog: toInt(r.dog), cat: toInt(r.cat), others_count: toInt(r.others_count), others_spec: r.othersSpec, washed: toInt(r.washed), remarks: r.remarks });
 
+// REVERTED: Use toInt
 export const mapCohortRowToDb = (r) => ({
   cat2_registered: toInt(r.cat2_registered), cat2_rig: toInt(r.cat2_rig), cat2_complete: toInt(r.cat2_complete), cat2_incomplete: toInt(r.cat2_incomplete), cat2_booster: toInt(r.cat2_booster), cat2_none: toInt(r.cat2_none), cat2_died: toInt(r.cat2_died), cat2_remarks: r.cat2_remarks,
   cat3_registered: toInt(r.cat3_registered), cat3_rig: toInt(r.cat3_rig), cat3_complete: toInt(r.cat3_complete), cat3_incomplete: toInt(r.cat3_incomplete), cat3_booster: toInt(r.cat3_booster), cat3_none: toInt(r.cat3_none), cat3_died: toInt(r.cat3_died), cat3_remarks: r.cat3_remarks
@@ -24,13 +49,14 @@ export const mapCohortRowToDb = (r) => ({
 
 export const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["January", "February", "March"]; if (q === "2nd Quarter") return ["April", "May", "June"]; if (q === "3rd Quarter") return ["July", "August", "September"]; if (q === "4th Quarter") return ["October", "November", "December"]; return []; };
 
+// REVERTED: Only return true if value > 0 (Hides '0' rows in PDF)
 export const hasData = (row) => {
   if (!row) return false;
   const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-  // Added check for othersSpec so rows with text descriptions but no numbers are not hidden
   return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '') || (row.othersSpec && row.othersSpec.trim() !== '');
 };
 
+// REVERTED: Only return true if value > 0
 export const hasCohortData = (row, category) => {
   if(!row) return false;
   if (category === 'cat2') {
@@ -74,11 +100,9 @@ export const downloadPDF = async ({
     const width = doc.internal.pageSize.getWidth();
     
     // --- BRANDING ---
-    // System Logo (Top-Left)
     if (globalSettings?.logo_base64) {
       try { doc.addImage(globalSettings.logo_base64, 'PNG', 40, 20, 50, 50); } catch(e) { console.warn("Logo error", e); }
     }
-    // Facility Logo (Top-Right)
     if (userProfile?.facility_logo) {
       try { doc.addImage(userProfile.facility_logo, 'PNG', width - 90, 20, 50, 50); } catch(e) { console.warn("Facility logo error", e); }
     }
@@ -113,16 +137,18 @@ export const downloadPDF = async ({
           { content: 'Washed', colSpan: 2 },
           { content: 'Remarks', rowSpan: 2, styles: { valign: 'middle' } }
         ],
-        ['M', 'F', 'Tot', '<15', '>15', 'Tot', 'I', 'II', 'III', 'II+III', 'Tot', 'Total', 'AB', 'PVRV', 'PCECV', 'HRIG', 'ERIG', 'Dog', 'Cat', 'Others', 'Specify', 'Tot', 'No.', '%']
+        ['M', 'F', 'Total', '<15', '>15', 'Total', 'I', 'II', 'III', 'II+III', 'Total', 'Total', 'AB', 'PVRV', 'PCECV', 'HRIG', 'ERIG', 'Dog', 'Cat', 'Others', 'Specify', 'Total', 'No.', '%']
       ];
 
       // Body Rows - FILTERED for Empty/Zero rows
       body = rowKeys.map(key => {
-        // Explicitly hide the "Others:" separator row in PDF.
-        if (key === "Others:") return null; 
+        // Handle "Others:" Separator Row in PDF
+        if (key === "Others:") {
+             return [{ content: 'Other Municipalities', colSpan: 24, styles: { fillColor: [230, 230, 230], fontStyle: 'bold', halign: 'left' } }];
+        }
         
         const row = data[key] || INITIAL_ROW_STATE;
-        // Check if row has data (now includes othersSpec check)
+        // Check if row has data (Reverted logic: > 0)
         if (!hasData(row)) return null;
 
         const c = getComputations(row);
@@ -180,7 +206,10 @@ export const downloadPDF = async ({
       
       const prefix = cohortType === 'cat2' ? 'cat2' : 'cat3';
       body = rowKeys.map(key => {
-        if (key === "Others:") return null;
+        // [UPDATED] Separator logic for Cohort
+        if (key === "Others:") {
+             return [{ content: 'Other Municipalities', colSpan: 9, styles: { fillColor: [230, 230, 230], fontStyle: 'bold', halign: 'left' } }];
+        }
         
         const row = data[key] || INITIAL_COHORT_ROW;
         if (!hasCohortData(row, cohortType)) return null;
