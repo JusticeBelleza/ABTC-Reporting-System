@@ -4,7 +4,7 @@ import {
   Users, Save, AlertCircle, FileText, LogOut, CheckCircle, XCircle, Plus, 
   Layers, Loader2, PlusCircle, Trash2, MessageSquare, 
   User, Settings, FileDown, X, ArrowLeft, Github, AlertTriangle, 
-  Hospital, Stethoscope, Building2
+  Hospital, Stethoscope, Building2, Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -158,18 +158,14 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
   const confirmRejection = async () => { 
     if (!rejectionReason.trim()) { toast.error("Reason required"); return; } 
     setShowRejectModal(false); 
-    const success = await handleSave('Rejected', rejectionReason);
-    if(success && user.role === 'admin') {
-      setAdminViewMode('dashboard'); setSelectedFacility(null); fetchFacilityStatuses();
-    }
+    await handleSave('Rejected', rejectionReason);
+    // REMOVED: Redirection logic
   };
 
   const onSaveClick = async (status) => {
       if (status === 'Rejected' && user.role === 'admin') { setRejectionReason(''); setShowRejectModal(true); return; }
-      const success = await handleSave(status);
-      if(success && user.role === 'admin' && (status === 'Approved')) {
-        setAdminViewMode('dashboard'); setSelectedFacility(null); fetchFacilityStatuses();
-      }
+      await handleSave(status);
+      // REMOVED: Redirection logic
   };
 
   const onDeleteReportClick = async () => {
@@ -257,22 +253,41 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
                 <button onClick={fetchFacilityStatuses} className="ml-2 p-2 text-gray-400 hover:text-zinc-900 transition"><ArrowLeft size={14} className="rotate-180"/></button>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {facilities.map(f => (
-                 <div key={f} className="bg-white p-5 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all group cursor-pointer" onClick={() => { setSelectedFacility(f); setAdminViewMode('review'); }}>
+               {facilities.map(f => {
+                 // --- EXTRACT DUAL STATUSES ---
+                 const { main, cohort, lastUpdated } = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
+                 
+                 return (
+                 <div key={f} className="bg-white p-5 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all group cursor-pointer flex flex-col h-full" onClick={() => { setSelectedFacility(f); setAdminViewMode('review'); }}>
                     <div className="flex justify-between items-start mb-4">
                       <div className="p-2 bg-gray-50 rounded-lg text-gray-600 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
                           {facilityTypes[f] === 'Hospital' ? <Hospital size={20}/> : (facilityTypes[f] === 'Clinic' ? <Stethoscope size={20}/> : <Building2 size={20}/>)}
                       </div>
-                      <StatusBadge status={facilityStatuses[f]} />
+                      <div className="flex flex-col gap-1 items-end">
+                          {/* DUAL STATUS BADGES */}
+                          <div className="flex items-center gap-1.5"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Main</span><StatusBadge status={main} /></div>
+                          <div className="flex items-center gap-1.5"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Cohort</span><StatusBadge status={cohort} /></div>
+                      </div>
                     </div>
                     <h3 className="font-semibold text-zinc-900 mb-1">{f}</h3>
                     <p className="text-xs text-gray-500 mb-4">Report for {periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</p>
-                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
-                       <span className="text-xs font-medium text-blue-600 group-hover:underline">View Report</span>
-                       {user.role === 'admin' && <button onClick={(e) => { e.stopPropagation(); initiateDeleteFacility(f); }} className="text-gray-300 hover:text-red-500 transition"><Trash2 size={14} /></button>}
+                    
+                    <div className="mt-auto pt-4 border-t border-gray-50">
+                       <div className="flex items-center justify-between mb-2">
+                           <span className="text-xs font-medium text-blue-600 group-hover:underline">View Report</span>
+                           {user.role === 'admin' && <button onClick={(e) => { e.stopPropagation(); initiateDeleteFacility(f); }} className="text-gray-300 hover:text-red-500 transition"><Trash2 size={14} /></button>}
+                       </div>
+                       {/* LAST UPDATED TIMESTAMP */}
+                       {lastUpdated && (
+                           <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                               <Clock size={10} />
+                               <span>Updated: {new Date(lastUpdated).toLocaleDateString('en-PH', { month:'short', day:'numeric' })}</span>
+                           </div>
+                       )}
                     </div>
                  </div>
-               ))}
+               );
+               })}
              </div>
           </div>
         )}
@@ -322,8 +337,10 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
                           </>
                         ) : (
                           <>
-                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm flex items-center gap-2 disabled:opacity-50 transition">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Save</button>
-                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2 disabled:opacity-50 transition">{isSaving ? <Loader2 size={16} className="animate-spin"/> : 'Submit'}</button>
+                            {/* UPDATED: Save Button with Blue Hover */}
+                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 shadow-sm flex items-center gap-2 disabled:opacity-50 transition">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Save</button>
+                            {/* UPDATED: Submit Button with Lighter Zinc Hover */}
+                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 shadow-sm flex items-center gap-2 disabled:opacity-50 transition">{isSaving ? <Loader2 size={16} className="animate-spin"/> : 'Submit'}</button>
                           </>
                         )}
                      </>
@@ -363,7 +380,7 @@ function DashboardContent({ user, facilities, setFacilities, facilityBarangays, 
         {showAddFacilityModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-md"><div className="flex justify-between items-center mb-6"><h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2><button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button></div><AddFacilityForm onAdd={handleAddFacility} loading={isAddingFacility} /></div></div>)}
         {showRejectModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200"><div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold text-rose-600 flex items-center gap-2"><MessageSquare size={20}/> Reject Report</h2><button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20}/></button></div><p className="text-gray-600 text-sm mb-4">Please provide a reason for rejecting this report.</p><textarea className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition" rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} autoFocus placeholder="e.g. Incomplete data for..."></textarea><div className="flex justify-end gap-3 mt-4"><button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition">Cancel</button><button onClick={confirmRejection} className="px-4 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-sm font-medium transition">Confirm Rejection</button></div></div></div>)}
         {facilityToDelete && (<div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4"><div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200"><div className="flex flex-col items-center text-center"><div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><AlertTriangle size={24} /></div><h3 className="text-lg font-bold text-gray-900">Delete Facility?</h3><p className="text-sm text-gray-500 mt-2 mb-4">This will remove <span className="font-semibold">{facilityToDelete}</span>. Type <span className="font-mono font-bold text-red-600">delete</span> to confirm.</p><input type="text" value={deleteFacilityInput} onChange={(e) => setDeleteFacilityInput(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 mb-4 text-center text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 transition" placeholder='Type "delete"' autoFocus /><div className="flex gap-3 w-full"><button onClick={() => setFacilityToDelete(null)} disabled={isDeletingFacility} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancel</button><button onClick={confirmDeleteFacility} disabled={isDeletingFacility || deleteFacilityInput !== 'delete'} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex justify-center items-center gap-2">{isDeletingFacility && <Loader2 size={14} className="animate-spin"/>} Confirm</button></div></div></div></div>)}
-        {reportToDelete && (<div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4"><div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200"><div className="flex flex-col items-center text-center"><div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><Trash2 size={24} /></div><h3 className="text-lg font-bold text-gray-900">Delete Report Data?</h3><p className="text-sm text-gray-500 mt-2 mb-6">Are you sure you want to delete all report data for <span className="font-semibold">{activeFacilityName}</span> for this period? This action cannot be undone.</p><div className="flex gap-3 w-full"><button onClick={() => setReportToDelete(null)} disabled={isDeletingReport} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancel</button><button onClick={onDeleteReportClick} disabled={isDeletingReport} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition flex justify-center items-center gap-2">{isDeletingReport && <Loader2 size={14} className="animate-spin"/>} Delete</button></div></div></div></div>)}
+        {reportToDelete && (<div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4"><div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200"><div className="flex flex-col items-center text-center"><div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><Trash2 size={24} /></div><h3 className="text-lg font-bold text-gray-900">Delete Report Data?</h3><p className="text-sm text-gray-500 mt-2 mb-6">Are you sure you want to delete the <span className="font-semibold">{activeTab === 'main' ? 'Main' : 'Cohort'}</span> report data for <span className="font-semibold">{activeFacilityName}</span>? This action cannot be undone.</p><div className="flex gap-3 w-full"><button onClick={() => setReportToDelete(null)} disabled={isDeletingReport} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancel</button><button onClick={onDeleteReportClick} disabled={isDeletingReport} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition flex justify-center items-center gap-2">{isDeletingReport && <Loader2 size={14} className="animate-spin"/>} Delete</button></div></div></div></div>)}
         {deleteConfirmation.isOpen && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-sm animate-in fade-in zoom-in duration-200"><div className="flex flex-col items-center text-center"><div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><AlertTriangle size={24} strokeWidth={2} /></div><h3 className="text-lg font-semibold text-gray-900 mb-1">Remove Row?</h3><p className="text-sm text-gray-500 mb-6">Are you sure you want to remove the row for <span className="font-bold text-gray-800">{deleteConfirmation.rowKey}</span>? All data in this row will be cleared.</p><div className="flex gap-3 w-full"><button onClick={() => setDeleteConfirmation({isOpen: false, rowKey: null})} className="flex-1 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition border border-gray-200">Cancel</button><button onClick={() => { handleDeleteRow(deleteConfirmation.rowKey); setDeleteConfirmation({isOpen:false, rowKey:null}); }} className="flex-1 px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg text-sm font-medium transition shadow-sm">Remove</button></div></div></div></div>)}
         
         {showPrivacyPolicy && <PrivacyModal onClose={() => setShowPrivacyPolicy(false)} />}

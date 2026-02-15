@@ -37,14 +37,22 @@ export function useReportData({
 
   const [data, setData] = useState({});
   const [cohortData, setCohortData] = useState({});
-  const [reportStatus, setReportStatus] = useState('Draft');
+  
+  // Separate status states for the Active View
+  const [reportStatuses, setReportStatuses] = useState({ main: 'Draft', cohort: 'Draft' });
+  
   const [loading, setLoading] = useState(true); 
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Changed: facilityStatuses now stores an object { main, cohort, lastUpdated } per facility
   const [facilityStatuses, setFacilityStatuses] = useState({}); 
   
   const [visibleOtherMunicipalities, setVisibleOtherMunicipalities] = useState([]);
   const [visibleCat2, setVisibleCat2] = useState([]);
   const [visibleCat3, setVisibleCat3] = useState([]);
+
+  // Derived current status based on active tab
+  const reportStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
 
   const isConsolidatedView = adminViewMode === 'consolidated';
   const activeFacilityName = userRole === 'admin' ? (isConsolidatedView ? 'PHO' : selectedFacility) : userName;
@@ -102,19 +110,65 @@ export function useReportData({
     return d; 
   };
 
+  // --- UPDATED: Fetch BOTH Main and Cohort statuses ---
   const fetchFacilityStatuses = useCallback(async () => {
     setLoading(true);
     try {
       if (periodType !== 'Monthly') { setFacilityStatuses({}); return; }
-      const { data: reportData } = await supabase.from('abtc_reports').select('facility, status, created_at').eq('year', year).eq('month', month);
+      
+      // Initialize all with 'Draft'
       const statuses = {}; 
-      facilities.forEach(f => statuses[f] = 'Draft');
-      if (reportData && reportData.length > 0) {
-        reportData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        reportData.forEach(r => { statuses[r.facility] = r.status; });
+      facilities.forEach(f => {
+          statuses[f] = { main: 'Draft', cohort: 'Draft', lastUpdated: null };
+      });
+
+      // 1. Fetch Main Reports
+      const { data: mainData } = await supabase
+          .from('abtc_reports')
+          .select('facility, status, created_at')
+          .eq('year', year)
+          .eq('month', month);
+
+      if (mainData && mainData.length > 0) {
+        // Sort by created_at to get latest
+        mainData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        mainData.forEach(r => {
+            if (statuses[r.facility]) {
+                statuses[r.facility].main = r.status;
+                statuses[r.facility].lastUpdated = r.created_at; // Track latest activity
+            }
+        });
       }
+
+      // 2. Fetch Cohort Reports
+      const { data: cohortData } = await supabase
+          .from('abtc_cohort_reports')
+          .select('facility, status, created_at')
+          .eq('year', year)
+          .eq('month', month);
+
+      if (cohortData && cohortData.length > 0) {
+        cohortData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        cohortData.forEach(r => {
+             if (statuses[r.facility]) {
+                 statuses[r.facility].cohort = r.status;
+                 // Update lastUpdated if this one is newer
+                 const currentLast = statuses[r.facility].lastUpdated ? new Date(statuses[r.facility].lastUpdated) : new Date(0);
+                 const newDate = new Date(r.created_at);
+                 if (newDate > currentLast) {
+                     statuses[r.facility].lastUpdated = r.created_at;
+                 }
+             }
+        });
+      }
+
       setFacilityStatuses(statuses);
-    } catch (error) { console.error("Error fetching statuses:", error); toast.error("Failed to load facility statuses"); } finally { setLoading(false); }
+    } catch (error) { 
+        console.error("Error fetching statuses:", error); 
+        toast.error("Failed to load facility statuses"); 
+    } finally { 
+        setLoading(false); 
+    }
   }, [periodType, year, month, facilities]);
 
   const fetchData = useCallback(async () => {
@@ -148,12 +202,8 @@ export function useReportData({
               const m = record.municipality;
               if (newData[m]) {
                  const r = mapDbToRow(record);
-                 
-                 // --- FIX 1: Fetch correct "others_count" from DB ---
                  r.othersCount = record.others_count ?? record.othersCount ?? 0;
                  r.othersSpec = record.others_spec ?? record.othersSpec ?? '';
-                 // --------------------------------------------------
-
                  const c = newData[m];
                  const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
                  keys.forEach(k => { c[k] = toInt(r[k]); });
@@ -168,8 +218,13 @@ export function useReportData({
             });
             setData(newData);
             records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-            setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
-          } else { setData(newData); setReportStatus('Draft'); }
+            
+            const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
+            setReportStatuses(prev => ({ ...prev, main: newStatus }));
+          } else { 
+            setData(newData); 
+            setReportStatuses(prev => ({ ...prev, main: 'Draft' })); 
+          }
           setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
 
       } else {
@@ -214,8 +269,13 @@ export function useReportData({
               });
               setCohortData(newCohort);
               records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-              setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
-          } else { setCohortData(newCohort); setReportStatus('Draft'); }
+              
+              const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
+              setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
+          } else { 
+            setCohortData(newCohort); 
+            setReportStatuses(prev => ({ ...prev, cohort: 'Draft' })); 
+          }
           setVisibleCat2(Array.from(newVisibleCat2));
           setVisibleCat3(Array.from(newVisibleCat3));
       }
@@ -296,6 +356,11 @@ export function useReportData({
     const target = userRole === 'admin' ? selectedFacility : (userName ? userName.trim() : null);
     if (!target) { toast.error("Error: Could not determine facility name."); return false; }
 
+    // --- DETECT RESUBMISSION (For Notification Purpose) ---
+    // If the CURRENT status is 'Rejected' and the NEW status is 'Pending', this is a Resubmission.
+    const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
+    const isResubmission = (currentStatus === 'Rejected' && newStatus === 'Pending');
+
     setIsSaving(true);
     const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
     
@@ -310,11 +375,9 @@ export function useReportData({
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
                 let rem = row.remarks; if (newStatus === 'Rejected' && reason && m === targetKey) rem = `REJECTED: ${reason}`;
                 
-                // --- FIX 2: Save to correct "others_count" column ---
                 const dbRow = mapRowToDb(row);
-                dbRow.others_count = toInt(row.othersCount);  // Use 'others_count' NOT 'others'
+                dbRow.others_count = toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
-                // ---------------------------------------------------
 
                 return { ...dbRow, year: cleanYear, month: cleanMonth, municipality: m, facility: target, status: newStatus, remarks: rem };
             }).filter(x => x !== null);
@@ -333,7 +396,7 @@ export function useReportData({
                 const { error: insertError } = await supabase.from('abtc_reports').insert(payload);
                 if (insertError) throw new Error(`Insert failed: ${insertError.message}`);
             }
-            setReportStatus(newStatus);
+            setReportStatuses(prev => ({ ...prev, main: newStatus }));
         } else {
             const currentMonthOrQuarter = periodType === 'Monthly' ? cleanMonth : cleanQuarter;
             
@@ -356,10 +419,18 @@ export function useReportData({
                 const { error: insertCohortError } = await supabase.from('abtc_cohort_reports').insert(payload);
                 if (insertCohortError) throw new Error(`Insert failed: ${insertCohortError.message}`);
             }
-            setReportStatus(newStatus);
+            setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
         }
         
-        if (newStatus === 'Pending') { await createDbNotification('PHO Admin', 'New Submission', `${target} report.`, 'info'); toast.success('Submitted'); }
+        // Notifications
+        if (newStatus === 'Pending') { 
+            const title = isResubmission ? 'Resubmission' : 'New Submission';
+            const msg = isResubmission 
+                ? `${target} has resubmitted their ${activeTab === 'main' ? 'ABTC' : 'Cohort'} report.`
+                : `${target} report.`;
+            await createDbNotification('PHO Admin', title, msg, 'info'); 
+            toast.success(isResubmission ? 'Resubmitted' : 'Submitted'); 
+        }
         else if (newStatus === 'Approved') { await createDbNotification(target, 'Approved', `Report approved.`, 'success'); toast.success('Approved'); }
         else if (newStatus === 'Rejected') { await createDbNotification(target, 'Report Rejected', `Your report has been rejected. Reason: ${reason}`, 'error'); toast.success('Rejected'); }
         else toast.success('Saved');
@@ -380,18 +451,22 @@ export function useReportData({
         const cleanMonth = String(month).trim();
         const currentMonthOrQuarter = periodType === 'Monthly' ? cleanMonth : String(quarter).trim();
 
-        const { error: rpcError1 } = await supabase.rpc('delete_report_securely', {
-            p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: 'main'
-        });
-        if (rpcError1) throw rpcError1;
-
-        const { error: rpcError2 } = await supabase.rpc('delete_report_securely', {
-            p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: 'cohort'
-        });
-        if (rpcError2) throw rpcError2;
+        // Delete ONLY the currently active report type (Main vs Cohort)
+        if (activeTab === 'main') {
+            const { error: rpcError1 } = await supabase.rpc('delete_report_securely', {
+                p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: 'main'
+            });
+            if (rpcError1) throw rpcError1;
+            setReportStatuses(prev => ({ ...prev, main: 'Draft' }));
+        } else {
+            const { error: rpcError2 } = await supabase.rpc('delete_report_securely', {
+                p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: 'cohort'
+            });
+            if (rpcError2) throw rpcError2;
+            setReportStatuses(prev => ({ ...prev, cohort: 'Draft' }));
+        }
 
         toast.success("Report data deleted"); 
-        setReportStatus('Draft'); 
         fetchData(); 
         return true;
     } catch(err) { toast.error(err.message); return false; }

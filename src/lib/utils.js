@@ -38,10 +38,8 @@ export const mapCohortDbToRow = (r) => {
   };
 };
 
-// REVERTED: Use toInt (converts '' to 0, which is standard)
 export const mapRowToDb = (r) => ({ male: toInt(r.male), female: toInt(r.female), age_lt_15: toInt(r.ageLt15), age_gt_15: toInt(r.ageGt15), cat_1: toInt(r.cat1), cat_2: toInt(r.cat2), cat_3: toInt(r.cat3), total_patients: toInt(r.totalPatients), ab_count: toInt(r.abCount), hr_count: toInt(r.hrCount), pvrv: toInt(r.pvrv), pcecv: toInt(r.pcecv), hrig: toInt(r.hrig), erig: toInt(r.erig), dog: toInt(r.dog), cat: toInt(r.cat), others_count: toInt(r.others_count), others_spec: r.othersSpec, washed: toInt(r.washed), remarks: r.remarks });
 
-// REVERTED: Use toInt
 export const mapCohortRowToDb = (r) => ({
   cat2_registered: toInt(r.cat2_registered), cat2_rig: toInt(r.cat2_rig), cat2_complete: toInt(r.cat2_complete), cat2_incomplete: toInt(r.cat2_incomplete), cat2_booster: toInt(r.cat2_booster), cat2_none: toInt(r.cat2_none), cat2_died: toInt(r.cat2_died), cat2_remarks: r.cat2_remarks,
   cat3_registered: toInt(r.cat3_registered), cat3_rig: toInt(r.cat3_rig), cat3_complete: toInt(r.cat3_complete), cat3_incomplete: toInt(r.cat3_incomplete), cat3_booster: toInt(r.cat3_booster), cat3_none: toInt(r.cat3_none), cat3_died: toInt(r.cat3_died), cat3_remarks: r.cat3_remarks
@@ -49,14 +47,13 @@ export const mapCohortRowToDb = (r) => ({
 
 export const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["January", "February", "March"]; if (q === "2nd Quarter") return ["April", "May", "June"]; if (q === "3rd Quarter") return ["July", "August", "September"]; if (q === "4th Quarter") return ["October", "November", "December"]; return []; };
 
-// REVERTED: Only return true if value > 0 (Hides '0' rows in PDF)
 export const hasData = (row) => {
   if (!row) return false;
   const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
+  // Return TRUE only if at least one numeric field > 0 or there are remarks/specs
   return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '') || (row.othersSpec && row.othersSpec.trim() !== '');
 };
 
-// REVERTED: Only return true if value > 0
 export const hasCohortData = (row, category) => {
   if(!row) return false;
   if (category === 'cat2') {
@@ -142,13 +139,14 @@ export const downloadPDF = async ({
 
       // Body Rows - FILTERED for Empty/Zero rows
       body = rowKeys.map(key => {
-        // Handle "Others:" Separator Row in PDF
+        // Handle "Others:" Separator Row in PDF - Merged across full width (26 columns)
         if (key === "Others:") {
-             return [{ content: 'Other Municipalities', colSpan: 24, styles: { fillColor: [230, 230, 230], fontStyle: 'bold', halign: 'left' } }];
+             return [{ content: 'Other Municipalities', colSpan: 26, styles: { fillColor: [230, 230, 230], fontStyle: 'bold', halign: 'left' } }];
         }
         
         const row = data[key] || INITIAL_ROW_STATE;
-        // Check if row has data (Reverted logic: > 0)
+        
+        // Strict check: If all numbers are 0 and remarks empty, do not show
         if (!hasData(row)) return null;
 
         const c = getComputations(row);
@@ -206,12 +204,13 @@ export const downloadPDF = async ({
       
       const prefix = cohortType === 'cat2' ? 'cat2' : 'cat3';
       body = rowKeys.map(key => {
-        // [UPDATED] Separator logic for Cohort
+        // Handle "Others:" Separator Row in PDF - Merged across full width (9 columns)
         if (key === "Others:") {
              return [{ content: 'Other Municipalities', colSpan: 9, styles: { fillColor: [230, 230, 230], fontStyle: 'bold', halign: 'left' } }];
         }
         
         const row = data[key] || INITIAL_COHORT_ROW;
+        // Strict check: If all numbers are 0 and remarks empty, do not show
         if (!hasCohortData(row, cohortType)) return null;
 
         return [
