@@ -32,7 +32,7 @@ export function useReportData({
   adminViewMode,
   selectedFacility
 }) {
-  // --- Decompose User to Primitive Values (Fixes Alt+Tab Refresh) ---
+  // --- Decompose User to Primitive Values ---
   const userRole = user?.role;
   const userName = user?.name;
 
@@ -119,10 +119,24 @@ export function useReportData({
         return; 
       }
 
-      const { data: reportData } = await supabase.from('abtc_reports').select('facility, status').eq('year', year).eq('month', month);
+      // Fetch statuses sorted by creation date
+      const { data: reportData } = await supabase
+        .from('abtc_reports')
+        .select('facility, status, created_at')
+        .eq('year', year)
+        .eq('month', month);
+
       const statuses = {}; 
       facilities.forEach(f => statuses[f] = 'Draft');
-      if (reportData) reportData.forEach(r => statuses[r.facility] = r.status);
+      
+      if (reportData && reportData.length > 0) {
+        // STRICT SORT: Ensure we process oldest to newest
+        reportData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+        reportData.forEach(r => {
+           statuses[r.facility] = r.status;
+        });
+      }
       setFacilityStatuses(statuses);
     } catch (error) {
       console.error("Error fetching statuses:", error);
@@ -132,7 +146,6 @@ export function useReportData({
     }
   }, [periodType, year, month, facilities]);
 
-  // FIX: Depend on userRole/userName primitives instead of 'user' object
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -148,9 +161,22 @@ export function useReportData({
           if (isConsolidatedView) query = query.eq('status', 'Approved'); 
           else if (target) query = query.eq('facility', target);
           
-          // FIX: Sort by created_at so newer rows overwrite older ones (handling duplicates)
-          const { data: records, error } = await query.order('created_at', { ascending: true });
+          const { data: rawRecords, error } = await query;
           if (error) throw error;
+
+          // --- ROBUST DEDUPLICATION LOGIC ---
+          const uniqueRecordsMap = {};
+          if (rawRecords && rawRecords.length > 0) {
+            // 1. Strict Sort in JS to guarantee order (Oldest -> Newest)
+            rawRecords.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            
+            // 2. Map fills, overwriting older with newer
+            rawRecords.forEach(r => {
+                uniqueRecordsMap[r.municipality] = r;
+            });
+          }
+          const records = Object.values(uniqueRecordsMap);
+          // ---------------------------------
 
           const newVisibleOthers = new Set();
           
@@ -162,11 +188,9 @@ export function useReportData({
                  const c = newData[m];
                  const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
                  
-                 // FIX: Assign (=) instead of Add (+=) to prevent summing duplicates
                  keys.forEach(k => { c[k] = toInt(r[k]); });
                  
                  if (r.othersSpec && r.othersSpec.trim()) {
-                   // For duplicates, prefer the latest text
                    c.othersSpec = r.othersSpec.trim();
                  }
 
@@ -178,8 +202,9 @@ export function useReportData({
               }
             });
             setData(newData);
-            // FIX: Use status from LAST record (latest)
-            setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
+            // Sort final records again to ensure we pick the status from the absolutely last one
+            records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+            setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
           } else { 
             setData(newData); 
             setReportStatus('Draft'); 
@@ -188,6 +213,7 @@ export function useReportData({
           setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
 
       } else {
+          // --- COHORT FETCH LOGIC ---
           const newCohort = initData(fullRowKeys, true);
           let query = supabase.from('abtc_cohort_reports').select('*').eq('year', year);
           if (periodType === 'Monthly') query = query.eq('month', month);
@@ -196,9 +222,22 @@ export function useReportData({
           if (isConsolidatedView) query = query.eq('status', 'Approved'); 
           else if (target) query = query.eq('facility', target);
           
-          // FIX: Sort by created_at
-          const { data: records, error } = await query.order('created_at', { ascending: true });
+          const { data: rawRecords, error } = await query;
           if (error) throw error;
+
+          // --- ROBUST DEDUPLICATION LOGIC (Cohort) ---
+          const uniqueRecordsMap = {};
+          if (rawRecords && rawRecords.length > 0) {
+            // 1. Strict Sort in JS (Oldest -> Newest)
+            rawRecords.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            
+            // 2. Map fills, overwriting older with newer
+            rawRecords.forEach(r => {
+                uniqueRecordsMap[r.municipality] = r;
+            });
+          }
+          const records = Object.values(uniqueRecordsMap);
+          // -------------------------------------------
 
           const newVisibleCat2 = new Set(); 
           const newVisibleCat3 = new Set();
@@ -210,7 +249,7 @@ export function useReportData({
                       const r = mapCohortDbToRow(record);
                       const c = newCohort[m];
                       const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-                      // FIX: Assign (=) instead of Add (+=)
+                      
                       keys.forEach(k => { c[k] = toInt(r[k]); });
                       c.cat2_remarks = r.cat2_remarks || c.cat2_remarks || ''; 
                       c.cat3_remarks = r.cat3_remarks || c.cat3_remarks || '';
@@ -224,8 +263,8 @@ export function useReportData({
                   }
               });
               setCohortData(newCohort);
-              // FIX: Use status from LAST record
-              setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1].status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
+              records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+              setReportStatus(periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft'));
           } else { 
             setCohortData(newCohort); 
             setReportStatus('Draft'); 
@@ -322,7 +361,14 @@ export function useReportData({
   const handleSave = async (newStatus, reason = null) => {
     if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
     
-    const target = userRole === 'admin' ? selectedFacility : userName;
+    // Safety check: ensure target is trimmed to match DB strictly
+    const target = userRole === 'admin' ? selectedFacility : (userName ? userName.trim() : null);
+    
+    if (!target) {
+        toast.error("Error: Could not determine facility name.");
+        return false;
+    }
+
     setIsSaving(true);
     const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
     
@@ -333,7 +379,11 @@ export function useReportData({
                 let rem = row.remarks; if (newStatus === 'Rejected' && reason && m === targetKey) rem = `REJECTED: ${reason}`;
                 return { ...mapRowToDb(row), year, month, municipality: m, facility: target, status: newStatus, remarks: rem };
             }).filter(x => x !== null);
+            
+            // Attempt delete. If this fails due to RLS, duplicates will exist.
+            // Our updated fetchData logic handles duplicates by prioritizing the newest record.
             await supabase.from('abtc_reports').delete().eq('year', year).eq('month', month).eq('facility', target);
+            
             if(payload.length > 0) await supabase.from('abtc_reports').insert(payload);
             setReportStatus(newStatus);
         } else {
@@ -341,7 +391,9 @@ export function useReportData({
                 if (!hasCohortData(row, 'cat2') && !hasCohortData(row, 'cat3') && !getRowKeysForFacility(target, false, false, true, visibleCat2).includes(m) && !getRowKeysForFacility(target, false, false, true, visibleCat3).includes(m)) return null;
                 return { ...mapCohortRowToDb(row), year, month: periodType === 'Monthly' ? month : quarter, municipality: m, facility: target, status: newStatus };
             }).filter(x => x !== null);
+
             await supabase.from('abtc_cohort_reports').delete().eq('year', year).eq('month', periodType === 'Monthly' ? month : quarter).eq('facility', target);
+            
             if(payload.length > 0) await supabase.from('abtc_cohort_reports').insert(payload);
             setReportStatus(newStatus);
         }
@@ -350,9 +402,13 @@ export function useReportData({
         else if (newStatus === 'Approved') { await createDbNotification(target, 'Approved', `Report approved.`, 'success'); toast.success('Approved'); }
         else if (newStatus === 'Rejected') { await createDbNotification(target, 'Report Rejected', `Your report has been rejected. Reason: ${reason}`, 'error'); toast.success('Rejected'); }
         else toast.success('Saved');
+
+        // FORCE A RE-FETCH to ensure the UI shows exactly what is in the DB
+        await fetchData();
         
         return true; 
     } catch (err) { 
+        console.error("Save Error:", err);
         toast.error(err.message); 
         return false;
     } finally { 
