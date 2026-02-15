@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { XCircle } from 'lucide-react';
 import { PDF_STYLES, MUNICIPALITIES } from '../../lib/constants';
 
@@ -11,7 +12,7 @@ const ReportRow = React.memo(({
   onDeleteRow, 
   isOtherRow,
   isHost,
-  className // 1. Accept the className prop here
+  className // 1. Accept the className prop here for visibility toggling
 }) => {
   
   const rowStyle = isHost ? PDF_STYLES.hostRow : PDF_STYLES.rowEven;
@@ -22,7 +23,7 @@ const ReportRow = React.memo(({
   };
 
   return (
-    // 2. Apply the className to the table row
+    // 2. Apply the className to the table row (critical for filtering "Others")
     <tr style={rowStyle} className={className}>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(rowKey) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
         <div className="flex justify-between items-center group/row">
@@ -110,5 +111,25 @@ const ReportRow = React.memo(({
     prevProps.className === nextProps.className 
   );
 });
+
+ReportRow.propTypes = {
+  rowKey: PropTypes.string.isRequired,
+  row: PropTypes.object.isRequired,
+  computations: PropTypes.shape({
+    sexTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    ageTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    cat23: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    catTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    animalTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    percent: PropTypes.string,
+    sexMismatch: PropTypes.bool
+  }).isRequired,
+  isRowReadOnly: PropTypes.bool,
+  onChange: PropTypes.func.isRequired,
+  onDeleteRow: PropTypes.func,
+  isOtherRow: PropTypes.bool,
+  isHost: PropTypes.bool,
+  className: PropTypes.string
+};
 
 export default ReportRow;
