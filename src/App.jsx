@@ -21,6 +21,7 @@ export default function App() {
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
+    
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
@@ -29,7 +30,10 @@ export default function App() {
         localStorage.removeItem('abtc_login_time');
       }
     });
-    return () => subscription.unsubscribe();
+    return () => {
+        subscription.unsubscribe();
+        // Cleanup global variable on unmount 
+    };
   }, []);
 
   useEffect(() => {
@@ -51,6 +55,7 @@ export default function App() {
 
   useEffect(() => {
     if(supabase && session) {
+      // NOTE: .single() might throw error if 0 rows, consider .maybeSingle() if row might not exist
       supabase.from('settings').select('*').single().then(({data}) => { if(data) setGlobalSettings(data); });
       supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({data}) => { if(data) setUserProfile(data); });
     }
@@ -61,6 +66,7 @@ export default function App() {
     return {
       id: session.user.id,
       email: session.user.email,
+      // Fallback logic preserved from your original code
       name: session.user.user_metadata?.facility_name || 'Unknown Facility',
       fullName: session.user.user_metadata?.full_name, 
       role: session.user.user_metadata?.role || 'user'
@@ -69,6 +75,8 @@ export default function App() {
 
   if (!supabase) return <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">Configuration Missing</div>;
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-zinc-900" size={20} /></div>;
+  
+  // NOTE: Pass user prop to UpdatePasswordForm if it needs context, currently it doesn't seem to based on usage
   if (showPasswordUpdate) return <UpdatePasswordForm onComplete={() => setShowPasswordUpdate(false)} />;
   if (!session) return <Login />;
 
