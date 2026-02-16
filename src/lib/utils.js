@@ -50,7 +50,6 @@ export const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["Janua
 export const hasData = (row) => {
   if (!row) return false;
   const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-  // Return TRUE only if at least one numeric field > 0 or there are remarks/specs
   return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '') || (row.othersSpec && row.othersSpec.trim() !== '');
 };
 
@@ -93,7 +92,7 @@ export const downloadPDF = async ({
   globalSettings 
 }) => {
   try {
-    const doc = new jsPDF('landscape', 'pt', 'legal'); // Legal Landscape
+    const doc = new jsPDF('landscape', 'pt', 'legal'); 
     const width = doc.internal.pageSize.getWidth();
     
     // --- BRANDING ---
@@ -123,30 +122,49 @@ export const downloadPDF = async ({
     
     if (type === 'main') {
       head = [
+        // --- Row 1 ---
         [
-          { content: 'Municipality', rowSpan: 2, styles: { valign: 'middle', halign: 'left' } },
-          { content: 'Human Cases (Sex)', colSpan: 3 },
-          { content: 'Human Cases (Age)', colSpan: 3 },
-          { content: 'Category', colSpan: 5 },
-          { content: 'Status', colSpan: 2 },
-          { content: 'PEP', colSpan: 4 },
-          { content: 'Biting Animals', colSpan: 5 },
-          { content: 'Washed', colSpan: 2 },
-          { content: 'Remarks', rowSpan: 2, styles: { valign: 'middle' } }
+          { content: 'Municipality', rowSpan: 3, styles: { valign: 'middle', halign: 'left' } },
+          { content: 'Human Cases', colSpan: 17 },
+          { content: 'Biting Animals', colSpan: 4 },
+          { content: 'Total', rowSpan: 3, styles: { valign: 'middle' } },
+          { content: 'No. who washed', rowSpan: 3, styles: { valign: 'middle' } },
+          { content: 'Percentage', rowSpan: 3, styles: { valign: 'middle' } },
+          { content: 'Remarks', rowSpan: 3, styles: { valign: 'middle' } }
         ],
-        ['M', 'F', 'Total', '<15', '>15', 'Total', 'I', 'II', 'III', 'II+III', 'Total', 'Total', 'AB', 'PVRV', 'PCECV', 'HRIG', 'ERIG', 'Dog', 'Cat', 'Others', 'Specify', 'Total', 'No.', '%']
+        // --- Row 2 ---
+        [
+          { content: 'Sex', colSpan: 2 },
+          { content: 'Total', rowSpan: 2, styles: { valign: 'middle' } },
+          { content: 'Age', colSpan: 2 },
+          { content: 'Total', rowSpan: 2, styles: { valign: 'middle' } },
+          { content: 'AB Category', colSpan: 3 },
+          { content: '(CII+CIII)', rowSpan: 2, styles: { valign: 'middle' } },
+          { content: 'Total', rowSpan: 2, styles: { valign: 'middle' } },
+          { content: 'AB', styles: { valign: 'middle' } },
+          { content: 'HR', styles: { valign: 'middle' } },
+          { content: 'Post-Exposure Prophylaxis', colSpan: 4 },
+          { content: 'Dog', rowSpan: 2, styles: { valign: 'middle' } },
+          { content: 'Cat', rowSpan: 2, styles: { valign: 'middle' } },
+          { content: 'Others (Specify)', colSpan: 2 }
+        ],
+        // --- Row 3 ---
+        [
+          'Male', 'Female', 
+          '<15', '>15', 
+          'Cat I', 'Cat II', 'Cat III', 
+          'No.', 'No.', 
+          'PVRV', 'PCECV', 'HRIG', 'ERIG', 
+          'No.', 'Specify'
+        ]
       ];
 
-      // Body Rows - FILTERED for Empty/Zero rows
       body = rowKeys.map(key => {
-        // Handle "Others:" Separator Row in PDF - Merged across full width (26 columns)
         if (key === "Others:") {
              return [{ content: 'Other Municipalities', colSpan: 26, styles: { fillColor: [230, 230, 230], fontStyle: 'bold', halign: 'left' } }];
         }
         
         const row = data[key] || INITIAL_ROW_STATE;
-        
-        // Strict check: If all numbers are 0 and remarks empty, do not show
         if (!hasData(row)) return null;
 
         const c = getComputations(row);
@@ -156,15 +174,18 @@ export const downloadPDF = async ({
           row.male, row.female, { content: c.sexTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
           row.ageLt15, row.ageGt15, { content: c.ageTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
           row.cat1, row.cat2, row.cat3, c.cat23, { content: c.catTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
-          row.totalPatients, row.abCount,
+          
+          // FIX: Removed row.totalPatients here to align columns correctly
+          row.abCount, row.hrCount,
+          
           row.pvrv, row.pcecv, row.hrig, row.erig,
-          row.dog, row.cat, row.othersCount, row.othersSpec, { content: c.animalTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
+          row.dog, row.cat, row.othersCount, row.othersSpec, 
+          { content: c.animalTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
           row.washed, { content: c.percent, styles: { fontSize: 8 } },
           row.remarks
         ];
-      }).filter(row => row !== null); // Remove nulls
+      }).filter(row => row !== null);
 
-      // Grand Total Row
       const gt = grandTotals;
       body.push([
         { content: 'GRAND TOTAL', styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255], halign: 'left' } },
@@ -179,8 +200,11 @@ export const downloadPDF = async ({
         { content: gt.cat3, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.cat23, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
         { content: gt.catTotal, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
-        { content: gt.totalPatients, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        
+        // FIX: Removed gt.totalPatients here to match body
         { content: gt.abCount, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        { content: gt.hrCount, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
+        
         { content: gt.pvrv, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.pcecv, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.hrig, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
@@ -196,7 +220,7 @@ export const downloadPDF = async ({
       ]);
     } 
     else {
-      // Cohort Table
+      // ... Cohort code remains same ...
       head = [[
         { content: 'Municipality', styles: { halign: 'left', valign: 'middle' } },
         'Registered', 'W/ RIG', 'Complete', 'Incomplete', 'Booster', 'None', 'Died', 'Remarks'
@@ -204,13 +228,11 @@ export const downloadPDF = async ({
       
       const prefix = cohortType === 'cat2' ? 'cat2' : 'cat3';
       body = rowKeys.map(key => {
-        // Handle "Others:" Separator Row in PDF - Merged across full width (9 columns)
         if (key === "Others:") {
              return [{ content: 'Other Municipalities', colSpan: 9, styles: { fillColor: [230, 230, 230], fontStyle: 'bold', halign: 'left' } }];
         }
         
         const row = data[key] || INITIAL_COHORT_ROW;
-        // Strict check: If all numbers are 0 and remarks empty, do not show
         if (!hasCohortData(row, cohortType)) return null;
 
         return [
@@ -220,9 +242,8 @@ export const downloadPDF = async ({
           row[`${prefix}_booster`], row[`${prefix}_none`],
           row[`${prefix}_died`], row[`${prefix}_remarks`]
         ];
-      }).filter(Boolean); // Filter nulls
+      }).filter(Boolean);
 
-      // Cohort Total
       const ct = cohortTotals;
       body.push([
         { content: 'TOTAL', styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255], halign: 'left' } },
@@ -244,15 +265,10 @@ export const downloadPDF = async ({
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 3, halign: 'center', lineWidth: 0.5, lineColor: [200, 200, 200] },
       headStyles: { fillColor: [250, 250, 250], textColor: [50, 50, 50], lineWidth: 0.5, lineColor: [200, 200, 200] },
-      didDrawPage: (data) => {
-        // Optional: Add page numbers or footer here if needed
-      }
+      didDrawPage: (data) => { }
     });
 
-    // --- SIGNATORIES (Manual Placement after Table) ---
     let finalY = doc.lastAutoTable.finalY + 30;
-    
-    // Check if we have space, else add page
     if (finalY + 100 > doc.internal.pageSize.getHeight()) {
       doc.addPage();
       finalY = 40;
@@ -271,7 +287,7 @@ export const downloadPDF = async ({
         doc.text(sig.label || '', xPos, finalY, { align: 'center' });
         
         doc.setLineWidth(1);
-        doc.line(xPos - 60, finalY + 50, xPos + 60, finalY + 50); // Signature Line
+        doc.line(xPos - 60, finalY + 50, xPos + 60, finalY + 50); 
         
         doc.setFontSize(10);
         doc.setTextColor(0);
@@ -283,7 +299,6 @@ export const downloadPDF = async ({
       });
     }
 
-    // Generated Footer with Explicit Philippine Locale/Timezone
     const phTime = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
     doc.setFontSize(7);
     doc.setTextColor(150);

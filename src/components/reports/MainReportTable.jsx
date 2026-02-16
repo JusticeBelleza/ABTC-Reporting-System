@@ -10,33 +10,80 @@ export default function MainReportTable({
   onChange, onDeleteRow, grandTotals, facilityBarangays 
 }) {
   
-  // Determine if the active facility has any barangays (e.g. RHUs have them, Hospitals might not)
   const hasBarangays = facilityBarangays[activeFacilityName] && facilityBarangays[activeFacilityName].length > 0;
 
   return (
     <table className="w-full border-collapse" style={{ borderColor: PDF_STYLES.border.borderColor }}>
       <thead>
+        {/* --- ROW 1 --- */}
         <tr style={isConsolidated ? PDF_STYLES.header : PDF_STYLES.subHeader}>
           <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', fontWeight:'bold', width: '200px', minWidth: '200px'}}>
             {isConsolidated ? "Municipality" : (hasBarangays ? "Barangay / Municipality" : "Municipality")}
           </th>
-          <th colSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Human Cases (Sex)</th>
-          <th colSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Human Cases (Age)</th>
-          <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Category</th>
-          <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Status</th>
-          <th colSpan={4} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>PEP</th>
-          <th colSpan={5} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Biting Animals</th>
-          <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>No. Who Washed</th>
-          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500', width: '150px', minWidth: '150px'}}>Remarks</th>
+          {/* Human Cases spans Sex(3) + Age(3) + Cat(3) + C23(1) + Tot(1) + Stat(2) + PEP(4) = 17 columns */}
+          <th colSpan={17} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Human Cases</th>
+          {/* Biting Animals spans Dog, Cat, Others, Specify = 4 columns */}
+          <th colSpan={4} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Biting Animals</th>
+          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b', fontWeight:'500'}}>Total</th>
+          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>No. who washed</th>
+          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b', fontWeight:'500'}}>Percentage</th>
+          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500', width: '150px', minWidth: '150px'}}>
+            Remarks <br/> <span style={{fontSize:'8px', fontWeight:'normal'}}>(Indicate # of CAT I given Prep, # of CAT III w/c is non bite, others)</span>
+          </th>
         </tr>
+
+        {/* --- ROW 2 --- */}
         <tr style={PDF_STYLES.subHeader}>
-          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>M</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>F</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
-          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>&lt;15</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>&gt;15</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
-          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>I</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>II</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>III</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>II+III</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
-          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Total</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>AB</th>
-          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>PVRV</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>PCECV</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>HRIG</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>ERIG</th>
-          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Dog</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Cat</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Others</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Specify</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
-          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>No.</th><th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>%</th>
+          <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Sex</th>
+          <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
+          
+          <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Age</th>
+          <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
+          
+          <th colSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>AB Category</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
+          
+          <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b'}}>Total</th>
+          
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>AB</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>HR</th>
+          
+          <th colSpan={4} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Post-Exposure Prophylaxis</th>
+          
+          <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Dog</th>
+          <th rowSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Cat</th>
+          <th colSpan={2} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Others (specify animal & Indicate number)</th>
+        </tr>
+
+        {/* --- ROW 3 --- */}
+        <tr style={PDF_STYLES.subHeader}>
+          {/* Sex */}
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Male</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Female</th>
+          
+          {/* Age */}
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>&lt;15</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>&gt;15</th>
+          
+          {/* Category */}
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Cat I</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Cat II</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Cat III</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, color:'#52525b', fontSize:'9px'}}>(CII+CIII)</th>
+          
+          {/* Status (Under AB/HR) */}
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>No.</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>No.</th>
+          
+          {/* PEP */}
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>PVRV</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>PCECV</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>HRIG</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>ERIG</th>
+          
+          {/* Animals (Others breakdown) */}
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>No.</th>
+          <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b'}}>Specify</th>
         </tr>
       </thead>
       <tbody>
@@ -46,12 +93,7 @@ export default function MainReportTable({
 
           if (key === "Others:") {
             const host = currentHostMunicipality;
-            
-            // Filter out options already visible or the host
             const allAvailable = MUNICIPALITIES.filter(m => m !== host && !visibleOtherMunicipalities.includes(m));
-            
-            // Split into "Abra" and "Non-Abra/Others"
-            // Assuming "Non-Abra" is the keyword in constants. 
             const abraOptions = allAvailable.filter(m => m !== "Non-Abra").sort();
             const otherOptions = allAvailable.filter(m => m === "Non-Abra");
 
