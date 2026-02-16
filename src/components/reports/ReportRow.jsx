@@ -37,6 +37,13 @@ const ReportRow = React.memo(({
     }
   };
 
+  // Helper to merge styles safely
+  const getInputStyle = (isLocked = false) => ({
+    ...PDF_STYLES.input,
+    cursor: isLocked || isRowReadOnly ? 'default' : 'text', // Removes ban icon
+    // You can add logic here later for the editable suggestions
+  });
+
   return (
     <tr style={rowStyle} className={className}>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(rowKey) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
@@ -53,7 +60,14 @@ const ReportRow = React.memo(({
       {/* Sex */}
       {['male','female'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
-          <input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(f, e.target.value)} style={PDF_STYLES.input} />
+          <input 
+            readOnly={isRowReadOnly} 
+            type="number" 
+            min="0" 
+            value={row[f]} 
+            onChange={e=>handleChange(f, e.target.value)} 
+            style={getInputStyle()} 
+          />
         </td>
       ))}
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.sexTotal}</td>
@@ -61,7 +75,14 @@ const ReportRow = React.memo(({
       {/* Age */}
       {['ageLt15','ageGt15'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
-          <input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(f, e.target.value)} style={PDF_STYLES.input} />
+          <input 
+            readOnly={isRowReadOnly} 
+            type="number" 
+            min="0" 
+            value={row[f]} 
+            onChange={e=>handleChange(f, e.target.value)} 
+            style={getInputStyle()} 
+          />
         </td>
       ))}
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold', color: c.sexMismatch ? '#ef4444' : 'inherit'}}>{c.ageTotal}</td>
@@ -69,7 +90,14 @@ const ReportRow = React.memo(({
       {/* Category */}
       {['cat1','cat2','cat3'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
-          <input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(f, e.target.value)} style={PDF_STYLES.input} />
+          <input 
+            readOnly={isRowReadOnly} 
+            type="number" 
+            min="0" 
+            value={row[f]} 
+            onChange={e=>handleChange(f, e.target.value)} 
+            style={getInputStyle()} 
+          />
         </td>
       ))}
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, color:'#6b7280'}}>{c.cat23}</td>
@@ -78,39 +106,63 @@ const ReportRow = React.memo(({
       {/* Status */}
       {['totalPatients','abCount'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
-          <input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(f, e.target.value)} style={PDF_STYLES.input} />
+          <input 
+            readOnly={isRowReadOnly} 
+            type="number" 
+            min="0" 
+            value={row[f]} 
+            onChange={e=>handleChange(f, e.target.value)} 
+            style={getInputStyle()} 
+          />
         </td>
       ))}
       
       {/* PEP */}
       {['pvrv','pcecv','hrig','erig'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
-          <input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(f, e.target.value)} style={PDF_STYLES.input} />
+          <input 
+            readOnly={isRowReadOnly} 
+            type="number" 
+            min="0" 
+            value={row[f]} 
+            onChange={e=>handleChange(f, e.target.value)} 
+            style={getInputStyle()} 
+          />
         </td>
       ))}
       
       {/* Animals */}
       {['dog','cat'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
-          <input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(f, e.target.value)} style={PDF_STYLES.input} />
+          <input 
+            readOnly={isRowReadOnly} 
+            type="number" 
+            min="0" 
+            value={row[f]} 
+            onChange={e=>handleChange(f, e.target.value)} 
+            style={getInputStyle()} 
+          />
         </td>
       ))}
       
       {/* Others Count (LOCKED) */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <input 
-          disabled={true} 
+          readOnly={true} 
           type="number" 
           value={row.othersCount} 
-          readOnly
-          style={{...PDF_STYLES.input, backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed'}} 
+          style={{
+            ...getInputStyle(true), // Pass true for isLocked
+            backgroundColor: '#f3f4f6', 
+            color: '#6b7280'
+          }} 
         />
       </td>
 
       {/* Others Specify (AUTO-CALCULATES COUNT) */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <textarea 
-          disabled={isRowReadOnly} 
+          readOnly={isRowReadOnly} 
           value={row.othersSpec} 
           onChange={handleSpecifyChange} 
           placeholder={isRowReadOnly ? "" : "e.g. 1 Monkey"}
@@ -121,7 +173,8 @@ const ReportRow = React.memo(({
             resize: 'vertical', 
             whiteSpace: 'pre-wrap', 
             lineHeight: '1.2', 
-            padding: '4px'
+            padding: '4px',
+            cursor: isRowReadOnly ? 'default' : 'text'
           }} 
           rows={2}
         />
@@ -130,14 +183,21 @@ const ReportRow = React.memo(({
       
       {/* Washed */}
       <td style={{...PDF_STYLES.border, padding:0}}>
-        <input disabled={isRowReadOnly} type="number" min="0" value={row.washed} onChange={e=>handleChange('washed', e.target.value)} style={PDF_STYLES.input} />
+        <input 
+          readOnly={isRowReadOnly} 
+          type="number" 
+          min="0" 
+          value={row.washed} 
+          onChange={e=>handleChange('washed', e.target.value)} 
+          style={getInputStyle()} 
+        />
       </td>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontSize:'10px', color:'#6b7280'}}>{c.percent}</td>
       
       {/* Remarks */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <textarea 
-          disabled={isRowReadOnly} 
+          readOnly={isRowReadOnly} 
           value={row.remarks} 
           onChange={e=>handleChange('remarks', e.target.value)} 
           style={{
@@ -147,7 +207,8 @@ const ReportRow = React.memo(({
             resize: 'vertical', 
             whiteSpace: 'pre-wrap', 
             lineHeight: '1.2', 
-            padding: '4px'
+            padding: '4px',
+            cursor: isRowReadOnly ? 'default' : 'text'
           }} 
           rows={2}
         />
