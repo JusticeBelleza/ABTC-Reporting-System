@@ -44,7 +44,7 @@ export function useReportData({
   const [loading, setLoading] = useState(true); 
   const [isSaving, setIsSaving] = useState(false);
   
-  // Changed: facilityStatuses now stores an object { main, cohort, lastUpdated } per facility
+  // facilityStatuses stores an object { main, cohort, lastUpdated } per facility
   const [facilityStatuses, setFacilityStatuses] = useState({}); 
   
   const [visibleOtherMunicipalities, setVisibleOtherMunicipalities] = useState([]);
@@ -110,7 +110,7 @@ export function useReportData({
     return d; 
   };
 
-  // --- UPDATED: Fetch BOTH Main and Cohort statuses ---
+  // --- Fetch BOTH Main and Cohort statuses ---
   const fetchFacilityStatuses = useCallback(async () => {
     setLoading(true);
     try {
@@ -135,7 +135,7 @@ export function useReportData({
         mainData.forEach(r => {
             if (statuses[r.facility]) {
                 statuses[r.facility].main = r.status;
-                statuses[r.facility].lastUpdated = r.created_at; // Track latest activity
+                statuses[r.facility].lastUpdated = r.created_at; 
             }
         });
       }
@@ -348,16 +348,18 @@ export function useReportData({
 
   const createDbNotification = async (recipient, title, message, type='info') => { try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); } };
 
-  // --- SAFE & FORGIVING SAVE LOGIC ---
+  // --- REFACTORED SAFE & ATOMIC SAVE LOGIC ---
   const handleSave = async (newStatus, reason = null) => {
-    if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
+    if (periodType !== 'Monthly' && activeTab === 'main') { 
+        toast.error("Monthly only for Main Report"); 
+        return; 
+    }
     
     // 1. Sanitize Target Name
     const target = userRole === 'admin' ? selectedFacility : (userName ? userName.trim() : null);
     if (!target) { toast.error("Error: Could not determine facility name."); return false; }
 
     // --- DETECT RESUBMISSION (For Notification Purpose) ---
-    // If the CURRENT status is 'Rejected' and the NEW status is 'Pending', this is a Resubmission.
     const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
     const isResubmission = (currentStatus === 'Rejected' && newStatus === 'Pending');
 
@@ -367,60 +369,60 @@ export function useReportData({
     try {
         // 2. Sanitize Date Inputs (Convert to string and trim)
         const cleanYear = String(year).trim();
-        const cleanMonth = String(month).trim();
-        const cleanQuarter = String(quarter).trim();
+        const cleanMonth = activeTab === 'main' 
+            ? String(month).trim() 
+            : (periodType === 'Monthly' ? String(month).trim() : String(quarter).trim());
+
+        let payload = [];
+        let type = '';
 
         if (activeTab === 'main') {
-            const payload = Object.entries(data).map(([m, row]) => {
+            type = 'main';
+            payload = Object.entries(data).map(([m, row]) => {
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
-                let rem = row.remarks; if (newStatus === 'Rejected' && reason && m === targetKey) rem = `REJECTED: ${reason}`;
+                
+                let rem = row.remarks; 
+                if (newStatus === 'Rejected' && reason && m === targetKey) rem = `REJECTED: ${reason}`;
                 
                 const dbRow = mapRowToDb(row);
                 dbRow.others_count = toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
 
-                return { ...dbRow, year: cleanYear, month: cleanMonth, municipality: m, facility: target, status: newStatus, remarks: rem };
+                return { 
+                    ...dbRow, 
+                    municipality: m, 
+                    status: newStatus, 
+                    remarks: rem 
+                };
             }).filter(x => x !== null);
             
-            // 3. SECURE & FORGIVING DELETE
-            const { error: rpcError } = await supabase.rpc('delete_report_securely', {
-                p_year: cleanYear,
-                p_month: cleanMonth, 
-                p_facility: target, 
-                p_type: 'main'
-            });
-
-            if (rpcError) throw new Error(`Permission Error: ${rpcError.message}`);
-
-            if(payload.length > 0) {
-                const { error: insertError } = await supabase.from('abtc_reports').insert(payload);
-                if (insertError) throw new Error(`Insert failed: ${insertError.message}`);
-            }
-            setReportStatuses(prev => ({ ...prev, main: newStatus }));
         } else {
-            const currentMonthOrQuarter = periodType === 'Monthly' ? cleanMonth : cleanQuarter;
-            
-            const payload = Object.entries(cohortData).map(([m, row]) => {
+            type = 'cohort';
+            payload = Object.entries(cohortData).map(([m, row]) => {
                 if (!hasCohortData(row, 'cat2') && !hasCohortData(row, 'cat3') && !getRowKeysForFacility(target, false, false, true, visibleCat2).includes(m) && !getRowKeysForFacility(target, false, false, true, visibleCat3).includes(m)) return null;
-                return { ...mapCohortRowToDb(row), year: cleanYear, month: currentMonthOrQuarter, municipality: m, facility: target, status: newStatus };
+                return { 
+                    ...mapCohortRowToDb(row), 
+                    municipality: m, 
+                    status: newStatus 
+                };
             }).filter(x => x !== null);
-
-            // 3. SECURE & FORGIVING DELETE (Cohort)
-            const { error: rpcError } = await supabase.rpc('delete_report_securely', {
-                p_year: cleanYear,
-                p_month: currentMonthOrQuarter,
-                p_facility: target,
-                p_type: 'cohort'
-            });
-
-            if (rpcError) throw new Error(`Permission Error: ${rpcError.message}`);
-            
-            if(payload.length > 0) {
-                const { error: insertCohortError } = await supabase.from('abtc_cohort_reports').insert(payload);
-                if (insertCohortError) throw new Error(`Insert failed: ${insertCohortError.message}`);
-            }
-            setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
         }
+
+        // 3. ATOMIC SAVE via RPC
+        // calls the safe_report_atomic function in Supabase
+        const { error: rpcError } = await supabase.rpc('save_report_atomic', {
+            p_year: cleanYear,
+            p_month: cleanMonth,
+            p_facility: target,
+            p_type: type,
+            p_data: payload
+        });
+
+        if (rpcError) throw new Error(`Save failed: ${rpcError.message}`);
+
+        // Update Local State
+        if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: newStatus }));
+        else setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
         
         // Notifications
         if (newStatus === 'Pending') { 
@@ -451,7 +453,6 @@ export function useReportData({
         const cleanMonth = String(month).trim();
         const currentMonthOrQuarter = periodType === 'Monthly' ? cleanMonth : String(quarter).trim();
 
-        // Delete ONLY the currently active report type (Main vs Cohort)
         if (activeTab === 'main') {
             const { error: rpcError1 } = await supabase.rpc('delete_report_securely', {
                 p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: 'main'
