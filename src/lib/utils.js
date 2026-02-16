@@ -45,6 +45,56 @@ export const mapCohortRowToDb = (r) => ({
   cat3_registered: toInt(r.cat3_registered), cat3_rig: toInt(r.cat3_rig), cat3_complete: toInt(r.cat3_complete), cat3_incomplete: toInt(r.cat3_incomplete), cat3_booster: toInt(r.cat3_booster), cat3_none: toInt(r.cat3_none), cat3_died: toInt(r.cat3_died), cat3_remarks: r.cat3_remarks
 });
 
+// --- NEW HELPER FUNCTIONS FOR ANIMAL PARSING & AGGREGATION ---
+
+export const parseAnimalCountFromText = (str) => {
+  if (!str) return 0;
+  // Matches "1 monkey", "monkey 1", "2 pigs", etc.
+  const numbers = str.match(/(\d+)/g);
+  if (!numbers) return 0;
+  return numbers.reduce((acc, curr) => acc + parseInt(curr, 10), 0);
+};
+
+export const aggregateAnimalSpecs = (specsList) => {
+  const counts = {};
+  
+  specsList.forEach(spec => {
+    if (!spec) return;
+    // Split by comma, semicolon, or newlines
+    const items = spec.split(/[,;\n]+/);
+    
+    items.forEach(item => {
+      const match = item.match(/(\d+)/);
+      if (match) {
+        const count = parseInt(match[0], 10);
+        // Extract name: remove number, trim, lowercase
+        let name = item.replace(match[0], '').trim().toLowerCase();
+        
+        // Basic cleaning
+        if (name.endsWith('s')) name = name.slice(0, -1); // singularize
+        name = name.replace(/[^a-z0-9\s-]/g, ''); // remove special chars
+        
+        if (name) {
+          counts[name] = (counts[name] || 0) + count;
+        }
+      }
+    });
+  });
+
+  // Reconstruct string, sorted by highest count
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1]) 
+    .map(([name, count]) => {
+       const label = count > 1 ? `${name}s` : name;
+       // Capitalize first letter
+       const display = label.charAt(0).toUpperCase() + label.slice(1);
+       return `${count} ${display}`; 
+    })
+    .join(', ');
+};
+
+// -----------------------------------------------------------
+
 export const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["January", "February", "March"]; if (q === "2nd Quarter") return ["April", "May", "June"]; if (q === "3rd Quarter") return ["July", "August", "September"]; if (q === "4th Quarter") return ["October", "November", "December"]; return []; };
 
 export const hasData = (row) => {
@@ -174,10 +224,7 @@ export const downloadPDF = async ({
           row.male, row.female, { content: c.sexTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
           row.ageLt15, row.ageGt15, { content: c.ageTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
           row.cat1, row.cat2, row.cat3, c.cat23, { content: c.catTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
-          
-          // FIX: Removed row.totalPatients here to align columns correctly
           row.abCount, row.hrCount,
-          
           row.pvrv, row.pcecv, row.hrig, row.erig,
           row.dog, row.cat, row.othersCount, row.othersSpec, 
           { content: c.animalTotal, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
@@ -200,11 +247,8 @@ export const downloadPDF = async ({
         { content: gt.cat3, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.cat23, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
         { content: gt.catTotal, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
-        
-        // FIX: Removed gt.totalPatients here to match body
         { content: gt.abCount, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.hrCount, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
-        
         { content: gt.pvrv, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.pcecv, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.hrig, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
@@ -212,7 +256,7 @@ export const downloadPDF = async ({
         { content: gt.dog, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.cat, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.othersCount, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
-        { content: '', styles: { fillColor: [50, 50, 50] } },
+        { content: gt.othersSpec, styles: { fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.animalTotal, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
         { content: gt.washed, styles: { fontStyle: 'bold', fillColor: [50, 50, 50], textColor: [255, 255, 255] } },
         { content: gt.percent, styles: { fontStyle: 'bold', fillColor: [70, 70, 70], textColor: [255, 255, 255] } },
@@ -220,7 +264,7 @@ export const downloadPDF = async ({
       ]);
     } 
     else {
-      // ... Cohort code remains same ...
+      // ... (Cohort table generation logic unchanged)
       head = [[
         { content: 'Municipality', styles: { halign: 'left', valign: 'middle' } },
         'Registered', 'W/ RIG', 'Complete', 'Incomplete', 'Booster', 'None', 'Died', 'Remarks'
@@ -265,9 +309,10 @@ export const downloadPDF = async ({
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 3, halign: 'center', lineWidth: 0.5, lineColor: [200, 200, 200] },
       headStyles: { fillColor: [250, 250, 250], textColor: [50, 50, 50], lineWidth: 0.5, lineColor: [200, 200, 200] },
-      didDrawPage: (data) => { }
     });
 
+    // ... (Signatory logic unchanged)
+    
     let finalY = doc.lastAutoTable.finalY + 30;
     if (finalY + 100 > doc.internal.pageSize.getHeight()) {
       doc.addPage();

@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { XCircle } from 'lucide-react';
 import { PDF_STYLES, MUNICIPALITIES } from '../../lib/constants';
+import { parseAnimalCountFromText } from '../../lib/utils';
 
 const ReportRow = React.memo(({ 
   rowKey, 
@@ -17,9 +18,23 @@ const ReportRow = React.memo(({
   
   const rowStyle = isHost ? PDF_STYLES.hostRow : PDF_STYLES.rowEven;
   
-  // Helper to handle input changes
   const handleChange = (field, value) => {
     onChange(rowKey, field, value);
+  };
+
+  // Special handler for the Specify box to auto-calc number
+  const handleSpecifyChange = (e) => {
+    const newText = e.target.value;
+    
+    // 1. Update the text field
+    onChange(rowKey, 'othersSpec', newText);
+    
+    // 2. Auto-calculate and update the 'No.' field
+    if (!isRowReadOnly) {
+       const autoCount = parseAnimalCountFromText(newText);
+       // Always update the count (even if 0) to keep sync
+       onChange(rowKey, 'othersCount', autoCount === 0 ? '' : autoCount.toString());
+    }
   };
 
   return (
@@ -75,17 +90,30 @@ const ReportRow = React.memo(({
       ))}
       
       {/* Animals */}
-      {['dog','cat','othersCount'].map(f => (
+      {['dog','cat'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
           <input disabled={isRowReadOnly} type="number" min="0" value={row[f]} onChange={e=>handleChange(f, e.target.value)} style={PDF_STYLES.input} />
         </td>
       ))}
+      
+      {/* Others Count (LOCKED) */}
       <td style={{...PDF_STYLES.border, padding:0}}>
-        {/* Changed to Textarea for wrapping */}
+        <input 
+          disabled={true} 
+          type="number" 
+          value={row.othersCount} 
+          readOnly
+          style={{...PDF_STYLES.input, backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed'}} 
+        />
+      </td>
+
+      {/* Others Specify (AUTO-CALCULATES COUNT) */}
+      <td style={{...PDF_STYLES.border, padding:0}}>
         <textarea 
           disabled={isRowReadOnly} 
           value={row.othersSpec} 
-          onChange={e=>handleChange('othersSpec', e.target.value)} 
+          onChange={handleSpecifyChange} 
+          placeholder={isRowReadOnly ? "" : "e.g. 1 Monkey"}
           style={{
             ...PDF_STYLES.inputText, 
             height: 'auto', 
@@ -108,7 +136,6 @@ const ReportRow = React.memo(({
       
       {/* Remarks */}
       <td style={{...PDF_STYLES.border, padding:0}}>
-        {/* Changed to Textarea for wrapping */}
         <textarea 
           disabled={isRowReadOnly} 
           value={row.remarks} 
@@ -127,29 +154,14 @@ const ReportRow = React.memo(({
       </td>
     </tr>
   );
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.row === nextProps.row &&
-    prevProps.isRowReadOnly === nextProps.isRowReadOnly &&
-    prevProps.isOtherRow === nextProps.isOtherRow &&
-    prevProps.isHost === nextProps.isHost &&
-    JSON.stringify(prevProps.computations) === JSON.stringify(nextProps.computations) &&
-    prevProps.className === nextProps.className 
-  );
+}, (prev, next) => {
+    return prev.row === next.row && prev.isRowReadOnly === next.isRowReadOnly && prev.computations === next.computations;
 });
 
 ReportRow.propTypes = {
   rowKey: PropTypes.string.isRequired,
   row: PropTypes.object.isRequired,
-  computations: PropTypes.shape({
-    sexTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    ageTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    cat23: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    catTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    animalTotal: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    percent: PropTypes.string,
-    sexMismatch: PropTypes.bool
-  }).isRequired,
+  computations: PropTypes.object.isRequired,
   isRowReadOnly: PropTypes.bool,
   onChange: PropTypes.func.isRequired,
   onDeleteRow: PropTypes.func,

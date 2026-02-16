@@ -16,7 +16,8 @@ import {
   hasData, 
   hasCohortData, 
   toInt, 
-  getComputations 
+  getComputations,
+  aggregateAnimalSpecs // <--- IMPORT THIS
 } from '../lib/utils';
 
 export function useReportData({
@@ -263,24 +264,37 @@ export function useReportData({
     }
   };
 
+  // --- UPDATED HANDLER FOR TEXT AGGREGATION ---
   const handleChange = (m, f, v) => {
     if (activeTab === 'main') {
         if (periodType !== 'Monthly' || userRole === 'admin' || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
+        
         setData(prev => {
-            const n = { ...prev }; n[m] = { ...(n[m] || INITIAL_ROW_STATE), [f]: v };
+            const n = { ...prev }; 
+            n[m] = { ...(n[m] || INITIAL_ROW_STATE), [f]: v };
+
+            // Recalculate HOST MUNICIPALITY (Total) row if needed
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const tot = { ...INITIAL_ROW_STATE };
                 const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
+                
+                // Collect specs for aggregation
+                const specsToAggregate = [];
+
                 facilityBarangays[activeFacilityName].forEach(b => { 
                   const r = n[b] || INITIAL_ROW_STATE; 
                   keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); 
+                  
                   if (r.othersSpec && r.othersSpec.trim()) {
-                     const spec = r.othersSpec.trim();
-                     if (!tot.othersSpec.includes(spec)) { tot.othersSpec = tot.othersSpec ? `${tot.othersSpec}, ${spec}` : spec; }
+                     specsToAggregate.push(r.othersSpec);
                   }
                 });
+
                 keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
-                // FIX: Removed 'Auto-computed' text from remarks
+                
+                // Aggregate text
+                tot.othersSpec = aggregateAnimalSpecs(specsToAggregate);
+                
                 n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot };
             }
             return n;
@@ -300,6 +314,8 @@ export function useReportData({
         });
     }
   };
+
+  // ... (Notification, Save, Delete logic unchanged)
 
   const createDbNotification = async (recipient, title, message, type='info') => { try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); } };
 
@@ -378,14 +394,15 @@ export function useReportData({
     } catch(err) { toast.error(err.message); return false; }
   };
 
+  // --- UPDATED GRAND TOTALS ---
   const grandTotals = useMemo(() => {
     const t = { ...INITIAL_ROW_STATE, sexTotal: 0, ageTotal: 0, cat23: 0, catTotal: 0, animalTotal: 0 };
     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
     numericKeys.forEach(k => t[k] = 0);
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
     
-    // Track unique animal names
-    const uniqueAnimals = new Set();
+    // Collect specs from all valid rows
+    const specsToAggregate = [];
 
     Object.entries(data).forEach(([key, row]) => { 
         if (key === "Others:") return;
@@ -400,20 +417,15 @@ export function useReportData({
             t.catTotal += c.catTotal; 
             t.animalTotal += c.animalTotal; 
             
-            // FIX: Normalize and collect unique animal specifications in lowercase
+            // Collect text
             if (row.othersSpec && row.othersSpec.trim()) {
-                const parts = row.othersSpec.split(',').map(s => s.trim().toLowerCase());
-                parts.forEach(p => uniqueAnimals.add(p));
+                specsToAggregate.push(row.othersSpec);
             }
         } 
     });
     
-    // Join unique animals (capitalizing the first letter)
-    if (uniqueAnimals.size > 0) {
-        t.othersSpec = Array.from(uniqueAnimals)
-            .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-            .join(', ');
-    }
+    // Aggregate them for the Grand Total row
+    t.othersSpec = aggregateAnimalSpecs(specsToAggregate);
     
     t.percent = t.animalTotal > 0 ? (t.washed / t.animalTotal * 100).toFixed(0) + '%' : '0%';
     return t;
