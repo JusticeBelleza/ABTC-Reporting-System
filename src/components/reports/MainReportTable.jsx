@@ -93,9 +93,14 @@ export default function MainReportTable({
 
           if (key === "Others:") {
             const host = currentHostMunicipality;
-            const allAvailable = MUNICIPALITIES.filter(m => m !== host && !visibleOtherMunicipalities.includes(m));
-            const abraOptions = allAvailable.filter(m => m !== "Non-Abra").sort();
-            const otherOptions = allAvailable.filter(m => m === "Non-Abra");
+            // Updated sorting logic: Alphabetical, but Non-Abra last.
+            const availableOptions = MUNICIPALITIES
+                .filter(m => m !== host && !visibleOtherMunicipalities.includes(m))
+                .sort((a, b) => {
+                    if (a === 'Non-Abra') return 1;
+                    if (b === 'Non-Abra') return -1;
+                    return a.localeCompare(b);
+                });
 
             const showAddControls = userRole !== 'admin' && !isConsolidated && !isAggregationMode && (reportStatus === 'Draft' || reportStatus === 'Rejected');
             return (
@@ -106,15 +111,8 @@ export default function MainReportTable({
                       {showAddControls && (
                         <div className="flex items-center gap-2 no-print">
                           <select id="other-mun-select" className="bg-white border border-gray-300 text-xs rounded p-1 outline-none">
-                            <option value="">Select Municipality...</option>
-                            <optgroup label="Abra Municipalities">
-                                {abraOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                            </optgroup>
-                            {otherOptions.length > 0 && (
-                                <optgroup label="Others">
-                                    {otherOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                </optgroup>
-                            )}
+                            <option value="">Select...</option>
+                            {availableOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                           </select>
                           <button type="button" onClick={(e) => { 
                             e.preventDefault();

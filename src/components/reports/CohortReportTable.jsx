@@ -3,7 +3,6 @@ import { XCircle } from 'lucide-react';
 import { PDF_STYLES, MUNICIPALITIES, INITIAL_COHORT_ROW } from '../../lib/constants';
 import { hasCohortData } from '../../lib/utils';
 
-// Ensure 'export default' is here:
 export default function CohortReportTable({
   subTab, data, rowKeysCat2, rowKeysCat3, isConsolidated, 
   userRole, activeFacilityName, currentHostMunicipality,
@@ -47,7 +46,15 @@ export default function CohortReportTable({
 
               if (key === "Others:") {
                 const host = currentHostMunicipality;
-                const availableOptions = MUNICIPALITIES.filter(m => m !== host && !visibleList.includes(m)).sort();
+                // Updated sorting logic to put "Non-Abra" at the bottom
+                const availableOptions = MUNICIPALITIES
+                  .filter(m => m !== host && !visibleList.includes(m))
+                  .sort((a, b) => {
+                    if (a === 'Non-Abra') return 1;
+                    if (b === 'Non-Abra') return -1;
+                    return a.localeCompare(b);
+                  });
+
                 const showAddControls = userRole !== 'admin' && !isConsolidated;
                 return (
                   <tr key={`cohort-others-sep-${category}`} className={hideClass} style={{ ...PDF_STYLES.rowEven, ...PDF_STYLES.bgGray }}>
