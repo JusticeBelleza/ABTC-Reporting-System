@@ -1,12 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_FACILITIES, INITIAL_FACILITY_BARANGAYS } from '../lib/constants';
 import { toast } from 'sonner';
 
-// 1. Create the Context
 const AppContext = createContext();
 
-// 2. Create the Provider Component
 export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -15,18 +13,34 @@ export function AppProvider({ children }) {
   const [globalSettings, setGlobalSettings] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
 
+  // Use a ref to track the current access token to prevent unnecessary updates
+  const lastTokenRef = useRef(null);
+
   // Auth & Session Logic
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
     
+    // Initial Session Check
     supabase.auth.getSession().then(({ data: { session } }) => { 
-        setSession(session); 
+        if (session?.access_token !== lastTokenRef.current) {
+            lastTokenRef.current = session?.access_token;
+            setSession(session); 
+        }
         setLoading(false); 
     });
     
+    // Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      if (event === 'SIGNED_OUT') localStorage.removeItem('abtc_login_time');
+      // FIX: Only update state if the token actually changed (prevents Alt-Tab re-renders)
+      if (session?.access_token !== lastTokenRef.current || event === 'SIGNED_OUT') {
+        lastTokenRef.current = session?.access_token;
+        setSession(session);
+      }
+      
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('abtc_login_time');
+        lastTokenRef.current = null;
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -35,11 +49,8 @@ export function AppProvider({ children }) {
   // Fetch Metadata (Facilities, Settings, Profile)
   useEffect(() => {
     if (session) {
-      // Fetch Settings
       supabase.from('settings').select('*').single().then(({data}) => { if(data) setGlobalSettings(data); });
-      // Fetch Profile
       supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({data}) => { if(data) setUserProfile(data); });
-      // Fetch Facilities
       fetchFacilitiesList();
     }
   }, [session]);
@@ -75,7 +86,10 @@ export function AppProvider({ children }) {
     };
   }, [session]);
 
-  const logout = () => supabase.auth.signOut();
+  const logout = () => {
+    lastTokenRef.current = null;
+    supabase.auth.signOut();
+  };
 
   const value = {
     session,
@@ -95,7 +109,6 @@ export function AppProvider({ children }) {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-// 3. Export the Custom Hook (This is what AdminDashboard is missing)
 export function useApp() {
   return useContext(AppContext);
 }

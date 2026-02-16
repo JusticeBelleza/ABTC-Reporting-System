@@ -37,23 +37,15 @@ export function useReportData({
 
   const [data, setData] = useState({});
   const [cohortData, setCohortData] = useState({});
-  
-  // Separate status states for the Active View
   const [reportStatuses, setReportStatuses] = useState({ main: 'Draft', cohort: 'Draft' });
-  
   const [loading, setLoading] = useState(true); 
   const [isSaving, setIsSaving] = useState(false);
-  
-  // facilityStatuses stores an object { main, cohort, lastUpdated } per facility
   const [facilityStatuses, setFacilityStatuses] = useState({}); 
-  
   const [visibleOtherMunicipalities, setVisibleOtherMunicipalities] = useState([]);
   const [visibleCat2, setVisibleCat2] = useState([]);
   const [visibleCat3, setVisibleCat3] = useState([]);
 
-  // Derived current status based on active tab
   const reportStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
-
   const isConsolidatedView = adminViewMode === 'consolidated';
   const activeFacilityName = userRole === 'admin' ? (isConsolidatedView ? 'PHO' : selectedFacility) : userName;
   
@@ -110,65 +102,33 @@ export function useReportData({
     return d; 
   };
 
-  // --- Fetch BOTH Main and Cohort statuses ---
   const fetchFacilityStatuses = useCallback(async () => {
     setLoading(true);
     try {
       if (periodType !== 'Monthly') { setFacilityStatuses({}); return; }
-      
-      // Initialize all with 'Draft'
       const statuses = {}; 
-      facilities.forEach(f => {
-          statuses[f] = { main: 'Draft', cohort: 'Draft', lastUpdated: null };
-      });
+      facilities.forEach(f => { statuses[f] = { main: 'Draft', cohort: 'Draft', lastUpdated: null }; });
 
-      // 1. Fetch Main Reports
-      const { data: mainData } = await supabase
-          .from('abtc_reports')
-          .select('facility, status, created_at')
-          .eq('year', year)
-          .eq('month', month);
-
+      const { data: mainData } = await supabase.from('abtc_reports').select('facility, status, created_at').eq('year', year).eq('month', month);
       if (mainData && mainData.length > 0) {
-        // Sort by created_at to get latest
         mainData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        mainData.forEach(r => {
-            if (statuses[r.facility]) {
-                statuses[r.facility].main = r.status;
-                statuses[r.facility].lastUpdated = r.created_at; 
-            }
-        });
+        mainData.forEach(r => { if (statuses[r.facility]) { statuses[r.facility].main = r.status; statuses[r.facility].lastUpdated = r.created_at; } });
       }
 
-      // 2. Fetch Cohort Reports
-      const { data: cohortData } = await supabase
-          .from('abtc_cohort_reports')
-          .select('facility, status, created_at')
-          .eq('year', year)
-          .eq('month', month);
-
+      const { data: cohortData } = await supabase.from('abtc_cohort_reports').select('facility, status, created_at').eq('year', year).eq('month', month);
       if (cohortData && cohortData.length > 0) {
         cohortData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         cohortData.forEach(r => {
              if (statuses[r.facility]) {
                  statuses[r.facility].cohort = r.status;
-                 // Update lastUpdated if this one is newer
                  const currentLast = statuses[r.facility].lastUpdated ? new Date(statuses[r.facility].lastUpdated) : new Date(0);
                  const newDate = new Date(r.created_at);
-                 if (newDate > currentLast) {
-                     statuses[r.facility].lastUpdated = r.created_at;
-                 }
+                 if (newDate > currentLast) { statuses[r.facility].lastUpdated = r.created_at; }
              }
         });
       }
-
       setFacilityStatuses(statuses);
-    } catch (error) { 
-        console.error("Error fetching statuses:", error); 
-        toast.error("Failed to load facility statuses"); 
-    } finally { 
-        setLoading(false); 
-    }
+    } catch (error) { console.error("Error fetching statuses:", error); toast.error("Failed to load facility statuses"); } finally { setLoading(false); }
   }, [periodType, year, month, facilities]);
 
   const fetchData = useCallback(async () => {
@@ -221,10 +181,7 @@ export function useReportData({
             
             const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
             setReportStatuses(prev => ({ ...prev, main: newStatus }));
-          } else { 
-            setData(newData); 
-            setReportStatuses(prev => ({ ...prev, main: 'Draft' })); 
-          }
+          } else { setData(newData); setReportStatuses(prev => ({ ...prev, main: 'Draft' })); }
           setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
 
       } else {
@@ -272,10 +229,7 @@ export function useReportData({
               
               const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
               setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
-          } else { 
-            setCohortData(newCohort); 
-            setReportStatuses(prev => ({ ...prev, cohort: 'Draft' })); 
-          }
+          } else { setCohortData(newCohort); setReportStatuses(prev => ({ ...prev, cohort: 'Draft' })); }
           setVisibleCat2(Array.from(newVisibleCat2));
           setVisibleCat3(Array.from(newVisibleCat3));
       }
@@ -326,7 +280,8 @@ export function useReportData({
                   }
                 });
                 keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
-                n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot, remarks: 'Auto-computed' };
+                // FIX: Removed 'Auto-computed' text from remarks
+                n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot };
             }
             return n;
         });
@@ -348,48 +303,32 @@ export function useReportData({
 
   const createDbNotification = async (recipient, title, message, type='info') => { try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); } };
 
-  // --- SAFE & ATOMIC SAVE LOGIC ---
   const handleSave = async (newStatus, reason = null) => {
-    if (periodType !== 'Monthly' && activeTab === 'main') { 
-        toast.error("Monthly only for Main Report"); 
-        return; 
-    }
-    
-    // 1. Sanitize Target Name
+    if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
     const target = userRole === 'admin' ? selectedFacility : (userName ? userName.trim() : null);
     if (!target) { toast.error("Error: Could not determine facility name."); return false; }
-
     const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
     const isResubmission = (currentStatus === 'Rejected' && newStatus === 'Pending');
-
     setIsSaving(true);
     const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
     
     try {
         const cleanYear = String(year).trim();
-        const cleanMonth = activeTab === 'main' 
-            ? String(month).trim() 
-            : (periodType === 'Monthly' ? String(month).trim() : String(quarter).trim());
-
+        const cleanMonth = activeTab === 'main' ? String(month).trim() : (periodType === 'Monthly' ? String(month).trim() : String(quarter).trim());
         let payload = [];
         let type = '';
 
         if (activeTab === 'main') {
             type = 'main';
             payload = Object.entries(data).map(([m, row]) => {
-                // Modified filter: allow saving if it's a visible user-added row OR if it has data
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
-                
                 let rem = row.remarks; 
                 if (newStatus === 'Rejected' && reason && m === targetKey) rem = `REJECTED: ${reason}`;
-                
                 const dbRow = mapRowToDb(row);
                 dbRow.others_count = toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
-
                 return { ...dbRow, municipality: m, status: newStatus, remarks: rem };
             }).filter(x => x !== null);
-            
         } else {
             type = 'cohort';
             payload = Object.entries(cohortData).map(([m, row]) => {
@@ -398,10 +337,7 @@ export function useReportData({
             }).filter(x => x !== null);
         }
 
-        const { error: rpcError } = await supabase.rpc('save_report_atomic', {
-            p_year: cleanYear, p_month: cleanMonth, p_facility: target, p_type: type, p_data: payload
-        });
-
+        const { error: rpcError } = await supabase.rpc('save_report_atomic', { p_year: cleanYear, p_month: cleanMonth, p_facility: target, p_type: type, p_data: payload });
         if (rpcError) throw new Error(`Save failed: ${rpcError.message}`);
 
         if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: newStatus }));
@@ -419,11 +355,7 @@ export function useReportData({
 
         await fetchData();
         return true; 
-    } catch (err) { 
-        console.error("Save Error:", err);
-        toast.error(err.message || "An unexpected error occurred during save");
-        return false;
-    } finally { setIsSaving(false); }
+    } catch (err) { console.error("Save Error:", err); toast.error(err.message || "An unexpected error occurred during save"); return false; } finally { setIsSaving(false); }
   };
 
   const confirmDeleteReport = async () => {
@@ -433,19 +365,12 @@ export function useReportData({
         const cleanMonth = String(month).trim();
         const currentMonthOrQuarter = periodType === 'Monthly' ? cleanMonth : String(quarter).trim();
 
-        if (activeTab === 'main') {
-            const { error: rpcError1 } = await supabase.rpc('delete_report_securely', {
-                p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: 'main'
-            });
-            if (rpcError1) throw rpcError1;
-            setReportStatuses(prev => ({ ...prev, main: 'Draft' }));
-        } else {
-            const { error: rpcError2 } = await supabase.rpc('delete_report_securely', {
-                p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: 'cohort'
-            });
-            if (rpcError2) throw rpcError2;
-            setReportStatuses(prev => ({ ...prev, cohort: 'Draft' }));
-        }
+        const type = activeTab === 'main' ? 'main' : 'cohort';
+        const { error: rpcError } = await supabase.rpc('delete_report_securely', { p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: type });
+        if (rpcError) throw rpcError;
+        
+        if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: 'Draft' }));
+        else setReportStatuses(prev => ({ ...prev, cohort: 'Draft' }));
 
         toast.success("Report data deleted"); 
         fetchData(); 
@@ -453,23 +378,19 @@ export function useReportData({
     } catch(err) { toast.error(err.message); return false; }
   };
 
-  // --- UPDATED GRAND TOTALS: Correctly sums all user-added rows (Other Municipalities) ---
   const grandTotals = useMemo(() => {
     const t = { ...INITIAL_ROW_STATE, sexTotal: 0, ageTotal: 0, cat23: 0, catTotal: 0, animalTotal: 0 };
     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
     numericKeys.forEach(k => t[k] = 0);
-    
-    // Get list of barangays to exclude them (their sum is already in the host municipality row)
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
+    
+    // Track unique animal names
+    const uniqueAnimals = new Set();
 
     Object.entries(data).forEach(([key, row]) => { 
-        // 1. Skip the special "Others:" separator row
         if (key === "Others:") return;
-        
-        // 2. Skip individual barangay rows to avoid double-counting (since host row is already their sum)
         if (currentBarangays.includes(key)) return;
 
-        // 3. Include row if it has data. This covers Host Municipality AND any "Non-Abra" or other user-added rows.
         if (hasData(row)) { 
             const c = getComputations(row); 
             numericKeys.forEach(k => t[k] += toInt(row[k])); 
@@ -478,28 +399,35 @@ export function useReportData({
             t.cat23 += c.cat23; 
             t.catTotal += c.catTotal; 
             t.animalTotal += c.animalTotal; 
+            
+            // FIX: Normalize and collect unique animal specifications in lowercase
+            if (row.othersSpec && row.othersSpec.trim()) {
+                const parts = row.othersSpec.split(',').map(s => s.trim().toLowerCase());
+                parts.forEach(p => uniqueAnimals.add(p));
+            }
         } 
     });
+    
+    // Join unique animals (capitalizing the first letter)
+    if (uniqueAnimals.size > 0) {
+        t.othersSpec = Array.from(uniqueAnimals)
+            .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+            .join(', ');
+    }
     
     t.percent = t.animalTotal > 0 ? (t.washed / t.animalTotal * 100).toFixed(0) + '%' : '0%';
     return t;
   }, [data, facilityBarangays, activeFacilityName]);
 
-  // --- UPDATED COHORT TOTALS: Same logic as Main Report ---
   const cohortTotals = useMemo(() => {
     const t = { ...INITIAL_COHORT_ROW };
     const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
     keys.forEach(k => t[k] = 0);
-    
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
-
     Object.entries(cohortData).forEach(([key, row]) => { 
         if (key === "Others:") return;
         if (currentBarangays.includes(key)) return;
-
-        if (hasCohortData(row, 'cat2') || hasCohortData(row, 'cat3')) { 
-            keys.forEach(k => t[k] += toInt(row[k])); 
-        } 
+        if (hasCohortData(row, 'cat2') || hasCohortData(row, 'cat3')) { keys.forEach(k => t[k] += toInt(row[k])); } 
     });
     return t;
   }, [cohortData, facilityBarangays, activeFacilityName]);

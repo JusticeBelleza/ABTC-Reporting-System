@@ -43,14 +43,12 @@ function DashboardContent() {
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
   
-  // Deletion State (Global)
-  const [deleteConfirmation, setDeleteConfirmation] = useState({ isOpen: false, rowKey: null });
+  // Facility Deletion State (Master Data)
   const [facilityToDelete, setFacilityToDelete] = useState(null);
   const [deleteFacilityInput, setDeleteFacilityInput] = useState('');
-  const [reportToDelete, setReportToDelete] = useState(null);
   const [isDeletingFacility, setIsDeletingFacility] = useState(false);
 
-  // Admin Actions
+  // Admin Actions: Add Facility
   const handleAddFacility = async (name, type, barangaysList) => {
     if (facilities.includes(name)) { toast.error('Name exists'); return; }
     try {
@@ -63,15 +61,20 @@ function DashboardContent() {
     } catch (err) { toast.error(err.message); }
   };
 
+  // Admin Actions: Delete Facility (Includes deleting all reports associated)
   const confirmDeleteFacility = async () => {
     if (deleteFacilityInput !== 'delete') { toast.error('Type "delete"'); return; }
     setIsDeletingFacility(true);
     try {
+        // Delete all reports for this facility first
         await supabase.from('abtc_reports').delete().eq('facility', facilityToDelete);
         await supabase.from('abtc_cohort_reports').delete().eq('facility', facilityToDelete);
+        // Then delete the facility metadata
         await supabase.from('facilities').delete().eq('name', facilityToDelete);
+        
         setFacilities(prev => prev.filter(f => f !== facilityToDelete));
-        toast.success("Deleted"); setFacilityToDelete(null);
+        toast.success("Facility Deleted"); 
+        setFacilityToDelete(null);
     } catch (err) { toast.error(err.message); }
     setIsDeletingFacility(false);
   };
@@ -126,21 +129,48 @@ function DashboardContent() {
             adminViewMode={adminViewMode}
             selectedFacility={selectedFacility}
             onBack={() => { setAdminViewMode('dashboard'); setSelectedFacility(null); }}
-            setDeleteConfirmation={setDeleteConfirmation}
-            setReportToDelete={setReportToDelete}
           />
         )}
 
-        {/* --- MODALS (Kept at root level) --- */}
+        {/* --- MODALS --- */}
         {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} globalSettings={globalSettings} onSaveGlobal={setGlobalSettings} userProfile={userProfile} onSaveProfile={setUserProfile} isAdmin={user.role === 'admin'} />}
         {showManageUsers && <UserManagementModal onClose={() => setShowManageUsers(false)} facilities={facilities} client={adminHelperClient} />}
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
         
         {/* Add Facility Modal */}
-        {showAddFacilityModal && (<div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-md"><div className="flex justify-between items-center mb-6"><h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2><button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button></div><AddFacilityForm onAdd={handleAddFacility} loading={false} /></div></div>)}
+        {showAddFacilityModal && (
+            <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-md">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900"><PlusCircle size={20}/> Add New Facility</h2>
+                        <button onClick={() => setShowAddFacilityModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20} /></button>
+                    </div>
+                    <AddFacilityForm onAdd={handleAddFacility} loading={false} />
+                </div>
+            </div>
+        )}
         
-        {/* Facility Delete Modal */}
-        {facilityToDelete && (<div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4"><div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full"><div className="flex flex-col items-center text-center"><div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><AlertTriangle size={24} /></div><h3 className="text-lg font-bold text-gray-900">Delete Facility?</h3><p className="text-sm text-gray-500 mt-2 mb-4">This will remove <span className="font-semibold">{facilityToDelete}</span>. Type <span className="font-mono font-bold text-red-600">delete</span> to confirm.</p><input type="text" value={deleteFacilityInput} onChange={(e) => setDeleteFacilityInput(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 mb-4 text-center text-sm outline-none focus:border-red-500" placeholder='Type "delete"' autoFocus /><div className="flex gap-3 w-full"><button onClick={() => setFacilityToDelete(null)} disabled={isDeletingFacility} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button><button onClick={confirmDeleteFacility} disabled={isDeletingFacility || deleteFacilityInput !== 'delete'} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex justify-center items-center gap-2">{isDeletingFacility && <Loader2 size={14} className="animate-spin"/>} Confirm</button></div></div></div></div>)}
+        {/* Delete Facility Modal (Master Data) */}
+        {facilityToDelete && (
+            <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
+                <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><AlertTriangle size={24} /></div>
+                        <h3 className="text-lg font-bold text-gray-900">Delete Facility?</h3>
+                        <p className="text-sm text-gray-500 mt-2 mb-4">
+                            This will remove <span className="font-semibold">{facilityToDelete}</span> and <strong>ALL</strong> associated reports permanently. Type <span className="font-mono font-bold text-red-600">delete</span> to confirm.
+                        </p>
+                        <input type="text" value={deleteFacilityInput} onChange={(e) => setDeleteFacilityInput(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 mb-4 text-center text-sm outline-none focus:border-red-500" placeholder='Type "delete"' autoFocus />
+                        <div className="flex gap-3 w-full">
+                            <button onClick={() => setFacilityToDelete(null)} disabled={isDeletingFacility} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
+                            <button onClick={confirmDeleteFacility} disabled={isDeletingFacility || deleteFacilityInput !== 'delete'} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex justify-center items-center gap-2">
+                                {isDeletingFacility && <Loader2 size={14} className="animate-spin"/>} Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
         
         {showPrivacyPolicy && <PrivacyModal onClose={() => setShowPrivacyPolicy(false)} />}
         {showTermsOfUse && <TermsModal onClose={() => setShowTermsOfUse(false)} />}

@@ -19,9 +19,7 @@ export default function AdminDashboard({
 }) {
   const { facilities, user, facilityBarangays } = useApp();
   
-  // We use the hook here purely for fetching status
-  // Note: We pass facilityBarangays as empty object or from context if needed, 
-  // but for the dashboard view, we mainly need the statuses.
+  // Fetch statuses for all facilities to display on cards
   const { facilityStatuses, fetchFacilityStatuses } = useReportData({
     user, 
     facilities, 
@@ -36,6 +34,7 @@ export default function AdminDashboard({
 
   return (
     <div className="max-w-6xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500">
+        {/* Top Actions Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Dashboard</h2>
@@ -54,6 +53,7 @@ export default function AdminDashboard({
           </div>
         </div>
 
+        {/* Date Filters */}
         <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 inline-flex items-center gap-2">
           <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-transparent text-sm font-medium text-zinc-900 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
             <option value="Monthly">Monthly</option>
@@ -61,24 +61,29 @@ export default function AdminDashboard({
             <option value="Annual">Annual</option>
           </select>
           <div className="w-px h-4 bg-gray-200"></div>
+          
           {periodType === 'Monthly' && (
             <select value={month} onChange={e => setMonth(e.target.value)} className="bg-transparent text-sm text-gray-600 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
                 {availableMonths.map(m => <option key={m}>{m}</option>)}
             </select>
           )}
+          
           {periodType === 'Quarterly' && (
             <select value={quarter} onChange={e => setQuarter(e.target.value)} className="bg-transparent text-sm text-gray-600 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
                 {QUARTERS.map(q => <option key={q}>{q}</option>)}
             </select>
           )}
+          
           <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-transparent text-sm text-gray-600 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
             {availableYears.map(y => <option key={y}>{y}</option>)}
           </select>
+          
           <button onClick={fetchFacilityStatuses} className="ml-2 p-2 text-gray-400 hover:text-zinc-900 transition">
             <ArrowLeft size={14} className="rotate-180"/>
           </button>
         </div>
 
+        {/* Facility Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {facilities.map(f => {
             const { main, cohort, lastUpdated } = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
@@ -91,22 +96,30 @@ export default function AdminDashboard({
                     {type === 'Hospital' ? <Hospital size={20}/> : (type === 'Clinic' ? <Stethoscope size={20}/> : <Building2 size={20}/>)}
                   </div>
                   <div className="flex flex-col gap-1 items-end">
+                    {/* Status Badges - Hidden if not Monthly */}
                     <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Main</span>
-                        <StatusBadge status={main} />
+                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Form 1</span>
+                        {periodType === 'Monthly' && <StatusBadge status={main} />}
                     </div>
                     <div className="flex items-center gap-1.5">
                         <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Cohort</span>
-                        <StatusBadge status={cohort} />
+                        {periodType === 'Monthly' && <StatusBadge status={cohort} />}
                     </div>
                   </div>
                 </div>
+                
                 <h3 className="font-semibold text-zinc-900 mb-1">{f}</h3>
                 <p className="text-xs text-gray-500 mb-4">Report for {periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</p>
+                
                 <div className="mt-auto pt-4 border-t border-gray-50">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-blue-600 group-hover:underline">View Report</span>
-                    <button onClick={(e) => { e.stopPropagation(); initiateDeleteFacility(f); }} className="text-gray-300 hover:text-red-500 transition">
+                    {/* Delete Facility Icon */}
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); initiateDeleteFacility(f); }} 
+                        className="text-gray-300 hover:text-red-500 transition"
+                        title="Delete Facility"
+                    >
                         <Trash2 size={14} />
                     </button>
                   </div>
