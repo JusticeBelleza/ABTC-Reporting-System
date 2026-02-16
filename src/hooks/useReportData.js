@@ -348,7 +348,7 @@ export function useReportData({
 
   const createDbNotification = async (recipient, title, message, type='info') => { try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); } };
 
-  // --- REFACTORED SAFE & ATOMIC SAVE LOGIC ---
+  // --- SAFE & ATOMIC SAVE LOGIC ---
   const handleSave = async (newStatus, reason = null) => {
     if (periodType !== 'Monthly' && activeTab === 'main') { 
         toast.error("Monthly only for Main Report"); 
@@ -359,7 +359,6 @@ export function useReportData({
     const target = userRole === 'admin' ? selectedFacility : (userName ? userName.trim() : null);
     if (!target) { toast.error("Error: Could not determine facility name."); return false; }
 
-    // --- DETECT RESUBMISSION (For Notification Purpose) ---
     const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
     const isResubmission = (currentStatus === 'Rejected' && newStatus === 'Pending');
 
@@ -367,7 +366,6 @@ export function useReportData({
     const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
     
     try {
-        // 2. Sanitize Date Inputs (Convert to string and trim)
         const cleanYear = String(year).trim();
         const cleanMonth = activeTab === 'main' 
             ? String(month).trim() 
@@ -379,6 +377,7 @@ export function useReportData({
         if (activeTab === 'main') {
             type = 'main';
             payload = Object.entries(data).map(([m, row]) => {
+                // Modified filter: allow saving if it's a visible user-added row OR if it has data
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
                 
                 let rem = row.remarks; 
@@ -388,48 +387,29 @@ export function useReportData({
                 dbRow.others_count = toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
 
-                return { 
-                    ...dbRow, 
-                    municipality: m, 
-                    status: newStatus, 
-                    remarks: rem 
-                };
+                return { ...dbRow, municipality: m, status: newStatus, remarks: rem };
             }).filter(x => x !== null);
             
         } else {
             type = 'cohort';
             payload = Object.entries(cohortData).map(([m, row]) => {
                 if (!hasCohortData(row, 'cat2') && !hasCohortData(row, 'cat3') && !getRowKeysForFacility(target, false, false, true, visibleCat2).includes(m) && !getRowKeysForFacility(target, false, false, true, visibleCat3).includes(m)) return null;
-                return { 
-                    ...mapCohortRowToDb(row), 
-                    municipality: m, 
-                    status: newStatus 
-                };
+                return { ...mapCohortRowToDb(row), municipality: m, status: newStatus };
             }).filter(x => x !== null);
         }
 
-        // 3. ATOMIC SAVE via RPC
-        // calls the safe_report_atomic function in Supabase
         const { error: rpcError } = await supabase.rpc('save_report_atomic', {
-            p_year: cleanYear,
-            p_month: cleanMonth,
-            p_facility: target,
-            p_type: type,
-            p_data: payload
+            p_year: cleanYear, p_month: cleanMonth, p_facility: target, p_type: type, p_data: payload
         });
 
         if (rpcError) throw new Error(`Save failed: ${rpcError.message}`);
 
-        // Update Local State
         if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: newStatus }));
         else setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
         
-        // Notifications
         if (newStatus === 'Pending') { 
             const title = isResubmission ? 'Resubmission' : 'New Submission';
-            const msg = isResubmission 
-                ? `${target} has resubmitted their ${activeTab === 'main' ? 'ABTC' : 'Cohort'} report.`
-                : `${target} report.`;
+            const msg = isResubmission ? `${target} has resubmitted their ${activeTab === 'main' ? 'ABTC' : 'Cohort'} report.` : `${target} report.`;
             await createDbNotification('PHO Admin', title, msg, 'info'); 
             toast.success(isResubmission ? 'Resubmitted' : 'Submitted'); 
         }
@@ -473,22 +453,56 @@ export function useReportData({
     } catch(err) { toast.error(err.message); return false; }
   };
 
+  // --- UPDATED GRAND TOTALS: Correctly sums all user-added rows (Other Municipalities) ---
   const grandTotals = useMemo(() => {
     const t = { ...INITIAL_ROW_STATE, sexTotal: 0, ageTotal: 0, cat23: 0, catTotal: 0, animalTotal: 0 };
     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
     numericKeys.forEach(k => t[k] = 0);
-    Object.entries(data).forEach(([key, row]) => { if (MUNICIPALITIES.includes(key)) { const c = getComputations(row); numericKeys.forEach(k => t[k] += toInt(row[k])); t.sexTotal += c.sexTotal; t.ageTotal += c.ageTotal; t.cat23 += c.cat23; t.catTotal += c.catTotal; t.animalTotal += c.animalTotal; } });
+    
+    // Get list of barangays to exclude them (their sum is already in the host municipality row)
+    const currentBarangays = facilityBarangays[activeFacilityName] || [];
+
+    Object.entries(data).forEach(([key, row]) => { 
+        // 1. Skip the special "Others:" separator row
+        if (key === "Others:") return;
+        
+        // 2. Skip individual barangay rows to avoid double-counting (since host row is already their sum)
+        if (currentBarangays.includes(key)) return;
+
+        // 3. Include row if it has data. This covers Host Municipality AND any "Non-Abra" or other user-added rows.
+        if (hasData(row)) { 
+            const c = getComputations(row); 
+            numericKeys.forEach(k => t[k] += toInt(row[k])); 
+            t.sexTotal += c.sexTotal; 
+            t.ageTotal += c.ageTotal; 
+            t.cat23 += c.cat23; 
+            t.catTotal += c.catTotal; 
+            t.animalTotal += c.animalTotal; 
+        } 
+    });
+    
     t.percent = t.animalTotal > 0 ? (t.washed / t.animalTotal * 100).toFixed(0) + '%' : '0%';
     return t;
-  }, [data]);
+  }, [data, facilityBarangays, activeFacilityName]);
 
+  // --- UPDATED COHORT TOTALS: Same logic as Main Report ---
   const cohortTotals = useMemo(() => {
     const t = { ...INITIAL_COHORT_ROW };
     const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
     keys.forEach(k => t[k] = 0);
-    Object.entries(cohortData).forEach(([key, row]) => { if(MUNICIPALITIES.includes(key)) { keys.forEach(k => t[k] += toInt(row[k])); } });
+    
+    const currentBarangays = facilityBarangays[activeFacilityName] || [];
+
+    Object.entries(cohortData).forEach(([key, row]) => { 
+        if (key === "Others:") return;
+        if (currentBarangays.includes(key)) return;
+
+        if (hasCohortData(row, 'cat2') || hasCohortData(row, 'cat3')) { 
+            keys.forEach(k => t[k] += toInt(row[k])); 
+        } 
+    });
     return t;
-  }, [cohortData]);
+  }, [cohortData, facilityBarangays, activeFacilityName]);
 
   return {
     data, cohortData, reportStatus, loading, isSaving, facilityStatuses, currentRows, cohortRowsCat2, cohortRowsCat3,

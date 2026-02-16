@@ -46,7 +46,15 @@ export default function MainReportTable({
 
           if (key === "Others:") {
             const host = currentHostMunicipality;
-            const availableOptions = MUNICIPALITIES.filter(m => m !== host && !visibleOtherMunicipalities.includes(m)).sort();
+            
+            // Filter out options already visible or the host
+            const allAvailable = MUNICIPALITIES.filter(m => m !== host && !visibleOtherMunicipalities.includes(m));
+            
+            // Split into "Abra" and "Non-Abra/Others"
+            // Assuming "Non-Abra" is the keyword in constants. 
+            const abraOptions = allAvailable.filter(m => m !== "Non-Abra").sort();
+            const otherOptions = allAvailable.filter(m => m === "Non-Abra");
+
             const showAddControls = userRole !== 'admin' && !isConsolidated && !isAggregationMode && (reportStatus === 'Draft' || reportStatus === 'Rejected');
             return (
               <tr key="others-separator" className={hideClass} style={{ ...PDF_STYLES.rowEven, ...PDF_STYLES.bgGray }}>
@@ -57,7 +65,14 @@ export default function MainReportTable({
                         <div className="flex items-center gap-2 no-print">
                           <select id="other-mun-select" className="bg-white border border-gray-300 text-xs rounded p-1 outline-none">
                             <option value="">Select Municipality...</option>
-                            {availableOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                            <optgroup label="Abra Municipalities">
+                                {abraOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                            </optgroup>
+                            {otherOptions.length > 0 && (
+                                <optgroup label="Others">
+                                    {otherOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </optgroup>
+                            )}
                           </select>
                           <button type="button" onClick={(e) => { 
                             e.preventDefault();

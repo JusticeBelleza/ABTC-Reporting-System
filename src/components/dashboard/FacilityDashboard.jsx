@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
@@ -15,12 +16,17 @@ export default function FacilityDashboard({
   quarter, setQuarter,
   availableYears, availableMonths,
   adminViewMode, selectedFacility, onBack,
-  setDeleteConfirmation, setRejectionReason, setShowRejectModal, setReportToDelete
+  setDeleteConfirmation
 }) {
   const { user, facilities, facilityBarangays, globalSettings, userProfile } = useApp();
   const [activeTab, setActiveTab] = useState('main'); 
   const [cohortSubTab, setCohortSubTab] = useState('cat2'); 
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  // --- MODAL STATES ---
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showDeleteReportModal, setShowDeleteReportModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Core Data Logic
   const {
@@ -30,7 +36,7 @@ export default function FacilityDashboard({
     visibleOtherMunicipalities, setVisibleOtherMunicipalities,
     visibleCat2, setVisibleCat2,
     visibleCat3, setVisibleCat3,
-    handleChange, handleSave
+    handleChange, handleSave, confirmDeleteReport
   } = useReportData({
     user, facilities, facilityBarangays, year, month, quarter, periodType, activeTab, cohortSubTab, adminViewMode, selectedFacility
   });
@@ -42,6 +48,17 @@ export default function FacilityDashboard({
   const onSaveClick = async (status) => {
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
     await handleSave(status);
+  };
+
+  const confirmRejection = async () => { 
+    if (!rejectionReason.trim()) { toast.error("Reason required"); return; } 
+    setShowRejectModal(false); 
+    await handleSave('Rejected', rejectionReason);
+  };
+
+  const handleDeleteReportClick = async () => {
+    setShowDeleteReportModal(false);
+    await confirmDeleteReport();
   };
 
   const getPreviousPeriodText = () => {
@@ -86,6 +103,8 @@ export default function FacilityDashboard({
                     <button onClick={() => setActiveTab('main')} className={`px-4 py-1.5 text-sm font-medium rounded transition ${activeTab==='main'?'bg-zinc-900 text-white shadow':'text-gray-600 hover:bg-gray-50'}`}>ABTC Reporting</button>
                     <button onClick={() => setActiveTab('cohort')} className={`px-4 py-1.5 text-sm font-medium rounded transition ${activeTab==='cohort'?'bg-zinc-900 text-white shadow':'text-gray-600 hover:bg-gray-50'}`}>Cohort</button>
                 </div>
+                
+                {/* Filters */}
                 <div className="bg-white border border-gray-200 rounded-lg p-1 flex items-center shadow-sm">
                     <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-transparent text-sm font-medium text-zinc-900 p-1.5 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
                     <div className="w-px h-4 bg-gray-200"></div>
@@ -98,11 +117,17 @@ export default function FacilityDashboard({
                     {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} PDF
                 </button>
 
+                {/* ADMIN / USER BUTTONS */}
                 {!isConsolidatedView && !isAggregationMode && (
                     user.role === 'admin' ? (
                         <>
                         <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 shadow-sm flex items-center gap-2 transition disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve</button>
                         <button onClick={() => onSaveClick('Rejected')} disabled={loading || isSaving} className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject</button>
+                        
+                        {/* --- DELETE REPORT BUTTON (ADMIN ONLY) --- */}
+                        <button onClick={() => setShowDeleteReportModal(true)} disabled={loading || isSaving} className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition disabled:opacity-50">
+                            <Trash2 size={16} /> Delete
+                        </button>
                         </>
                     ) : (
                         <>
@@ -137,6 +162,45 @@ export default function FacilityDashboard({
                 </div>
             )}
         </div>
+
+        {/* --- REJECT MODAL --- */}
+        {showRejectModal && (
+            <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-semibold text-rose-600 flex items-center gap-2"><MessageSquare size={20}/> Reject Report</h2>
+                        <button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-zinc-900"><X size={20}/></button>
+                    </div>
+                    <p className="text-gray-600 text-sm mb-4">Please provide a reason for rejecting this report.</p>
+                    <textarea className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition" rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} autoFocus placeholder="e.g. Incomplete data..."></textarea>
+                    <div className="flex justify-end gap-3 mt-4">
+                        <button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm font-medium transition">Cancel</button>
+                        <button onClick={confirmRejection} disabled={isSaving} className="px-4 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-sm font-medium transition flex items-center gap-2">{isSaving && <Loader2 size={14} className="animate-spin"/>} Confirm Rejection</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- DELETE REPORT CONFIRMATION MODAL --- */}
+        {showDeleteReportModal && (
+            <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
+                <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><AlertCircle size={24} /></div>
+                        <h3 className="text-lg font-bold text-gray-900">Delete {activeTab === 'main' ? 'ABTC' : 'Cohort'} Report?</h3>
+                        <p className="text-sm text-gray-500 mt-2 mb-6">
+                            Are you sure you want to delete the <strong>{activeTab === 'main' ? 'Main' : 'Cohort'}</strong> report for <strong>{periodType === 'Monthly' ? month : quarter} {year}</strong>? This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button onClick={() => setShowDeleteReportModal(false)} disabled={isSaving} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
+                            <button onClick={handleDeleteReportClick} disabled={isSaving} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex justify-center items-center gap-2">
+                                {isSaving && <Loader2 size={14} className="animate-spin"/>} Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 }
