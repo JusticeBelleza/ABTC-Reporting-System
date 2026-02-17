@@ -60,6 +60,5 @@ For details regarding data handling and usage rights, please refer to the follow
 ## Author & Contact
 
 **Justice Belleza** **Email:** justice.belleza@icloud.com  
-**Official Domain:** [abtcrs.com](https://abtcrs.com)
 
 &copy; 2026 Justice Belleza. All Rights Reserved.
