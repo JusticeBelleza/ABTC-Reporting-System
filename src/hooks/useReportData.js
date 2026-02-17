@@ -331,7 +331,7 @@ export function useReportData({
             payload = Object.entries(data).map(([m, row]) => {
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
                 let rem = row.remarks; 
-                if (newStatus === 'Rejected' && reason && m === targetKey) rem = `REJECTED: ${reason}`;
+                // Removed the auto-injection of rejection reason into remarks
                 const dbRow = mapRowToDb(row);
                 dbRow.others_count = toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
