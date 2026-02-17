@@ -126,12 +126,9 @@ export default function FacilityDashboard({
                 {!isConsolidatedView && !isAggregationMode && (
                     user.role === 'admin' ? (
                         <>
-                        {/* UPDATED: Disable 'Approve' if already Approved. 
-                            Disable 'Reject' if already Rejected.
-                        */}
                         <button 
                             onClick={() => onSaveClick('Approved')} 
-                            disabled={loading || isSaving || reportStatus === 'Approved'} 
+                            disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Draft'} 
                             className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 shadow-sm flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve
@@ -139,13 +136,18 @@ export default function FacilityDashboard({
                         
                         <button 
                             onClick={() => onSaveClick('Rejected')} 
-                            disabled={loading || isSaving || reportStatus === 'Rejected'} 
+                            disabled={loading || isSaving || reportStatus === 'Rejected' || reportStatus === 'Draft'} 
                             className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject
                         </button>
                         
-                        <button onClick={() => setShowDeleteReportModal(true)} disabled={loading || isSaving} className="bg-white border border-gray-200 text-red-600 p-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition disabled:opacity-50">
+                        {/* UPDATED: Delete Button now disabled if reportStatus is Draft */}
+                        <button 
+                            onClick={() => setShowDeleteReportModal(true)} 
+                            disabled={loading || isSaving || reportStatus === 'Draft'} 
+                            className="bg-white border border-gray-200 text-red-600 p-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             <Trash2 size={18} />
                         </button>
                         </>

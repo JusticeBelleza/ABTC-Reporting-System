@@ -150,42 +150,62 @@ export function useReportData({
           const { data: rawRecords, error } = await query;
           if (error) throw error;
 
-          const uniqueRecordsMap = {};
+          const newVisibleOthers = new Set();
+          
+          // --- FIX: Aggregation Logic (Sums up Monthly reports for Quarterly/Consolidated) ---
           if (rawRecords && rawRecords.length > 0) {
             rawRecords.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            rawRecords.forEach(r => { uniqueRecordsMap[r.municipality] = r; });
-          }
-          const records = Object.values(uniqueRecordsMap);
-
-          const newVisibleOthers = new Set();
-          if (records && records.length > 0) {
-            records.forEach(record => {
-              const m = record.municipality;
-              if (newData[m]) {
-                 const r = mapDbToRow(record);
-                 r.othersCount = record.others_count ?? record.othersCount ?? 0;
-                 r.othersSpec = record.others_spec ?? record.othersSpec ?? '';
-                 const c = newData[m];
-                 const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-                 keys.forEach(k => { c[k] = toInt(r[k]); });
-                 
-                 if (r.othersSpec && r.othersSpec.trim()) { c.othersSpec = r.othersSpec.trim(); }
-                 c.remarks = record.remarks || c.remarks;
-                 
-                 const isBarangay = facilityBarangays[target]?.includes(m);
-                 const host = MUNICIPALITIES.find(mun => target?.includes(mun));
-                 if (!isBarangay && m !== host && hasData(r)) { newVisibleOthers.add(m); }
-              }
-            });
-            setData(newData);
-            records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
             
-            const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
+            rawRecords.forEach(record => {
+                const m = record.municipality;
+                if (newData[m]) {
+                    const r = mapDbToRow(record);
+                    r.othersCount = record.others_count ?? record.othersCount ?? 0;
+                    r.othersSpec = record.others_spec ?? record.othersSpec ?? '';
+                    
+                    const c = newData[m];
+                    const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
+                    
+                    // Sum the values
+                    numericKeys.forEach(k => { 
+                        c[k] = toInt(c[k]) + toInt(r[k]); 
+                    });
+                    
+                    // Aggregate Specs
+                    if (r.othersSpec && r.othersSpec.trim()) {
+                        c.othersSpec = aggregateAnimalSpecs([c.othersSpec, r.othersSpec]);
+                    }
+                    
+                    // Concatenate Remarks (if different)
+                    if (record.remarks && record.remarks.trim()) {
+                        if (!c.remarks.includes(record.remarks)) {
+                            c.remarks = c.remarks ? `${c.remarks}; ${record.remarks}` : record.remarks;
+                        }
+                    }
+
+                    // Handle Visibility
+                    const isBarangay = facilityBarangays[target]?.includes(m);
+                    const host = MUNICIPALITIES.find(mun => target?.includes(mun));
+                    if (!isBarangay && m !== host && hasData(r)) { newVisibleOthers.add(m); }
+                }
+            });
+
+            // Clean up 0s to empty strings for UI
+            Object.values(newData).forEach(row => {
+                 const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
+                 numericKeys.forEach(k => { if (row[k] === 0) row[k] = ''; });
+            });
+
+            setData(newData);
+            
+            // Determine Status
+            const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (rawRecords[rawRecords.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
             setReportStatuses(prev => ({ ...prev, main: newStatus }));
           } else { setData(newData); setReportStatuses(prev => ({ ...prev, main: 'Draft' })); }
           setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
 
       } else {
+          // --- COHORT AGGREGATION ---
           const newCohort = initData(fullRowKeys, true);
           let query = supabase.from('abtc_cohort_reports').select('*').eq('year', year);
           if (periodType === 'Monthly') query = query.eq('month', month);
@@ -197,25 +217,27 @@ export function useReportData({
           const { data: rawRecords, error } = await query;
           if (error) throw error;
 
-          const uniqueRecordsMap = {};
-          if (rawRecords && rawRecords.length > 0) {
-            rawRecords.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            rawRecords.forEach(r => { uniqueRecordsMap[r.municipality] = r; });
-          }
-          const records = Object.values(uniqueRecordsMap);
-
           const newVisibleCat2 = new Set(); 
           const newVisibleCat3 = new Set();
-          if (records && records.length > 0) {
-              records.forEach(record => {
+          
+          if (rawRecords && rawRecords.length > 0) {
+              rawRecords.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+              
+              rawRecords.forEach(record => {
                   const m = record.municipality;
                   if(newCohort[m]) {
                       const r = mapCohortDbToRow(record);
                       const c = newCohort[m];
                       const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-                      keys.forEach(k => { c[k] = toInt(r[k]); });
-                      c.cat2_remarks = r.cat2_remarks || c.cat2_remarks || ''; 
-                      c.cat3_remarks = r.cat3_remarks || c.cat3_remarks || '';
+                      
+                      // Sum the values
+                      keys.forEach(k => { 
+                          c[k] = toInt(c[k]) + toInt(r[k]); 
+                      });
+
+                      // Concatenate Remarks
+                      if (record.cat2_remarks) { if(!c.cat2_remarks.includes(record.cat2_remarks)) c.cat2_remarks = c.cat2_remarks ? `${c.cat2_remarks}; ${record.cat2_remarks}` : record.cat2_remarks; }
+                      if (record.cat3_remarks) { if(!c.cat3_remarks.includes(record.cat3_remarks)) c.cat3_remarks = c.cat3_remarks ? `${c.cat3_remarks}; ${record.cat3_remarks}` : record.cat3_remarks; }
                       
                       const isBarangay = facilityBarangays[target]?.includes(m);
                       const host = MUNICIPALITIES.find(mun => target?.includes(mun));
@@ -225,10 +247,16 @@ export function useReportData({
                       }
                   }
               });
+
+              // Clean up 0s
+              Object.values(newCohort).forEach(row => {
+                const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
+                keys.forEach(k => { if (row[k] === 0) row[k] = ''; });
+              });
+
               setCohortData(newCohort);
-              records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
               
-              const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (records[records.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
+              const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (rawRecords[rawRecords.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
               setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
           } else { setCohortData(newCohort); setReportStatuses(prev => ({ ...prev, cohort: 'Draft' })); }
           setVisibleCat2(Array.from(newVisibleCat2));
@@ -273,6 +301,7 @@ export function useReportData({
             n[m] = { ...(n[m] || INITIAL_ROW_STATE), [f]: v };
 
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
+                const existingRemarks = n[currentHostMunicipality]?.remarks || '';
                 const tot = { ...INITIAL_ROW_STATE };
                 const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
                 
@@ -289,7 +318,11 @@ export function useReportData({
 
                 keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
                 tot.othersSpec = aggregateAnimalSpecs(specsToAggregate);
-                n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot };
+                n[currentHostMunicipality] = { 
+                    ...n[currentHostMunicipality], 
+                    ...tot,
+                    remarks: existingRemarks
+                };
             }
             return n;
         });
@@ -316,6 +349,13 @@ export function useReportData({
     const target = userRole === 'admin' ? selectedFacility : (userName ? userName.trim() : null);
     if (!target) { toast.error("Error: Could not determine facility name."); return false; }
     const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
+    
+    // Check: Prevent Admin from approving/rejecting a Draft
+    if (userRole === 'admin' && (newStatus === 'Approved' || newStatus === 'Rejected') && currentStatus === 'Draft') {
+        toast.error("Cannot approve or reject a report that has not been submitted.");
+        return false;
+    }
+
     const isResubmission = (currentStatus === 'Rejected' && newStatus === 'Pending');
     setIsSaving(true);
     const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
@@ -330,8 +370,8 @@ export function useReportData({
             type = 'main';
             payload = Object.entries(data).map(([m, row]) => {
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
+                
                 let rem = row.remarks; 
-                // Removed the auto-injection of rejection reason into remarks
                 const dbRow = mapRowToDb(row);
                 dbRow.others_count = toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
@@ -351,7 +391,6 @@ export function useReportData({
         if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: newStatus }));
         else setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
         
-        // --- NOTIFICATION CONSTRUCTION ---
         const reportType = activeTab === 'main' ? 'Form 1 Report' : 'Cohort Report';
         let periodStr = '';
         if (periodType === 'Monthly') {
@@ -364,9 +403,7 @@ export function useReportData({
 
         if (newStatus === 'Pending') { 
             const title = isResubmission ? 'Resubmission' : 'New Submission';
-            // Format: "La Paz RHU resubmitted Form 1 Report for the month of February 2025."
             const msg = `${target} ${isResubmission ? 'resubmitted' : 'submitted'} ${reportType} ${periodStr}.`;
-            
             await createDbNotification('PHO Admin', title, msg, 'info'); 
             toast.success(isResubmission ? 'Resubmitted' : 'Submitted'); 
         }
@@ -375,7 +412,6 @@ export function useReportData({
             toast.success('Approved'); 
         }
         else if (newStatus === 'Rejected') { 
-            // Format: "Your Form 1 Report for the month of February 2025 has been rejected. Reason: ..."
             await createDbNotification(target, 'Report Rejected', `Your ${reportType} ${periodStr} has been rejected. Reason: ${reason}`, 'error'); 
             toast.success('Rejected'); 
         }
@@ -388,6 +424,12 @@ export function useReportData({
 
   const confirmDeleteReport = async () => {
     try {
+        const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
+        if (userRole === 'admin' && currentStatus === 'Draft') {
+            toast.error("Cannot delete a report that has not been submitted.");
+            return false;
+        }
+
         const target = activeFacilityName; 
         const cleanYear = String(year).trim();
         const cleanMonth = String(month).trim();
