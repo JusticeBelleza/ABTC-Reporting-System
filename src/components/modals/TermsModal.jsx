@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileCheck, X, AlertTriangle, ShieldCheck, Server, Copyright } from 'lucide-react';
+import { FileCheck, AlertTriangle, ShieldCheck, Server, Copyright } from 'lucide-react';
 
 export default function TermsModal({ onClose }) {
   return (
@@ -17,13 +17,6 @@ export default function TermsModal({ onClose }) {
               Effective Date: February 12, 2026
             </p>
           </div>
-          <button 
-            onClick={onClose} 
-            className="text-gray-400 hover:text-zinc-900 hover:bg-gray-200 p-2 rounded-full transition-all"
-            aria-label="Close modal"
-          >
-            <X size={20}/>
-          </button>
         </div>
 
         {/* Content */}
@@ -117,8 +110,8 @@ export default function TermsModal({ onClose }) {
 
         </div>
         
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-end">
+        {/* Footer - Centered Button */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-center">
           <button 
             onClick={onClose}
             className="px-6 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors shadow-sm"
