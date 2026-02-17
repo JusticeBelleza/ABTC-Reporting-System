@@ -41,6 +41,9 @@ The Developer reserves the right to immediately suspend or terminate your access
 
 Upon termination, your right to use the System will immediately cease.
 
+**Survival of Institutional Rights:**
+The termination of an individual User's account does NOT revoke the **Maintenance & Succession Rights** granted to the Health Facility under the Software License, provided the Facility itself remains in compliance with Section 1 (Acceptable Use) and Section 4 (Intellectual Property).
+
 ---
 
 ### 4. Intellectual Property Rights
