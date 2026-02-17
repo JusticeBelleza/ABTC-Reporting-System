@@ -22,7 +22,7 @@ export default function TermsModal({ onClose }) {
         {/* Content */}
         <div className="p-8 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-8 pr-4 custom-scrollbar">
           
-          {/* Preamble - Now styled like Commitment to Privacy */}
+          {/* Preamble */}
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-blue-800 text-xs leading-5">
             <strong>Agreement to Terms:</strong> By accessing, browsing, or using the ABTC Reporting System ("System"), you acknowledge that you have read, understood, and agree to be bound by these Terms of Use. If you do not agree to these terms, you must strictly stop using the System immediately.
           </div>
@@ -49,7 +49,8 @@ export default function TermsModal({ onClose }) {
                   <ul className="list-disc pl-4 text-xs space-y-1 text-gray-600">
                     <li>Attempting to gain unauthorized access to the System or its related servers.</li>
                     <li>Using the System for any illegal purpose or in violation of local laws.</li>
-                    <li>Reverse engineering, decompiling, or disassembling the System software.</li>
+                    {/* UPDATED LINE BELOW */}
+                    <li>Reverse engineering, decompiling, or disassembling the System software, <strong>EXCEPT</strong> to the extent expressly permitted by the accompanying Software License for the purpose of internal maintenance and succession.</li>
                   </ul>
                </div>
             </div>

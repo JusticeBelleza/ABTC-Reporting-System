@@ -20,7 +20,7 @@ You are granted a limited, non-exclusive, non-transferable license to use the Sy
 #### B. Prohibited Conduct
 * Attempting to gain unauthorized access to the System or its related servers.
 * Using the System for any illegal purpose or in violation of local laws.
-* Reverse engineering, decompiling, or disassembling the System software.
+* **Reverse engineering, decompiling, or disassembling the System software, EXCEPT to the extent expressly permitted by the accompanying Software License for the purpose of internal maintenance and succession.**
 
 ---
 

@@ -15,6 +15,7 @@ import TermsModal from '../modals/TermsModal';
 import SettingsModal from '../modals/SettingsModal';
 import ProfileModal from '../modals/ProfileModal';
 import UserManagementModal from '../modals/UserManagementModal';
+import LicenseModal from '../modals/LicenseModal'; // [!code ++]
 import ErrorBoundary from '../ErrorBoundary';
 
 function DashboardContent() {
@@ -53,6 +54,7 @@ function DashboardContent() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
+  const [showLicense, setShowLicense] = useState(false); // [!code ++]
   
   // Facility Deletion State (Master Data)
   const [facilityToDelete, setFacilityToDelete] = useState(null);
@@ -186,6 +188,7 @@ function DashboardContent() {
         
         {showPrivacyPolicy && <PrivacyModal onClose={() => setShowPrivacyPolicy(false)} />}
         {showTermsOfUse && <TermsModal onClose={() => setShowTermsOfUse(false)} />}
+        {showLicense && <LicenseModal onClose={() => setShowLicense(false)} />} {/* [!code ++] */}
       </main>
 
       {/* FOOTER */}
@@ -197,6 +200,7 @@ function DashboardContent() {
             <div className="flex items-center gap-4">
               <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-zinc-900 hover:underline transition">Privacy Policy</button>
               <button onClick={() => setShowTermsOfUse(true)} className="hover:text-zinc-900 hover:underline transition">Terms of Use</button>
+              <button onClick={() => setShowLicense(true)} className="hover:text-zinc-900 hover:underline transition">License</button> {/* [!code ++] */}
               {/* Added User Manual Link */}
               <a href="/images/System_Manual.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 hover:underline transition">User Manual</a>
             </div>
