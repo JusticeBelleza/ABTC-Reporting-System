@@ -84,7 +84,8 @@ export default function FacilityDashboard({
     await downloadPDF({
         type: activeTab, cohortType: cohortSubTab, filename, data: activeTab === 'main' ? data : cohortData,
         rowKeys: activeTab === 'main' ? currentRows : (cohortSubTab === 'cat2' ? cohortRowsCat2 : cohortRowsCat3),
-        grandTotals, cohortTotals, periodText, facilityName: activeFacilityName, userProfile, globalSettings
+        grandTotals, cohortTotals, periodText, facilityName: activeFacilityName, userProfile, globalSettings,
+        isConsolidated: isConsolidatedView
     });
     setIsDownloadingPdf(false);
   };

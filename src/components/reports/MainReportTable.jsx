@@ -17,7 +17,7 @@ export default function MainReportTable({
       <thead>
         {/* --- ROW 1 --- */}
         <tr style={isConsolidated ? PDF_STYLES.header : PDF_STYLES.subHeader}>
-          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', fontWeight:'bold', width: '200px', minWidth: '200px'}}>
+          <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'center', fontWeight:'bold', width: '200px', minWidth: '200px'}}>
             {isConsolidated ? "Municipality" : (hasBarangays ? "Barangay / Municipality" : "Municipality")}
           </th>
           <th colSpan={17} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#ffffff', color:'#52525b', fontWeight:'500'}}>Human Cases</th>

@@ -139,7 +139,8 @@ export const downloadPDF = async ({
   periodText, 
   facilityName, 
   userProfile, 
-  globalSettings 
+  globalSettings,
+  isConsolidated
 }) => {
   try {
     const doc = new jsPDF('landscape', 'pt', 'legal'); 
@@ -171,10 +172,11 @@ export const downloadPDF = async ({
     let body = [];
     
     if (type === 'main') {
+      const firstColTitle = isConsolidated ? "Municipality" : "Barangay / Municipality";
       head = [
         // --- Row 1 ---
         [
-          { content: 'Municipality', rowSpan: 3, styles: { valign: 'middle', halign: 'left' } },
+          { content: firstColTitle, rowSpan: 3, styles: { valign: 'middle', halign: 'center' } },
           { content: 'Human Cases', colSpan: 17 },
           { content: 'Biting Animals', colSpan: 4 },
           { content: 'Total', rowSpan: 3, styles: { valign: 'middle' } },
