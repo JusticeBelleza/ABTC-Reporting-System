@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scale, ShieldCheck, Wrench, Ban, CheckCircle } from 'lucide-react';
+import { Scale, ShieldCheck, Wrench, Ban, CheckCircle, Globe } from 'lucide-react';
 
 export default function LicenseModal({ onClose }) {
   return (
@@ -14,7 +14,7 @@ export default function LicenseModal({ onClose }) {
               Software License
             </h2>
             <p className="text-xs text-gray-500 mt-1 uppercase tracking-wide font-medium">
-              License Type: Proprietary (Limited Grant)
+              License Type: Proprietary (Institutional Grant)
             </p>
           </div>
         </div>
@@ -24,7 +24,7 @@ export default function LicenseModal({ onClose }) {
           
           {/* Grant Preamble */}
           <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 text-indigo-900 text-xs leading-5">
-            <strong>OFFICIAL GRANT:</strong> This software is expressly provided <strong>FREE OF CHARGE</strong> to the Health Facilities of the Province of Abra. It is a dedicated modernization initiative.
+            <strong>OFFICIAL GRANT:</strong> This software is expressly provided <strong>FREE OF CHARGE</strong> to the <strong>Abra Provincial Health Office</strong> for use by its authorized Health Facilities. It is a dedicated modernization initiative.
           </div>
 
           {/* Section 1: Ownership */}
@@ -40,20 +40,23 @@ export default function LicenseModal({ onClose }) {
             </p>
           </section>
 
-          {/* Section 2: Maintenance & Succession (The "Safety" Clause) */}
+          {/* Section 2: Maintenance & Succession */}
           <section>
             <h3 className="font-bold text-zinc-900 text-base mb-3 flex items-center gap-2">
               <Wrench size={16} className="text-emerald-600"/> 2. Maintenance & Succession Rights
             </h3>
             <div className="bg-emerald-50/50 border-l-2 border-emerald-500 p-3 rounded-r-lg">
               <p className="mb-2">
-                To ensure the sustainability of public health reporting, the <strong>Administrative Authority</strong> of the Abra Health Facilities (Authorized Users) is granted the right to modify and update the Software source code <strong>SOLELY</strong> for the purpose of:
+                To ensure the sustainability of public health reporting, <strong>The Designated IT Officer</strong> of the Abra Provincial Health Office is granted the right to modify and update the Software source code <strong>SOLELY</strong> for:
               </p>
               <ul className="list-disc pl-5 space-y-1 text-zinc-700">
                 <li>Internal maintenance and bug fixing.</li>
                 <li>Platform compatibility updates.</li>
                 <li>Security patching.</li>
               </ul>
+              <p className="mt-2 text-xs font-bold text-emerald-800">
+                NOTE: Individual Health Facilities are NOT authorized to modify the source code.
+              </p>
             </div>
           </section>
 
@@ -74,11 +77,21 @@ export default function LicenseModal({ onClose }) {
           </section>
 
           {/* Section 4: Disclaimer */}
-          <section className="border-t border-gray-100 pt-6">
+          <section>
             <h3 className="font-bold text-zinc-900 text-base mb-2">4. Disclaimer of Warranty</h3>
             <p className="text-xs uppercase font-bold text-gray-500 mb-1">Provided "AS IS"</p>
             <p>
               THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. THE DEVELOPER SHALL NOT BE LIABLE FOR ANY DAMAGES, DATA LOSS, OR REPORTING INACCURACIES ARISING FROM THE USE OF THIS SOFTWARE.
+            </p>
+          </section>
+
+          {/* Section 5: Jurisdiction */}
+          <section className="border-t border-gray-100 pt-6">
+            <h3 className="font-bold text-zinc-900 text-base mb-2 flex items-center gap-2">
+              <Globe size={16} className="text-gray-400"/> 5. Jurisdiction
+            </h3>
+            <p>
+              This License is governed by the laws of the Republic of the Philippines. Disputes regarding intellectual property or usage rights shall be resolved exclusively in the courts of the <strong>Province of Abra</strong>.
             </p>
           </section>
 

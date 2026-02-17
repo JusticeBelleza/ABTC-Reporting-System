@@ -28,7 +28,10 @@ export default function TermsModal({ onClose }) {
               <CheckCircle size={16} className="text-emerald-500"/> 1. Acceptable Use Policy
             </h3>
             <p className="mb-2">
-              You are granted a limited license to use the System strictly for official animal bite reporting. You agree to input only accurate and truthful statistical data and maintain the confidentiality of your login credentials.
+              As an authorized representative of a <strong>Health Facility</strong>, you are granted a limited right to access the System strictly for official reporting to the Abra Provincial Health Office (APHO). 
+            </p>
+            <p>
+              You agree to input only accurate and truthful statistical data and maintain the confidentiality of your facility's login credentials.
             </p>
           </section>
 
@@ -41,17 +44,17 @@ export default function TermsModal({ onClose }) {
                 <strong>COMPLIANCE WITH RA 10173:</strong> Users are strictly prohibited from entering Sensitive Personal Information (Patient Names, Addresses, Medical IDs) into any free-text fields. 
              </p>
              <p className="text-xs font-bold text-rose-800">
-                The Developer assumes no liability for privacy violations resulting from your failure to adhere to this prohibition.
+                The Developer and APHO assume no liability for privacy violations resulting from your failure to adhere to this prohibition.
              </p>
           </div>
 
-          {/* Section 3: Termination (New Clause) */}
+          {/* Section 3: Termination */}
           <section>
             <h3 className="font-bold text-zinc-900 text-base mb-3 flex items-center gap-2">
-              <AlertOctagon size={16} className="text-amber-500"/> 3. Termination of Access
+              <AlertOctagon size={16} className="text-amber-500"/> 3. Suspension & Termination
             </h3>
             <p className="mb-2">
-                The Developer reserves the right to immediately suspend or terminate your access without notice for:
+                The Abra Provincial Health Office (APHO) and the Developer reserve the right to immediately suspend or revoke your facility's access credentials without notice for:
             </p>
             <ul className="list-disc pl-5 space-y-1 text-xs">
               <li><strong>Violation of the Zero-Patient Data Policy.</strong></li>

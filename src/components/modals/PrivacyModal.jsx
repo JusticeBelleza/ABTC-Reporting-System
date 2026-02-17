@@ -78,9 +78,14 @@ export default function PrivacyModal({ onClose }) {
             <h3 className="font-bold text-zinc-900 text-base mb-3 flex items-center gap-2">
               <Lock size={16} className="text-gray-600"/> 4. Security Measures
             </h3>
-            <p>
-              We implement industry-standard security measures including encryption-at-rest and encryption-in-transit (via Supabase), Role-Based Access Control (RBAC), and regular security audits.
+            <p className="mb-2">
+              The System utilizes industry-standard security protocols to protect your data:
             </p>
+            <ul className="list-disc pl-5 space-y-1 text-xs text-gray-600">
+              <li><strong>Encryption:</strong> All data is encrypted-at-rest and encrypted-in-transit via the platform provider (Supabase).</li>
+              <li><strong>Access Control:</strong> Strict Role-Based Access Control (RBAC) ensures only authorized personnel can access facility data.</li>
+              <li><strong>Compliance:</strong> The infrastructure provider adheres to SOC2 and HIPAA compliance standards.</li>
+            </ul>
           </section>
 
            {/* Section 5: Contact */}
@@ -90,11 +95,9 @@ export default function PrivacyModal({ onClose }) {
             </h3>
             <p className="mb-1 text-xs">For privacy concerns or to exercise your rights under RA 10173:</p>
             <div className="bg-zinc-50 p-3 rounded border border-zinc-100">
-                <p className="font-bold text-zinc-900">Justice Belleza</p>
-                <p className="text-xs text-zinc-500">System Developer & Data Protection Officer (DPO)</p>
-                <a href="mailto:justice.belleza@icloud.com" className="text-xs text-indigo-600 hover:underline mt-1 block">
-                    justice.belleza@icloud.com
-                </a>
+                <p className="font-bold text-zinc-900">Antonio L. Valera, MD</p>
+                <p className="text-xs text-zinc-500">Assistant Provincial Health Officer</p>
+                <p className="text-xs text-zinc-500">Data Protection Officer</p>
             </div>
           </section>
 
