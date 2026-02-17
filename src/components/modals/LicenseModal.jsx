@@ -47,7 +47,7 @@ export default function LicenseModal({ onClose }) {
             </h3>
             <div className="bg-emerald-50/50 border-l-2 border-emerald-500 p-3 rounded-r-lg">
               <p className="mb-2">
-                To ensure the sustainability of public health reporting, the <strong>Authorized Users</strong> (Abra Health Facilities) are granted the right to modify and update the Software source code <strong>SOLELY</strong> for the purpose of:
+                To ensure the sustainability of public health reporting, the <strong>Administrative Authority</strong> of the Abra Health Facilities (Authorized Users) is granted the right to modify and update the Software source code <strong>SOLELY</strong> for the purpose of:
               </p>
               <ul className="list-disc pl-5 space-y-1 text-zinc-700">
                 <li>Internal maintenance and bug fixing.</li>

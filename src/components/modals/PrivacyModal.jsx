@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Lock, FileText, UserCheck } from 'lucide-react';
+import { Shield, Lock, Eye, FileText, UserCheck, AlertTriangle, CheckCircle } from 'lucide-react';
 
 export default function PrivacyModal({ onClose }) {
   return (
@@ -14,7 +14,7 @@ export default function PrivacyModal({ onClose }) {
               Privacy Policy
             </h2>
             <p className="text-xs text-gray-500 mt-1 uppercase tracking-wide font-medium">
-              Effective Date: February 12, 2026
+              Effective Date: February 17, 2026
             </p>
           </div>
         </div>
@@ -22,104 +22,92 @@ export default function PrivacyModal({ onClose }) {
         {/* Content */}
         <div className="p-8 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-8 pr-4 custom-scrollbar">
           
-          {/* Preamble */}
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-blue-800 text-xs leading-5">
-            <strong>Commitment to Privacy:</strong> The ABTC Reporting System ("System") is committed to protecting the privacy of its users. This policy outlines our data handling practices in compliance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong> and strictly adheres to the principle of data minimization.
+          {/* Zero Data Policy - The "Shield" Clause */}
+          <div className="bg-rose-50 p-4 rounded-lg border border-rose-100 text-rose-900">
+             <h4 className="font-bold flex items-center gap-2 mb-2 text-rose-700">
+                <AlertTriangle size={16} /> 1. Zero-Patient Data Policy
+             </h4>
+             <p className="text-xs leading-5">
+                To ensure the highest standard of data privacy, this System operates on a <strong>Strict Non-Collection Policy</strong>. We do <strong>NOT</strong> collect, store, or process Patient Names, Addresses, Medical Histories, or any Personally Identifiable Information (PII).
+             </p>
           </div>
 
-          {/* Section 1 */}
+          {/* Section 2: Info We Collect */}
           <section>
             <h3 className="font-bold text-zinc-900 text-base mb-3 flex items-center gap-2">
-              <Lock size={16} className="text-gray-400"/> 1. Zero-Patient Data Policy
+              <FileText size={16} className="text-indigo-600"/> 2. Information We Collect
             </h3>
             <p className="mb-3">
-              To ensure the highest standard of data privacy, this System operates on a <strong>Strict Non-Collection Policy</strong> regarding patient health information (PHI).
+              We adhere to the principle of proportionality. Data collection is strictly limited to:
             </p>
-            <div className="pl-4 border-l-2 border-emerald-500 bg-gray-50 p-3 italic text-gray-700">
-              "We do not collect, store, or process Patient Names, Addresses, Medical Histories, or any Personally Identifiable Information (PII) of patients."
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-3 rounded border border-gray-100">
+                    <strong className="text-zinc-900 block mb-1">A. Personnel Info</strong>
+                    <ul className="list-disc pl-4 text-xs space-y-1">
+                        <li>Full Name & Designation</li>
+                        <li>Institutional Email</li>
+                        <li>Work Contact Number</li>
+                    </ul>
+                </div>
+                <div className="bg-gray-50 p-3 rounded border border-gray-100">
+                    <strong className="text-zinc-900 block mb-1">B. Statistical Data</strong>
+                    <ul className="list-disc pl-4 text-xs space-y-1">
+                        <li>Aggregated bite counts</li>
+                        <li>Vaccine inventory usage</li>
+                        <li>Category summaries</li>
+                    </ul>
+                </div>
             </div>
           </section>
 
-          {/* Section 2 */}
+          {/* Section 3: Use & Disclosure */}
           <section>
             <h3 className="font-bold text-zinc-900 text-base mb-3 flex items-center gap-2">
-              <FileText size={16} className="text-gray-400"/> 2. Information We Collect
+              <Eye size={16} className="text-blue-500"/> 3. Use and Disclosure
             </h3>
-            <p className="mb-3">We adhere to the principle of proportionality. Data collection is strictly limited to what is necessary for operational reporting:</p>
-            
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="bg-gray-50 p-3 rounded border border-gray-100">
-                <h4 className="font-semibold text-zinc-900 text-xs uppercase mb-1">A. Personnel Information</h4>
-                <p className="text-xs">Used solely for account management and accountability (Audit Trails).</p>
-                <ul className="list-disc pl-4 mt-2 text-xs space-y-1 text-gray-600">
-                  <li>Full Name</li>
-                  <li>Designation / Job Title</li>
-                  <li>Institutional Email Address</li>
-                  <li>Work Contact Number</li>
-                </ul>
-              </div>
-              <div className="bg-gray-50 p-3 rounded border border-gray-100">
-                <h4 className="font-semibold text-zinc-900 text-xs uppercase mb-1">B. Statistical Data</h4>
-                <p className="text-xs">Used for epidemiological reporting and resource allocation.</p>
-                <ul className="list-disc pl-4 mt-2 text-xs space-y-1 text-gray-600">
-                  <li>Aggregated bite counts</li>
-                  <li>Vaccine inventory usage</li>
-                  <li>Category summaries (Cat I, II, III)</li>
-                </ul>
-              </div>
-            </div>
+            <p className="mb-2">
+              Data is processed solely for automated accomplishment reports, facility monitoring, and security maintenance.
+            </p>
+            <p className="text-xs italic text-gray-500">
+              We do not sell, trade, or transfer your personally identifiable information to outside parties.
+            </p>
           </section>
 
-          {/* Section 3 */}
+          {/* Section 4: Security */}
           <section>
             <h3 className="font-bold text-zinc-900 text-base mb-3 flex items-center gap-2">
-              <UserCheck size={16} className="text-gray-400"/> 3. Use and Disclosure of Data
+              <Lock size={16} className="text-gray-600"/> 4. Security Measures
             </h3>
-            <p className="mb-2">
-              The collected data is processed solely for the following legitimate purposes:
-            </p>
-            <ul className="list-disc pl-5 space-y-1 mb-4">
-              <li>Generating automated accomplishment reports (Monthly/Quarterly/Annual).</li>
-              <li>Monitoring facility performance and vaccine utilization.</li>
-              <li>System administration and security maintenance.</li>
-            </ul>
             <p>
-              <strong>Third-Party Disclosure:</strong> We do not sell, trade, or transfer your personally identifiable information to outside parties. Data access is restricted to authorized system administrators and facility heads.
+              We implement industry-standard security measures including encryption-at-rest and encryption-in-transit (via Supabase), Role-Based Access Control (RBAC), and regular security audits.
             </p>
           </section>
 
-          {/* Section 4 */}
-          <section>
-            <h3 className="font-bold text-zinc-900 text-base mb-3">4. Security Measures</h3>
-            <p>
-              We implement industry-standard security measures including encryption-at-rest and encryption-in-transit (via Supabase), Role-Based Access Control (RBAC), and regular security audits to protect against unauthorized access, alteration, or disclosure of data.
-            </p>
-          </section>
-
-          {/* Section 5 */}
-          <section className="border-t border-gray-100 pt-6">
-            <h3 className="font-bold text-zinc-900 text-base mb-2">5. Contact Information</h3>
-            <p className="mb-2">
-              For concerns regarding this Privacy Policy or to exercise your rights under the Data Privacy Act (Access, Correction, Erasure), please contact:
-            </p>
-            <div className="text-sm">
-              <p className="font-medium text-zinc-900">Justice Belleza</p>
-              <p className="text-gray-500">System Developer</p>
-              <a href="mailto:justice.belleza@icloud.com" className="text-blue-600 hover:text-blue-800 hover:underline transition-colors mt-1 inline-block">
-                justice.belleza@icloud.com
-              </a>
+           {/* Section 5: Contact */}
+           <section className="border-t border-gray-100 pt-6">
+            <h3 className="font-bold text-zinc-900 text-base mb-2 flex items-center gap-2">
+                <UserCheck size={16} className="text-zinc-900"/> 5. Contact Information
+            </h3>
+            <p className="mb-1 text-xs">For privacy concerns or to exercise your rights under RA 10173:</p>
+            <div className="bg-zinc-50 p-3 rounded border border-zinc-100">
+                <p className="font-bold text-zinc-900">Justice Belleza</p>
+                <p className="text-xs text-zinc-500">System Developer & Data Protection Officer (DPO)</p>
+                <a href="mailto:justice.belleza@icloud.com" className="text-xs text-indigo-600 hover:underline mt-1 block">
+                    justice.belleza@icloud.com
+                </a>
             </div>
           </section>
 
         </div>
         
-        {/* Footer - Centered Button */}
+        {/* Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-center">
           <button 
             onClick={onClose}
-            className="px-6 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors shadow-sm"
+            className="px-6 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors shadow-sm flex items-center gap-2"
           >
-            Acknowledge & Close
+            <CheckCircle size={16} />
+            Acknowledge
           </button>
         </div>
 

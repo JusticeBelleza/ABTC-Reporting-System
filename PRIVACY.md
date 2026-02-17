@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective Date:** February 12, 2026
+**Effective Date:** February 17, 2026
 
 ---
 
@@ -52,4 +52,4 @@ We implement industry-standard security measures including encryption-at-rest an
 ### 5. Contact Information
 For concerns regarding this Privacy Policy or to exercise your rights under the Data Privacy Act (Access, Correction, Erasure), please contact:
 
-**Justice Belleza** *System Developer* Email: [justice.belleza@icloud.com](mailto:justice.belleza@icloud.com)
+**Justice Belleza** *System Developer & Data Protection Officer (DPO)* Email: [justice.belleza@icloud.com](mailto:justice.belleza@icloud.com)

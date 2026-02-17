@@ -1,6 +1,6 @@
 # Terms of Use
 
-**Effective Date:** February 12, 2026
+**Effective Date:** February 17, 2026
 
 ---
 
@@ -33,21 +33,36 @@ You are granted a limited, non-exclusive, non-transferable license to use the Sy
 
 ---
 
-### 3. Intellectual Property Rights
+### 3. Termination of Access
+The Developer reserves the right to immediately suspend or terminate your access to the System, without prior notice or liability, for any reason, including but not limited to:
+* **Violation of the Zero-Patient Data Policy:** Inputting any Personally Identifiable Information (PII) or Patient Health Information (PHI).
+* **Breach of Terms:** Violation of any provision of these Terms of Use.
+* **Security Risks:** Actions that compromise the security or integrity of the System.
+
+Upon termination, your right to use the System will immediately cease.
+
+---
+
+### 4. Intellectual Property Rights
 The **ABTC Reporting System**, including its source code, design layout, and underlying logic, is the independent intellectual property of **Justice Belleza**.
 
 Usage of this system by a facility or institution does not constitute a transfer of ownership rights. The facility retains ownership of the raw statistical data it inputs into the system.
 
 ---
 
-### 4. Disclaimer of Warranties
+### 5. Disclaimer of Warranties
 **PROVIDED "AS IS"**
 
 The System is provided on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind, express or implied. The Developer does not warrant that the System will be uninterrupted, error-free, or completely secure. The Developer shall not be liable for any direct, indirect, incidental, or consequential damages resulting from the use or inability to use the System.
 
 ---
 
-### 5. Contact & Inquiries
+### 6. Governing Law
+These Terms shall be governed and construed in accordance with the laws of the **Republic of the Philippines**, without regard to its conflict of law provisions. Any legal action or proceeding arising under these Terms shall be brought exclusively in the proper courts of the **Province of Abra**.
+
+---
+
+### 7. Contact & Inquiries
 For legal inquiries regarding these Terms of Use, please contact:
 
 **Justice Belleza** Email: [justice.belleza@icloud.com](mailto:justice.belleza@icloud.com)

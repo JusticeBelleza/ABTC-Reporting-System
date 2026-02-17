@@ -195,7 +195,7 @@ function DashboardContent() {
       <footer className="bg-white border-t border-gray-200 py-6 mt-auto no-print">
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-sm text-gray-500 flex flex-col md:flex-row items-center gap-4">
-            <span>&copy; 2026 Justice Belleza. Independent project.</span>
+            <span>&copy; 2026 Justice Belleza. All Rights Reserved.</span>
             <div className="hidden md:block w-px h-3 bg-gray-300"></div>
             <div className="flex items-center gap-4">
               <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-zinc-900 hover:underline transition">Privacy Policy</button>
