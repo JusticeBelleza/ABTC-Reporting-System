@@ -26,7 +26,7 @@ export default function FacilityDashboard({
   // --- MODAL STATES ---
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDeleteReportModal, setShowDeleteReportModal] = useState(false);
-  const [deleteRowConfirmation, setDeleteRowConfirmation] = useState({ isOpen: false, rowKey: null }); // FIX: Moved local state here
+  const [deleteRowConfirmation, setDeleteRowConfirmation] = useState({ isOpen: false, rowKey: null }); 
   const [rejectionReason, setRejectionReason] = useState('');
 
   const {
@@ -61,7 +61,6 @@ export default function FacilityDashboard({
     await confirmDeleteReport();
   };
 
-  // FIX: This now triggers the local state within FacilityDashboard
   const confirmDeleteRow = () => {
     if (deleteRowConfirmation.rowKey) {
         handleDeleteRow(deleteRowConfirmation.rowKey);
@@ -98,7 +97,6 @@ export default function FacilityDashboard({
                 <div>
                 <h2 className="text-xl font-bold tracking-tight text-zinc-900 flex items-center gap-2">
                     {isConsolidatedView ? 'Consolidated Report' : `${activeFacilityName}`}
-                    {/* FIX: Hide status if not monthly */}
                     {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && <StatusBadge status={reportStatus} />}
                 </h2>
                 <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
@@ -109,7 +107,6 @@ export default function FacilityDashboard({
             
             <div className="flex flex-wrap items-center gap-3">
                 <div className="bg-white border border-gray-200 rounded-lg p-1 flex shadow-sm mr-4">
-                    {/* FIX: Renamed Main to Form 1 */}
                     <button onClick={() => setActiveTab('main')} className={`px-4 py-1.5 text-sm font-medium rounded transition ${activeTab==='main'?'bg-zinc-900 text-white shadow':'text-gray-600 hover:bg-gray-50'}`}>Form 1</button>
                     <button onClick={() => setActiveTab('cohort')} className={`px-4 py-1.5 text-sm font-medium rounded transition ${activeTab==='cohort'?'bg-zinc-900 text-white shadow':'text-gray-600 hover:bg-gray-50'}`}>Cohort</button>
                 </div>
@@ -129,9 +126,25 @@ export default function FacilityDashboard({
                 {!isConsolidatedView && !isAggregationMode && (
                     user.role === 'admin' ? (
                         <>
-                        <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 shadow-sm flex items-center gap-2 transition disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve</button>
-                        <button onClick={() => onSaveClick('Rejected')} disabled={loading || isSaving} className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject</button>
-                        {/* FIX: Admin Delete Button Icon Only */}
+                        {/* UPDATED: Disable 'Approve' if already Approved. 
+                            Disable 'Reject' if already Rejected.
+                        */}
+                        <button 
+                            onClick={() => onSaveClick('Approved')} 
+                            disabled={loading || isSaving || reportStatus === 'Approved'} 
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 shadow-sm flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSaving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve
+                        </button>
+                        
+                        <button 
+                            onClick={() => onSaveClick('Rejected')} 
+                            disabled={loading || isSaving || reportStatus === 'Rejected'} 
+                            className="bg-white border border-gray-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSaving ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject
+                        </button>
+                        
                         <button onClick={() => setShowDeleteReportModal(true)} disabled={loading || isSaving} className="bg-white border border-gray-200 text-red-600 p-2 rounded-lg text-sm font-medium hover:bg-red-50 shadow-sm flex items-center gap-2 transition disabled:opacity-50">
                             <Trash2 size={18} />
                         </button>
@@ -152,7 +165,6 @@ export default function FacilityDashboard({
                 data={data} rowKeys={currentRows} isConsolidated={isConsolidatedView} isAggregationMode={isAggregationMode} reportStatus={reportStatus} userRole={user.role} activeFacilityName={activeFacilityName} currentHostMunicipality={currentHostMunicipality} 
                 visibleOtherMunicipalities={visibleOtherMunicipalities} setVisibleOtherMunicipalities={setVisibleOtherMunicipalities}
                 onChange={handleChange} 
-                // FIX: Triggers the new local state modal
                 onDeleteRow={(key) => setDeleteRowConfirmation({ isOpen: true, rowKey: key })} 
                 grandTotals={grandTotals} facilityBarangays={facilityBarangays}
                 />
@@ -167,7 +179,6 @@ export default function FacilityDashboard({
                     subTab={cohortSubTab} data={cohortData} rowKeysCat2={cohortRowsCat2} rowKeysCat3={cohortRowsCat3} isConsolidated={isConsolidatedView} userRole={user.role} activeFacilityName={activeFacilityName} currentHostMunicipality={currentHostMunicipality}
                     visibleCat2={visibleCat2} setVisibleCat2={setVisibleCat2} visibleCat3={visibleCat3} setVisibleCat3={setVisibleCat3}
                     onChange={handleChange} 
-                    // FIX: Triggers the new local state modal
                     onDeleteRow={(key) => setDeleteRowConfirmation({ isOpen: true, rowKey: key })} 
                     cohortTotals={cohortTotals}
                 />
@@ -196,7 +207,7 @@ export default function FacilityDashboard({
             </div>
         )}
 
-        {/* --- DELETE ROW CONFIRMATION MODAL (FIX for Users) --- */}
+        {/* --- DELETE ROW CONFIRMATION MODAL --- */}
         {deleteRowConfirmation.isOpen && (
              <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
                 <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">

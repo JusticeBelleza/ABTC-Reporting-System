@@ -17,7 +17,7 @@ import {
   hasCohortData, 
   toInt, 
   getComputations,
-  aggregateAnimalSpecs // <--- IMPORT THIS
+  aggregateAnimalSpecs 
 } from '../lib/utils';
 
 export function useReportData({
@@ -264,7 +264,6 @@ export function useReportData({
     }
   };
 
-  // --- UPDATED HANDLER FOR TEXT AGGREGATION ---
   const handleChange = (m, f, v) => {
     if (activeTab === 'main') {
         if (periodType !== 'Monthly' || userRole === 'admin' || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
@@ -273,12 +272,10 @@ export function useReportData({
             const n = { ...prev }; 
             n[m] = { ...(n[m] || INITIAL_ROW_STATE), [f]: v };
 
-            // Recalculate HOST MUNICIPALITY (Total) row if needed
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const tot = { ...INITIAL_ROW_STATE };
                 const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
                 
-                // Collect specs for aggregation
                 const specsToAggregate = [];
 
                 facilityBarangays[activeFacilityName].forEach(b => { 
@@ -291,10 +288,7 @@ export function useReportData({
                 });
 
                 keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
-                
-                // Aggregate text
                 tot.othersSpec = aggregateAnimalSpecs(specsToAggregate);
-                
                 n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot };
             }
             return n;
@@ -314,8 +308,6 @@ export function useReportData({
         });
     }
   };
-
-  // ... (Notification, Save, Delete logic unchanged)
 
   const createDbNotification = async (recipient, title, message, type='info') => { try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); } };
 
@@ -359,14 +351,34 @@ export function useReportData({
         if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: newStatus }));
         else setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
         
+        // --- NOTIFICATION CONSTRUCTION ---
+        const reportType = activeTab === 'main' ? 'Form 1 Report' : 'Cohort Report';
+        let periodStr = '';
+        if (periodType === 'Monthly') {
+            periodStr = `for the month of ${month} ${year}`;
+        } else if (periodType === 'Quarterly') {
+            periodStr = `for the ${quarter} of ${year}`;
+        } else {
+            periodStr = `for the year ${year}`;
+        }
+
         if (newStatus === 'Pending') { 
             const title = isResubmission ? 'Resubmission' : 'New Submission';
-            const msg = isResubmission ? `${target} has resubmitted their ${activeTab === 'main' ? 'ABTC' : 'Cohort'} report.` : `${target} report.`;
+            // Format: "La Paz RHU resubmitted Form 1 Report for the month of February 2025."
+            const msg = `${target} ${isResubmission ? 'resubmitted' : 'submitted'} ${reportType} ${periodStr}.`;
+            
             await createDbNotification('PHO Admin', title, msg, 'info'); 
             toast.success(isResubmission ? 'Resubmitted' : 'Submitted'); 
         }
-        else if (newStatus === 'Approved') { await createDbNotification(target, 'Approved', `Report approved.`, 'success'); toast.success('Approved'); }
-        else if (newStatus === 'Rejected') { await createDbNotification(target, 'Report Rejected', `Your report has been rejected. Reason: ${reason}`, 'error'); toast.success('Rejected'); }
+        else if (newStatus === 'Approved') { 
+            await createDbNotification(target, 'Approved', `Report approved.`, 'success'); 
+            toast.success('Approved'); 
+        }
+        else if (newStatus === 'Rejected') { 
+            // Format: "Your Form 1 Report for the month of February 2025 has been rejected. Reason: ..."
+            await createDbNotification(target, 'Report Rejected', `Your ${reportType} ${periodStr} has been rejected. Reason: ${reason}`, 'error'); 
+            toast.success('Rejected'); 
+        }
         else toast.success('Saved');
 
         await fetchData();
@@ -394,14 +406,12 @@ export function useReportData({
     } catch(err) { toast.error(err.message); return false; }
   };
 
-  // --- UPDATED GRAND TOTALS ---
   const grandTotals = useMemo(() => {
     const t = { ...INITIAL_ROW_STATE, sexTotal: 0, ageTotal: 0, cat23: 0, catTotal: 0, animalTotal: 0 };
     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
     numericKeys.forEach(k => t[k] = 0);
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
     
-    // Collect specs from all valid rows
     const specsToAggregate = [];
 
     Object.entries(data).forEach(([key, row]) => { 
@@ -417,16 +427,13 @@ export function useReportData({
             t.catTotal += c.catTotal; 
             t.animalTotal += c.animalTotal; 
             
-            // Collect text
             if (row.othersSpec && row.othersSpec.trim()) {
                 specsToAggregate.push(row.othersSpec);
             }
         } 
     });
     
-    // Aggregate them for the Grand Total row
     t.othersSpec = aggregateAnimalSpecs(specsToAggregate);
-    
     t.percent = t.animalTotal > 0 ? (t.washed / t.animalTotal * 100).toFixed(0) + '%' : '0%';
     return t;
   }, [data, facilityBarangays, activeFacilityName]);
