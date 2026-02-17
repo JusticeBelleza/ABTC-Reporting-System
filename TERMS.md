@@ -1,24 +1,53 @@
-📜 Terms of Use
+# Terms of Use
 
-Effective Date: February 12, 2026
-By accessing or using the ABTC Reporting System, you agree to the following Terms of Use.
+**Effective Date:** February 12, 2026
 
-Acceptable & Prohibited Use
-Users agree to use the system only for intended reporting purposes, provide accurate information, and maintain the strict confidentiality of their account credentials.
+---
 
-Users must not:
+### Agreement to Terms
+By accessing, browsing, or using the **ABTC Reporting System** ("System"), you acknowledge that you have read, understood, and agree to be bound by these Terms of Use. If you do not agree to these terms, you must strictly stop using the System immediately.
 
-Input patient-identifiable data or sensitive personal information in violation of the Data Privacy Act of 2012.
-Attempt unauthorized access, "hacking," or any form of system data misuse.
-Use the system for any illegal activities or unauthorized disclosure of aggregated health data.
-Data Responsibility
-In compliance with the Data Privacy Act of 2012, users are solely responsible for ensuring that no confidential patient information is entered into the system. The ABTC Reporting System and its developer assume no liability for any sensitive personal data entered in violation of these terms or applicable privacy laws.
+---
 
-Intellectual Property
-© 2026 Justice Belleza. This is an independent project. Use of the system does not grant any ownership rights to the users or their respective facilities.
+### 1. Acceptable Use Policy
+You are granted a limited, non-exclusive, non-transferable license to use the System strictly for official animal bite reporting and administrative purposes.
 
-Availability and Liability
-The system is provided “as is” without warranties of any kind. The developer shall not be held liable for data inaccuracies, system downtime, or any loss arising from the misuse of the application.
+#### A. User Responsibilities
+* You must maintain the confidentiality of your login credentials.
+* You are fully responsible for all activities that occur under your account.
+* You agree to input only accurate and truthful statistical data.
 
-Contact
-For inquiries regarding these terms: justice.belleza@icloud.com
+#### B. Prohibited Conduct
+* Attempting to gain unauthorized access to the System or its related servers.
+* Using the System for any illegal purpose or in violation of local laws.
+* Reverse engineering, decompiling, or disassembling the System software.
+
+---
+
+### 2. Strict Prohibition on Patient Data
+**Compliance with RA 10173 (Data Privacy Act)**
+
+> Users are strictly prohibited from entering **Sensitive Personal Information** (such as Patient Names, Addresses, or Medical IDs) into any free-text fields or remarks sections of this System. The System is designed for **aggregate statistical reporting only**.
+
+**Liability:** The Developer assumes no liability for any data privacy violations resulting from a user's failure to adhere to this prohibition.
+
+---
+
+### 3. Intellectual Property Rights
+The **ABTC Reporting System**, including its source code, design layout, and underlying logic, is the independent intellectual property of **Justice Belleza**.
+
+Usage of this system by a facility or institution does not constitute a transfer of ownership rights. The facility retains ownership of the raw statistical data it inputs into the system.
+
+---
+
+### 4. Disclaimer of Warranties
+**PROVIDED "AS IS"**
+
+The System is provided on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind, express or implied. The Developer does not warrant that the System will be uninterrupted, error-free, or completely secure. The Developer shall not be liable for any direct, indirect, incidental, or consequential damages resulting from the use or inability to use the System.
+
+---
+
+### 5. Contact & Inquiries
+For legal inquiries regarding these Terms of Use, please contact:
+
+**Justice Belleza** Email: [justice.belleza@icloud.com](mailto:justice.belleza@icloud.com)

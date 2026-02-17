@@ -28,7 +28,7 @@ The **ABTC Reporting System** is a secure, web-based tool engineered to streamli
 ### Operational Capabilities
 -   **Case Management:** Streamlined submission and tracking of animal bite incident reports.
 -   **Data Aggregation:** Automated compilation of case statistics by reporting period.
--   **Personnel Accountability:** comprehensive logging of reporting employee details for audit trails.
+-   **Personnel Accountability:** Comprehensive logging of reporting employee details for audit trails.
 
 ### Technical Performance
 -   **High-Performance Frontend:** Built on **React** and **Vite** for rapid load times and responsiveness.
@@ -48,10 +48,28 @@ The **ABTC Reporting System** is a secure, web-based tool engineered to streamli
 
 ---
 
+## System Requirements
+
+To ensure optimal performance and stability, the following environments are required:
+
+### For End-Users (Accessing the System)
+* **Web Browser:** Modern, standards-compliant browser (Google Chrome, Mozilla Firefox, Microsoft Edge, or Safari). *Internet Explorer is not supported.*
+* **Network:** Stable internet connection (Required for real-time database synchronization and authentication).
+* **Device:**
+    * **Desktop / Laptop:** Recommended for administrative reporting and data entry tasks.
+    * **Tablet / Mobile Devices:** Supported for viewing dashboards and real-time monitoring.
+
+### For Development & Deployment
+* **Runtime Environment:** Node.js (Version 18.x or higher recommended).
+* **Package Manager:** npm (v9+) or yarn.
+* **Database Service:** An active Supabase project with valid API credentials (URL and Anon Key).
+* **Environment Variables:** Configuration of `.env` files for secure API key management.
+
+---
+
 ## Legal Documentation
 
 For details regarding data handling and usage rights, please refer to the following documents:
-
 -   [Privacy Policy](PRIVACY.md)
 -   [Terms of Use](TERMS.md)
 
@@ -59,6 +77,6 @@ For details regarding data handling and usage rights, please refer to the follow
 
 ## Author & Contact
 
-**Justice Belleza** **Email:** justice.belleza@icloud.com  
+**Justice Belleza** **Email:** justice.belleza@icloud.com
 
 &copy; 2026 Justice Belleza. All Rights Reserved.
