@@ -126,7 +126,7 @@ export default function PrivacyModal({ onClose }) {
             onClick={onClose}
             className="px-6 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors shadow-sm"
           >
-            Acknowledge & Closes
+            Acknowledge & Close
           </button>
         </div>
 
