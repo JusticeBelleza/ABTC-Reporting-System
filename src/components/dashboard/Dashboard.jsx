@@ -143,7 +143,10 @@ function DashboardContent() {
 
         {/* --- MODALS --- */}
         {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} globalSettings={globalSettings} onSaveGlobal={setGlobalSettings} userProfile={userProfile} onSaveProfile={setUserProfile} isAdmin={user.role === 'admin'} />}
+        
+        {/* Pass adminHelperClient here to prevent session overwrites during user creation */}
         {showManageUsers && <UserManagementModal onClose={() => setShowManageUsers(false)} facilities={facilities} client={adminHelperClient} />}
+        
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
         
         {/* Add Facility Modal */}
