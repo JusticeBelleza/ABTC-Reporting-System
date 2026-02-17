@@ -12,7 +12,7 @@ The **ABTC Reporting System** (the "Software"), including all source code, datab
 © 2026 Justice Belleza. All Rights Reserved.
 
 ### 2. Maintenance & Succession Rights
-To ensure the sustainability of public health reporting, **The Designated IT Officer** of the Abra Provincial Health Office is granted the right to modify and update the Software source code **SOLELY** for:
+To ensure the sustainability of public health reporting, **specifically in the event that the Developer's contract is ended or not renewed**, the **Designated IT Officer** of the Abra Provincial Health Office is granted the right to modify and update the Software source code **SOLELY** for:
 * Internal maintenance and bug fixing.
 * Platform compatibility updates.
 * Security patching.
@@ -31,3 +31,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### 5. Jurisdiction
 This License is governed by the laws of the Republic of the Philippines. Disputes regarding intellectual property or usage rights shall be resolved exclusively in the courts of the **Province of Abra**.
+
+### 6. Termination of Grant
+The Developer reserves the right to terminate this License Grant immediately if the Abra Provincial Health Office violates the Restrictions outlined in Section 3, particularly regarding unauthorized distribution or commercial use of the Software.

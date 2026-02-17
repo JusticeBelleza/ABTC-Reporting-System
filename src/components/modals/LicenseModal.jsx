@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scale, ShieldCheck, Wrench, Ban, CheckCircle, Globe } from 'lucide-react';
+import { Scale, ShieldCheck, Wrench, Ban, CheckCircle, Globe, AlertTriangle } from 'lucide-react';
 
 export default function LicenseModal({ onClose }) {
   return (
@@ -47,7 +47,7 @@ export default function LicenseModal({ onClose }) {
             </h3>
             <div className="bg-emerald-50/50 border-l-2 border-emerald-500 p-3 rounded-r-lg">
               <p className="mb-2">
-                To ensure the sustainability of public health reporting, <strong>The Designated IT Officer</strong> of the Abra Provincial Health Office is granted the right to modify and update the Software source code <strong>SOLELY</strong> for:
+                To ensure the sustainability of public health reporting, <strong>specifically in the event that the Developer's contract is ended or not renewed</strong>, the <strong>Designated IT Officer</strong> of the Abra Provincial Health Office is granted the right to modify and update the Software source code <strong>SOLELY</strong> for:
               </p>
               <ul className="list-disc pl-5 space-y-1 text-zinc-700">
                 <li>Internal maintenance and bug fixing.</li>
@@ -70,7 +70,7 @@ export default function LicenseModal({ onClose }) {
             </p>
             <ul className="list-disc pl-5 space-y-1">
               <li>Sell, sublicense, lease, or rent the Software to any third party.</li>
-              <li>Distribute the Software outside the Province of Abra health network.</li>
+              <li>Distribute the Software outside the Abra Provincial Health Office network.</li>
               <li>Claim authorship of the Software.</li>
               <li>Use the Software for commercial gain.</li>
             </ul>
@@ -80,18 +80,28 @@ export default function LicenseModal({ onClose }) {
           <section>
             <h3 className="font-bold text-zinc-900 text-base mb-2">4. Disclaimer of Warranty</h3>
             <p className="text-xs uppercase font-bold text-gray-500 mb-1">Provided "AS IS"</p>
-            <p>
+            <p className="italic">
               THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. THE DEVELOPER SHALL NOT BE LIABLE FOR ANY DAMAGES, DATA LOSS, OR REPORTING INACCURACIES ARISING FROM THE USE OF THIS SOFTWARE.
             </p>
           </section>
 
           {/* Section 5: Jurisdiction */}
-          <section className="border-t border-gray-100 pt-6">
+          <section>
             <h3 className="font-bold text-zinc-900 text-base mb-2 flex items-center gap-2">
               <Globe size={16} className="text-gray-400"/> 5. Jurisdiction
             </h3>
             <p>
               This License is governed by the laws of the Republic of the Philippines. Disputes regarding intellectual property or usage rights shall be resolved exclusively in the courts of the <strong>Province of Abra</strong>.
+            </p>
+          </section>
+
+          {/* Section 6: Termination */}
+          <section className="border-t border-red-100 pt-6">
+            <h3 className="font-bold text-red-900 text-base mb-2 flex items-center gap-2">
+              <AlertTriangle size={16} className="text-red-500"/> 6. Termination of Grant
+            </h3>
+            <p className="text-red-800/80">
+              The Developer reserves the right to terminate this License Grant immediately if the Abra Provincial Health Office violates the Restrictions outlined in Section 3, particularly regarding unauthorized distribution or commercial use of the Software.
             </p>
           </section>
 
