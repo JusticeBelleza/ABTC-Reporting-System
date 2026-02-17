@@ -40,12 +40,12 @@ const ReportRow = React.memo(({
   // Helper to merge styles safely
   const getInputStyle = (isLocked = false) => ({
     ...PDF_STYLES.input,
-    cursor: isLocked || isRowReadOnly ? 'default' : 'text', // Removes ban icon
-    // You can add logic here later for the editable suggestions
+    cursor: isLocked || isRowReadOnly ? 'default' : 'text',
   });
 
   return (
     <tr style={rowStyle} className={className}>
+      {/* Municipality Name */}
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(rowKey) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
         <div className="flex justify-between items-center group/row">
             <span>{rowKey} {isHost && <span style={{fontSize:'10px', color:'#9ca3af', fontWeight:'normal'}}>(Total)</span>}</span>
@@ -145,21 +145,23 @@ const ReportRow = React.memo(({
         </td>
       ))}
       
-      {/* Others Count (LOCKED) */}
+      {/* Others Count (LOCKED, SKIPPED & UNCLICKABLE) */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <input 
           readOnly={true} 
           type="number" 
           value={row.othersCount} 
+          tabIndex={-1} 
           style={{
-            ...getInputStyle(true), // Pass true for isLocked
+            ...getInputStyle(true), 
             backgroundColor: '#f3f4f6', 
-            color: '#6b7280'
+            color: '#6b7280',
+            pointerEvents: 'none' // <--- This prevents clicking and the border appearing
           }} 
         />
       </td>
 
-      {/* Others Specify (AUTO-CALCULATES COUNT) */}
+      {/* Others Specify (AUTO-CALCULATES COUNT & TAB LANDS HERE) */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <textarea 
           readOnly={isRowReadOnly} 
