@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
 import { XCircle } from 'lucide-react';
 import { PDF_STYLES, MUNICIPALITIES } from '../../lib/constants';
@@ -18,26 +18,31 @@ const ReportRow = React.memo(({
   
   const rowStyle = isHost ? PDF_STYLES.hostRow : PDF_STYLES.rowEven;
   
+  // --- Ref for Auto-Resizing the "Specify" Box ---
+  const specifyRef = useRef(null);
+
+  // --- Auto-resize logic ---
+  useLayoutEffect(() => {
+    if (specifyRef.current) {
+      specifyRef.current.style.height = 'auto';
+      specifyRef.current.style.height = `${specifyRef.current.scrollHeight}px`;
+    }
+  }, [row.othersSpec]);
+
   const handleChange = (field, value) => {
     onChange(rowKey, field, value);
   };
 
-  // Special handler for the Specify box to auto-calc number
   const handleSpecifyChange = (e) => {
     const newText = e.target.value;
-    
-    // 1. Update the text field
     onChange(rowKey, 'othersSpec', newText);
     
-    // 2. Auto-calculate and update the 'No.' field
     if (!isRowReadOnly) {
        const autoCount = parseAnimalCountFromText(newText);
-       // Always update the count (even if 0) to keep sync
        onChange(rowKey, 'othersCount', autoCount === 0 ? '' : autoCount.toString());
     }
   };
 
-  // Helper to merge styles safely
   const getInputStyle = (isLocked = false) => ({
     ...PDF_STYLES.input,
     cursor: isLocked || isRowReadOnly ? 'default' : 'text',
@@ -145,7 +150,7 @@ const ReportRow = React.memo(({
         </td>
       ))}
       
-      {/* Others Count (LOCKED, SKIPPED & UNCLICKABLE) */}
+      {/* Others Count (Reverted to Gray/Locked Style) */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <input 
           readOnly={true} 
@@ -156,14 +161,15 @@ const ReportRow = React.memo(({
             ...getInputStyle(true), 
             backgroundColor: '#f3f4f6', 
             color: '#6b7280',
-            pointerEvents: 'none' // <--- This prevents clicking and the border appearing
+            pointerEvents: 'none'
           }} 
         />
       </td>
 
-      {/* Others Specify (AUTO-CALCULATES COUNT & TAB LANDS HERE) */}
+      {/* Others Specify (Auto-Resizing) */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <textarea 
+          ref={specifyRef} 
           readOnly={isRowReadOnly} 
           value={row.othersSpec} 
           onChange={handleSpecifyChange} 
@@ -172,13 +178,14 @@ const ReportRow = React.memo(({
             ...PDF_STYLES.inputText, 
             height: 'auto', 
             minHeight: '30px', 
-            resize: 'vertical', 
+            overflow: 'hidden', 
+            resize: 'none', 
             whiteSpace: 'pre-wrap', 
             lineHeight: '1.2', 
             padding: '4px',
             cursor: isRowReadOnly ? 'default' : 'text'
           }} 
-          rows={2}
+          rows={1}
         />
       </td>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.animalTotal}</td>

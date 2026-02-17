@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Layers, Plus, ArrowLeft, Hospital, Stethoscope, Building2, Clock, Trash2 } from 'lucide-react';
+import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Trash2 } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
@@ -78,9 +78,7 @@ export default function AdminDashboard({
             {availableYears.map(y => <option key={y}>{y}</option>)}
           </select>
           
-          <button onClick={fetchFacilityStatuses} className="ml-2 p-2 text-gray-400 hover:text-zinc-900 transition">
-            <ArrowLeft size={14} className="rotate-180"/>
-          </button>
+          {/* REMOVED: ArrowLeft button was here */}
         </div>
 
         {/* Facility Cards Grid */}

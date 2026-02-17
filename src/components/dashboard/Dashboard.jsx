@@ -23,9 +23,20 @@ function DashboardContent() {
   // Date State
   const currentDate = useMemo(() => new Date(), []);
   const currentRealYear = currentDate.getFullYear();
-  const availableYears = useMemo(() => { const years = []; for (let y = 2024; y <= currentRealYear; y++) years.push(y); return years; }, [currentRealYear]);
+
+  // --- UPDATED YEAR LOGIC: Start from 2026 ---
+  const availableYears = useMemo(() => {
+    const startYear = 2026;
+    const years = [];
+    const endYear = currentRealYear < startYear ? startYear : currentRealYear;
+    
+    for (let y = startYear; y <= endYear; y++) {
+      years.push(y);
+    }
+    return years;
+  }, [currentRealYear]);
   
-  const [year, setYear] = useState(currentRealYear);
+  const [year, setYear] = useState(currentRealYear < 2026 ? 2026 : currentRealYear);
   const [periodType, setPeriodType] = useState('Monthly'); 
   const [month, setMonth] = useState(MONTHS[currentDate.getMonth()]);
   const [quarter, setQuarter] = useState("1st Quarter");
@@ -66,10 +77,8 @@ function DashboardContent() {
     if (deleteFacilityInput !== 'delete') { toast.error('Type "delete"'); return; }
     setIsDeletingFacility(true);
     try {
-        // Delete all reports for this facility first
         await supabase.from('abtc_reports').delete().eq('facility', facilityToDelete);
         await supabase.from('abtc_cohort_reports').delete().eq('facility', facilityToDelete);
-        // Then delete the facility metadata
         await supabase.from('facilities').delete().eq('name', facilityToDelete);
         
         setFacilities(prev => prev.filter(f => f !== facilityToDelete));
@@ -150,7 +159,7 @@ function DashboardContent() {
             </div>
         )}
         
-        {/* Delete Facility Modal (Master Data) */}
+        {/* Delete Facility Modal */}
         {facilityToDelete && (
             <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
                 <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
@@ -176,6 +185,7 @@ function DashboardContent() {
         {showTermsOfUse && <TermsModal onClose={() => setShowTermsOfUse(false)} />}
       </main>
 
+      {/* FOOTER */}
       <footer className="bg-white border-t border-gray-200 py-6 mt-auto no-print">
         <div className="max-w-[1600px] mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-sm text-gray-500 flex flex-col md:flex-row items-center gap-4">
@@ -184,6 +194,8 @@ function DashboardContent() {
             <div className="flex items-center gap-4">
               <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-zinc-900 hover:underline transition">Privacy Policy</button>
               <button onClick={() => setShowTermsOfUse(true)} className="hover:text-zinc-900 hover:underline transition">Terms of Use</button>
+              {/* Added User Manual Link */}
+              <a href="/images/System_Manual.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 hover:underline transition">User Manual</a>
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500"><span>GitHub Profile →</span><a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="text-zinc-900 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-gray-100"><Github size={16} /></a></div>

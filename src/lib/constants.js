@@ -31,7 +31,6 @@ export const INITIAL_ROW_STATE = {
   washed: '', remarks: '' 
 };
 
-// This was missing or incomplete:
 export const INITIAL_COHORT_ROW = {
   cat2_registered: '', cat2_rig: '', cat2_complete: '', cat2_incomplete: '', cat2_booster: '', cat2_none: '', cat2_died: '', cat2_remarks: '',
   cat3_registered: '', cat3_rig: '', cat3_complete: '', cat3_incomplete: '', cat3_booster: '', cat3_none: '', cat3_died: '', cat3_remarks: ''
@@ -47,13 +46,16 @@ export const PDF_STYLES = {
   centerText: { textAlign: 'center', flex: 1, color: '#000000' },
   header: { backgroundColor: '#f4f4f5', color: '#18181b', fontWeight: 'bold', borderBottom: '2px solid #d4d4d8' }, 
   subHeader: { backgroundColor: '#fafafa', color: '#52525b', fontWeight: 'bold' },
-  cell: { border: '1px solid #e4e4e7', padding: '6px', textAlign: 'center', fontSize: '10px', color: '#000000', verticalAlign: 'middle' },
+  // UPDATED: Font size 11px
+  cell: { border: '1px solid #e4e4e7', padding: '6px', textAlign: 'center', fontSize: '11px', color: '#000000', verticalAlign: 'middle' },
   rowEven: { backgroundColor: '#ffffff', color: '#000000' },
   rowOdd: { backgroundColor: '#ffffff', color: '#000000' },
   hostRow: { backgroundColor: '#f4f4f5', fontWeight: 'bold', color: '#000000' },
   border: { borderColor: '#e4e4e7', borderWidth: '1px', borderStyle: 'solid' },
-  input: { width: '100%', border: 'none', background: 'transparent', textAlign: 'center', fontSize: '10px', color: '#000000' },
-  inputText: { width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontSize: '10px', color: '#000000' },
+  // UPDATED: Font size 11px
+  input: { width: '100%', border: 'none', background: 'transparent', textAlign: 'center', fontSize: '11px', color: '#000000' },
+  // UPDATED: Font size 11px
+  inputText: { width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontSize: '11px', color: '#000000' },
   textDark: { color: '#000000' },
   textGray: { color: '#52525b' },
   textLightGray: { color: '#a1a1aa' },
