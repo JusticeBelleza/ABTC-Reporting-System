@@ -20,7 +20,7 @@ To ensure the sustainability of public health reporting, **specifically in the e
 **A. Transfer of Assets & Costs**
 The operational costs (Hosting, Domain, and Database subscriptions) currently shouldered by the Developer shall transfer to the Abra Provincial Health Office. The Developer agrees to:
 1.  **Domain:** Transfer ownership of the internet domain name to the Office.
-2.  **Database:** Grant full administrative access and billing ownership of the Supabase project to the Office.
+2.  **Database:** Grant full administrative access and billing ownership of the **Managed Database Infrastructure** to the Office.
 3.  **Hosting:** Facilitate the creation of a new Hostinger account (or equivalent) for the Office and migrate the hosting environment.
 
 **B. Transition Period (Grace Period)**
