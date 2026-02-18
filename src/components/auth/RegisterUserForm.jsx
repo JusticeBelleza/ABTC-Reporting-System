@@ -18,7 +18,7 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
     designation: '', 
     contactNumber: '', 
     facility: facilities[0] || '', 
-    role: 'user'
+    role: 'user' // Default to user, since admin option is removed
   });
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState();
@@ -119,18 +119,17 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
             <input type="text" value={formData.contactNumber} onChange={e=>setFormData({...formData, contactNumber: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900" />
           </div>
        </div>
-       <div className="grid grid-cols-2 gap-4">
+       
+       {/* Removed Role Dropdown and adjusted grid to single column for Facility */}
+       <div className="grid grid-cols-1 gap-4">
          <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Facility</label>
             <select value={formData.facility} onChange={e=>setFormData({...formData, facility: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900">
-               {facilities.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-         </div>
-         <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
-            <select value={formData.role} onChange={e=>setFormData({...formData, role: e.target.value})} className="w-full border border-gray-200 p-2 rounded-lg text-sm outline-none focus:border-zinc-900">
-               <option value="user">User</option>
-               <option value="admin">Admin</option>
+               {facilities.length > 0 ? (
+                   facilities.map(f => <option key={f} value={f}>{f}</option>)
+               ) : (
+                   <option value="">No available facilities</option>
+               )}
             </select>
          </div>
        </div>

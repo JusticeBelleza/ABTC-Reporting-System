@@ -33,6 +33,11 @@ export default function UserManagementModal({ onClose, facilities, client }) {
 
   useEffect(() => { fetchUsers(); }, []);
 
+  // Filter out facilities that are already assigned to a user
+  // This ensures a facility only appears in the dropdown if it doesn't have a user yet
+  const assignedFacilities = users.map(u => u.facility_name).filter(Boolean);
+  const availableFacilities = facilities.filter(f => !assignedFacilities.includes(f));
+
   const initiateDelete = (user) => { setUserToDelete(user); };
 
   const confirmDelete = async () => {
@@ -115,7 +120,8 @@ export default function UserManagementModal({ onClose, facilities, client }) {
           ) : (
             <div className="max-w-lg mx-auto mt-4">
               {/* Pass effectiveClient to ensure it never receives undefined */}
-              <RegisterUserForm facilities={facilities} client={effectiveClient} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
+              {/* Pass availableFacilities to filter out taken ones */}
+              <RegisterUserForm facilities={availableFacilities} client={effectiveClient} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
             </div>
           )}
         </div>

@@ -23,6 +23,7 @@ export default function AdminDashboard({
   
   const [facilityMeta, setFacilityMeta] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [facilityOwners, setFacilityOwners] = useState({});
   
   // Custom Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({ 
@@ -51,6 +52,31 @@ export default function AdminDashboard({
       console.error("Error fetching facility meta", err);
     }
   };
+
+  // Fetch profiles to map Facilities -> User Names
+  useEffect(() => {
+    const fetchFacilityOwners = async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('facility_name, full_name');
+        
+        if (data) {
+          const mapping = {};
+          data.forEach(u => {
+            if (u.facility_name) {
+              mapping[u.facility_name] = u.full_name;
+            }
+          });
+          setFacilityOwners(mapping);
+        }
+      } catch (error) {
+        console.error("Error fetching facility owners:", error);
+      }
+    };
+
+    fetchFacilityOwners();
+  }, [facilities]); // Re-run if facilities list changes, though usually static
 
   useEffect(() => {
     fetchFacilityMeta();
@@ -199,6 +225,9 @@ export default function AdminDashboard({
             const isArchived = meta?.status === 'Archived';
             const facilityStatusLabel = isArchived ? 'Disabled' : 'Active';
 
+            // Get owner name
+            const ownerName = facilityOwners[f];
+
             return (
               <div key={f} className={`p-5 rounded-xl border transition-all group cursor-pointer flex flex-col h-full ${showArchived ? 'bg-gray-50 border-gray-200 opacity-80' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'}`} onClick={() => !showArchived && onSelectFacility(f)}>
                 <div className="flex justify-between items-start mb-4">
@@ -225,7 +254,15 @@ export default function AdminDashboard({
                 </div>
                 
                 <h3 className="font-semibold text-zinc-900 mb-1">{f}</h3>
-                <p className="text-xs text-gray-500 mb-4">Report for {periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</p>
+                <p className="text-xs text-gray-500 mb-2">Report for {periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</p>
+                
+                {/* User Name Display */}
+                <div className="mb-4 flex items-center gap-1 text-xs">
+                    <span className="font-medium text-gray-400">User:</span>
+                    <span className="text-zinc-700 font-medium truncate" title={ownerName || 'Unassigned'}>
+                        {ownerName || <span className="italic text-gray-400 font-normal">Unassigned</span>}
+                    </span>
+                </div>
                 
                 <div className="mt-auto pt-4 border-t border-gray-50">
                   <div className="flex items-center justify-between mb-2">
