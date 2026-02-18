@@ -5,7 +5,6 @@ import {
   MUNICIPALITIES, 
   INITIAL_ROW_STATE, 
   INITIAL_COHORT_ROW
-  // REMOVED: INITIAL_FACILITY_BARANGAYS (No longer used here)
 } from '../lib/constants';
 import { 
   mapDbToRow, 
@@ -21,9 +20,9 @@ import {
 } from '../lib/utils';
 
 export function useReportData({
-  user,
+  user, // This should now ideally contain the profile data (role/facility) from the DB
   facilities,
-  facilityBarangays, // This now comes fully populated from the Database via AppContext
+  facilityBarangays,
   year,
   month,
   quarter,
@@ -33,8 +32,9 @@ export function useReportData({
   adminViewMode,
   selectedFacility
 }) {
-  const userRole = user?.role;
-  const userName = user?.name;
+  // Use profile-based values to prevent metadata manipulation security risks
+  const userRole = user?.role; 
+  const userFacility = user?.facility; 
 
   const [data, setData] = useState({});
   const [cohortData, setCohortData] = useState({});
@@ -48,7 +48,11 @@ export function useReportData({
 
   const reportStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
   const isConsolidatedView = adminViewMode === 'consolidated';
-  const activeFacilityName = userRole === 'admin' ? (isConsolidatedView ? 'PHO' : selectedFacility) : userName;
+  
+  // Logic remains consistent with your original requirements: PHO for admin, or the specific facility
+  const activeFacilityName = userRole === 'admin' 
+    ? (isConsolidatedView ? 'PHO' : selectedFacility) 
+    : userFacility;
   
   const currentHostMunicipality = useMemo(() => {
     if (!activeFacilityName || isConsolidatedView || activeFacilityName === "AMDC" || activeFacilityName === "APH") return null;
@@ -60,7 +64,6 @@ export function useReportData({
     if (consolidated) return MUNICIPALITIES;
     if (facilityName === "AMDC" || facilityName === "APH" || !facilityBarangays[facilityName]) return MUNICIPALITIES;
     
-    // Logic: Uses the DB-provided list (facilityBarangays) to decide which rows to show
     const barangays = facilityBarangays[facilityName] || [];
     const hostMunicipality = MUNICIPALITIES.find(m => facilityName.includes(m));
     
@@ -130,13 +133,13 @@ export function useReportData({
         });
       }
       setFacilityStatuses(statuses);
-    } catch (error) { console.error("Error fetching statuses:", error); toast.error("Failed to load facility statuses"); } finally { setLoading(false); }
+    } catch (error) { console.error("Error:", error); toast.error("Failed to load statuses"); } finally { setLoading(false); }
   }, [periodType, year, month, facilities]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const target = userRole === 'admin' ? (isConsolidatedView ? null : selectedFacility) : userName;
+      const target = userRole === 'admin' ? (isConsolidatedView ? null : selectedFacility) : userFacility;
       const fullRowKeys = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView, true, false, []);
       
       if (activeTab === 'main') {
@@ -155,43 +158,28 @@ export function useReportData({
           
           if (rawRecords && rawRecords.length > 0) {
             rawRecords.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            
             rawRecords.forEach(record => {
                 const m = record.municipality;
                 if (newData[m]) {
                     const r = mapDbToRow(record);
                     r.othersCount = record.others_count ?? record.othersCount ?? 0;
                     r.othersSpec = record.others_spec ?? record.othersSpec ?? '';
-                    
                     const c = newData[m];
                     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-                    
-                    // Sum the values (Handles Quarterly/Consolidated sums)
-                    numericKeys.forEach(k => { 
-                        c[k] = toInt(c[k]) + toInt(r[k]); 
-                    });
-                    
-                    if (r.othersSpec && r.othersSpec.trim()) {
-                        c.othersSpec = aggregateAnimalSpecs([c.othersSpec, r.othersSpec]);
-                    }
-                    
+                    numericKeys.forEach(k => { c[k] = toInt(c[k]) + toInt(r[k]); });
+                    if (r.othersSpec && r.othersSpec.trim()) { c.othersSpec = aggregateAnimalSpecs([c.othersSpec, r.othersSpec]); }
                     if (record.remarks && record.remarks.trim()) {
-                        if (!c.remarks.includes(record.remarks)) {
-                            c.remarks = c.remarks ? `${c.remarks}; ${record.remarks}` : record.remarks;
-                        }
+                        if (!c.remarks.includes(record.remarks)) { c.remarks = c.remarks ? `${c.remarks}; ${record.remarks}` : record.remarks; }
                     }
-
                     const isBarangay = facilityBarangays[target]?.includes(m);
                     const host = MUNICIPALITIES.find(mun => target?.includes(mun));
                     if (!isBarangay && m !== host && hasData(r)) { newVisibleOthers.add(m); }
                 }
             });
-
             Object.values(newData).forEach(row => {
                  const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
                  numericKeys.forEach(k => { if (row[k] === 0) row[k] = ''; });
             });
-
             setData(newData);
             const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (rawRecords[rawRecords.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
             setReportStatuses(prev => ({ ...prev, main: newStatus }));
@@ -215,21 +203,15 @@ export function useReportData({
           
           if (rawRecords && rawRecords.length > 0) {
               rawRecords.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-              
               rawRecords.forEach(record => {
                   const m = record.municipality;
                   if(newCohort[m]) {
                       const r = mapCohortDbToRow(record);
                       const c = newCohort[m];
                       const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-                      
-                      keys.forEach(k => { 
-                          c[k] = toInt(c[k]) + toInt(r[k]); 
-                      });
-
+                      keys.forEach(k => { c[k] = toInt(c[k]) + toInt(r[k]); });
                       if (record.cat2_remarks) { if(!c.cat2_remarks.includes(record.cat2_remarks)) c.cat2_remarks = c.cat2_remarks ? `${c.cat2_remarks}; ${record.cat2_remarks}` : record.cat2_remarks; }
                       if (record.cat3_remarks) { if(!c.cat3_remarks.includes(record.cat3_remarks)) c.cat3_remarks = c.cat3_remarks ? `${c.cat3_remarks}; ${record.cat3_remarks}` : record.cat3_remarks; }
-                      
                       const isBarangay = facilityBarangays[target]?.includes(m);
                       const host = MUNICIPALITIES.find(mun => target?.includes(mun));
                       if (!isBarangay && m !== host) {
@@ -238,12 +220,10 @@ export function useReportData({
                       }
                   }
               });
-
               Object.values(newCohort).forEach(row => {
                 const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
                 keys.forEach(k => { if (row[k] === 0) row[k] = ''; });
               });
-
               setCohortData(newCohort);
               const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (rawRecords[rawRecords.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
               setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
@@ -251,8 +231,8 @@ export function useReportData({
           setVisibleCat2(Array.from(newVisibleCat2));
           setVisibleCat3(Array.from(newVisibleCat3));
       }
-    } catch (err) { console.error("Fetch Error:", err); toast.error("Failed to load report data"); } finally { setLoading(false); }
-  }, [userRole, userName, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, isConsolidatedView, facilityBarangays]); 
+    } catch (err) { console.error("Fetch Error:", err); toast.error("Failed to load data"); } finally { setLoading(false); }
+  }, [userRole, userFacility, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, isConsolidatedView, facilityBarangays]); 
 
   useEffect(() => {
     if (userRole === 'admin') {
@@ -288,33 +268,19 @@ export function useReportData({
         setData(prev => {
             const n = { ...prev }; 
             n[m] = { ...(n[m] || INITIAL_ROW_STATE), [f]: v };
-
-            // AUTO-COMPUTATION LOGIC:
-            // Checks if the modified row 'm' is inside the DB-provided barangay list.
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const existingRemarks = n[currentHostMunicipality]?.remarks || '';
                 const tot = { ...INITIAL_ROW_STATE };
                 const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-                
                 const specsToAggregate = [];
-
-                // Loops through the DB-provided list to sum them up
                 facilityBarangays[activeFacilityName].forEach(b => { 
                   const r = n[b] || INITIAL_ROW_STATE; 
                   keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); 
-                  
-                  if (r.othersSpec && r.othersSpec.trim()) {
-                     specsToAggregate.push(r.othersSpec);
-                  }
+                  if (r.othersSpec && r.othersSpec.trim()) { specsToAggregate.push(r.othersSpec); }
                 });
-
                 keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
                 tot.othersSpec = aggregateAnimalSpecs(specsToAggregate);
-                n[currentHostMunicipality] = { 
-                    ...n[currentHostMunicipality], 
-                    ...tot,
-                    remarks: existingRemarks
-                };
+                n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot, remarks: existingRemarks };
             }
             return n;
         });
@@ -322,7 +288,6 @@ export function useReportData({
         if (userRole === 'admin' || m === currentHostMunicipality) return;
         setCohortData(prev => {
             const n = { ...prev }; n[m] = { ...(n[m] || INITIAL_COHORT_ROW), [f]: v };
-            // COHORT AUTO-COMPUTATION LOGIC
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const tot = { ...INITIAL_COHORT_ROW };
                 const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
@@ -335,12 +300,14 @@ export function useReportData({
     }
   };
 
-  const createDbNotification = async (recipient, title, message, type='info') => { try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); } };
+  const createDbNotification = async (recipient, title, message, type='info') => { 
+    try { await supabase.from('notifications').insert({ recipient, title, message, type }); } catch(err) { console.error(err); } 
+  };
 
   const handleSave = async (newStatus, reason = null) => {
     if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
-    const target = userRole === 'admin' ? selectedFacility : (userName ? userName.trim() : null);
-    if (!target) { toast.error("Error: Could not determine facility name."); return false; }
+    const target = userRole === 'admin' ? selectedFacility : userFacility;
+    if (!target) { toast.error("Error: Could not determine facility."); return false; }
     const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
     
     if (userRole === 'admin' && (newStatus === 'Approved' || newStatus === 'Rejected') && currentStatus === 'Draft') {
@@ -350,7 +317,6 @@ export function useReportData({
 
     const isResubmission = (currentStatus === 'Rejected' && newStatus === 'Pending');
     setIsSaving(true);
-    const targetKey = currentHostMunicipality || MUNICIPALITIES[0];
     
     try {
         const cleanYear = String(year).trim();
@@ -362,7 +328,6 @@ export function useReportData({
             type = 'main';
             payload = Object.entries(data).map(([m, row]) => {
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
-                
                 let rem = row.remarks; 
                 const dbRow = mapRowToDb(row);
                 dbRow.others_count = toInt(row.othersCount);  
@@ -384,14 +349,7 @@ export function useReportData({
         else setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
         
         const reportType = activeTab === 'main' ? 'Form 1 Report' : 'Cohort Report';
-        let periodStr = '';
-        if (periodType === 'Monthly') {
-            periodStr = `for the month of ${month} ${year}`;
-        } else if (periodType === 'Quarterly') {
-            periodStr = `for the ${quarter} of ${year}`;
-        } else {
-            periodStr = `for the year ${year}`;
-        }
+        let periodStr = periodType === 'Monthly' ? `for the month of ${month} ${year}` : (periodType === 'Quarterly' ? `for the ${quarter} of ${year}` : `for the year ${year}`);
 
         if (newStatus === 'Pending') { 
             const title = isResubmission ? 'Resubmission' : 'New Submission';
@@ -411,7 +369,7 @@ export function useReportData({
 
         await fetchData();
         return true; 
-    } catch (err) { console.error("Save Error:", err); toast.error(err.message || "An unexpected error occurred during save"); return false; } finally { setIsSaving(false); }
+    } catch (err) { console.error("Save Error:", err); toast.error(err.message); return false; } finally { setIsSaving(false); }
   };
 
   const confirmDeleteReport = async () => {
@@ -421,19 +379,14 @@ export function useReportData({
             toast.error("Cannot delete a report that has not been submitted.");
             return false;
         }
-
         const target = activeFacilityName; 
         const cleanYear = String(year).trim();
-        const cleanMonth = String(month).trim();
-        const currentMonthOrQuarter = periodType === 'Monthly' ? cleanMonth : String(quarter).trim();
-
+        const currentMonthOrQuarter = periodType === 'Monthly' ? String(month).trim() : String(quarter).trim();
         const type = activeTab === 'main' ? 'main' : 'cohort';
         const { error: rpcError } = await supabase.rpc('delete_report_securely', { p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: type });
         if (rpcError) throw rpcError;
-        
         if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: 'Draft' }));
         else setReportStatuses(prev => ({ ...prev, cohort: 'Draft' }));
-
         toast.success("Report data deleted"); 
         fetchData(); 
         return true;
@@ -445,29 +398,17 @@ export function useReportData({
     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
     numericKeys.forEach(k => t[k] = 0);
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
-    
     const specsToAggregate = [];
-
     Object.entries(data).forEach(([key, row]) => { 
-        if (key === "Others:") return;
-        // GRAND TOTAL LOGIC: Exclude rows that are IN the catchment area (because the host municipality row already sums them up)
-        if (currentBarangays.includes(key)) return;
-
+        if (key === "Others:" || currentBarangays.includes(key)) return;
         if (hasData(row)) { 
             const c = getComputations(row); 
             numericKeys.forEach(k => t[k] += toInt(row[k])); 
-            t.sexTotal += c.sexTotal; 
-            t.ageTotal += c.ageTotal; 
-            t.cat23 += c.cat23; 
-            t.catTotal += c.catTotal; 
-            t.animalTotal += c.animalTotal; 
-            
-            if (row.othersSpec && row.othersSpec.trim()) {
-                specsToAggregate.push(row.othersSpec);
-            }
+            t.sexTotal += c.sexTotal; t.ageTotal += c.ageTotal; 
+            t.cat23 += c.cat23; t.catTotal += c.catTotal; t.animalTotal += c.animalTotal; 
+            if (row.othersSpec && row.othersSpec.trim()) { specsToAggregate.push(row.othersSpec); }
         } 
     });
-    
     t.othersSpec = aggregateAnimalSpecs(specsToAggregate);
     t.percent = t.animalTotal > 0 ? (t.washed / t.animalTotal * 100).toFixed(0) + '%' : '0%';
     return t;
@@ -479,9 +420,7 @@ export function useReportData({
     keys.forEach(k => t[k] = 0);
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
     Object.entries(cohortData).forEach(([key, row]) => { 
-        if (key === "Others:") return;
-        // COHORT GRAND TOTAL LOGIC: Same here, exclude catchment rows
-        if (currentBarangays.includes(key)) return;
+        if (key === "Others:" || currentBarangays.includes(key)) return;
         if (hasCohortData(row, 'cat2') || hasCohortData(row, 'cat3')) { keys.forEach(k => t[k] += toInt(row[k])); } 
     });
     return t;
