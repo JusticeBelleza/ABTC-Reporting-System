@@ -1,119 +1,264 @@
 import React, { useState, useEffect } from 'react';
-import { Users, X, Loader2, Edit, Trash2 } from 'lucide-react';
+import { X, Loader2, Save, UserPlus, Trash2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useApp } from '../../context/AppContext'; // Import Context
 import { toast } from 'sonner';
-import RegisterUserForm from '../auth/RegisterUserForm'; // We will create this next
-import ProfileModal from './ProfileModal';
 
-// Added 'export default'
-export default function UserManagementModal({ onClose, facilities, client }) {
-  const [activeTab, setActiveTab] = useState('list'); 
+export default function UserManagementModal({ isOpen, onClose }) {
+  // Get the Dynamic Facility List from Context
+  const { facilities } = useApp(); 
+  
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingUserId, setEditingUserId] = useState(null);
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [formData, setFormData] = useState({ 
+    email: '', 
+    password: '', 
+    fullName: '', 
+    role: 'user', 
+    facility: '' 
+  });
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) fetchUsers();
+  }, [isOpen]);
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data } = await supabase.from('profiles').select('*');
-    if (data) {
-        const sorted = data.sort((a, b) => {
-            if (a.role === 'admin' && b.role !== 'admin') return -1;
-            if (a.role !== 'admin' && b.role === 'admin') return 1;
-            return new Date(b.created_at) - new Date(a.created_at);
-        });
-        setUsers(sorted);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchUsers(); }, []);
-
-  const initiateDelete = (user) => { setUserToDelete(user); };
-
-  const confirmDelete = async () => {
-    if (!userToDelete) return;
-    setIsDeletingUser(true);
     try {
-      const { error } = await supabase.rpc('delete_user_by_id', { target_user_id: userToDelete.id });
+      // Fetch profiles instead of auth users (client-side limitation workaround)
+      // This assumes you have a public 'profiles' table that mirrors auth users
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      toast.success("User deleted");
-      fetchUsers();
-    } catch(err) { toast.error("Error: " + err.message); }
-    setIsDeletingUser(false);
-    setUserToDelete(null);
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+
+    try {
+      // 1. Create the Auth User
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            role: formData.role,
+            // CRITICAL: This links the User to the Facility
+            facility_name: formData.facility 
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      // 2. Setup Profile (if not handled by Database Triggers)
+      // We manually insert to profiles to ensure immediate visibility in the list
+      if (data?.user) {
+         const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+                id: data.user.id,
+                email: formData.email,
+                full_name: formData.fullName,
+                role: formData.role,
+                facility_name: formData.facility,
+                created_at: new Date().toISOString()
+            });
+         
+         if (profileError) console.error("Profile creation warning:", profileError);
+      }
+
+      toast.success(`User ${formData.fullName} created successfully`);
+      
+      // Reset form
+      setFormData({ email: '', password: '', fullName: '', role: 'user', facility: '' });
+      fetchUsers();
+
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      {editingUserId && <ProfileModal userId={editingUserId} onClose={() => { setEditingUserId(null); fetchUsers(); }} />}
-      
-      {userToDelete && (
-        <div className="fixed inset-0 bg-black/20 z-[60] flex items-center justify-center p-4">
-            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-in fade-in zoom-in duration-200">
-                 <div className="flex flex-col items-center text-center">
-                    <div className="bg-red-50 p-3 rounded-full mb-4 text-red-600"><Trash2 size={24} /></div>
-                    <h3 className="text-lg font-bold text-gray-900">Delete User?</h3>
-                    <p className="text-sm text-gray-500 mt-2 mb-6">
-                        Are you sure you want to delete <span className="font-semibold">{userToDelete.full_name || userToDelete.email}</span>? This action cannot be undone.
-                    </p>
-                    <div className="flex gap-3 w-full">
-                        <button onClick={() => setUserToDelete(null)} disabled={isDeletingUser} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Cancel</button>
-                        <button onClick={confirmDelete} disabled={isDeletingUser} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition flex justify-center items-center gap-2">
-                            {isDeletingUser && <Loader2 size={14} className="animate-spin"/>} Delete
-                        </button>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">User Management</h2>
+            <p className="text-sm text-gray-500">Create and manage system access</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-lg transition">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* LEFT: Create User Form */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h3 className="font-semibold text-blue-900 flex items-center gap-2 mb-4">
+                  <UserPlus size={18} />
+                  Add New User
+                </h3>
+                
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-blue-800 mb-1">Full Name</label>
+                    <input 
+                      type="text" required
+                      value={formData.fullName}
+                      onChange={e => setFormData({...formData, fullName: e.target.value})}
+                      className="w-full text-sm p-2 rounded border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-blue-800 mb-1">Email</label>
+                    <input 
+                      type="email" required
+                      value={formData.email}
+                      onChange={e => setFormData({...formData, email: e.target.value})}
+                      className="w-full text-sm p-2 rounded border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-blue-800 mb-1">Password</label>
+                    <input 
+                      type="password" required minLength={6}
+                      value={formData.password}
+                      onChange={e => setFormData({...formData, password: e.target.value})}
+                      className="w-full text-sm p-2 rounded border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-blue-800 mb-1">Role</label>
+                      <select 
+                        value={formData.role}
+                        onChange={e => setFormData({...formData, role: e.target.value})}
+                        className="w-full text-sm p-2 rounded border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
                     </div>
-                 </div>
+
+                    {/* DYNAMIC FACILITY DROPDOWN */}
+                    <div>
+                      <label className="block text-xs font-medium text-blue-800 mb-1">Facility</label>
+                      <select 
+                        value={formData.facility}
+                        onChange={e => setFormData({...formData, facility: e.target.value})}
+                        disabled={formData.role === 'admin'}
+                        className="w-full text-sm p-2 rounded border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <option value="">Select...</option>
+                        {/* Iterate over the dynamic list from Context */}
+                        {facilities.map(f => (
+                          <option key={f} value={f}>{f}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    disabled={processing}
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 text-sm font-medium shadow-sm"
+                  >
+                    {processing ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Create Account
+                  </button>
+                </form>
+              </div>
             </div>
-        </div>
-      )}
 
-      <div className="bg-white border border-gray-200 shadow-xl rounded-xl w-full max-w-4xl h-[85vh] flex flex-col animate-in fade-in zoom-in">
-        <div className="flex justify-between items-center p-6 border-b border-gray-50">
-          <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-2"><Users size={20}/> User Management</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-zinc-900 transition"><X size={20}/></button>
-        </div>
+            {/* RIGHT: User List */}
+            <div className="lg:col-span-2">
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                Existing Users
+                <span className="text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600 font-normal">
+                  {users.length}
+                </span>
+              </h3>
 
-        <div className="flex px-6 border-b border-gray-50">
-          <button onClick={() => setActiveTab('list')} className={`px-4 py-3 text-sm font-medium border-b-2 transition ${activeTab==='list' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-gray-500 hover:text-zinc-700'}`}>User List</button>
-          <button onClick={() => setActiveTab('create')} className={`px-4 py-3 text-sm font-medium border-b-2 transition ${activeTab==='create' ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-gray-500 hover:text-zinc-700'}`}>Create New User</button>
-        </div>
-
-        <div className="flex-1 overflow-auto p-6">
-          {activeTab === 'list' ? (
-            loading ? <div className="text-center p-10"><Loader2 className="animate-spin inline mr-2" size={16}/> Loading...</div> : (
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-500 uppercase text-xs font-medium">
-                  <tr><th className="p-3 rounded-l-lg">Facility / Role</th><th className="p-3">Name & Contact</th><th className="p-3">Email</th><th className="p-3 rounded-r-lg text-right"></th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {users.map(u => (
-                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="p-3">
-                        <div className="font-medium text-zinc-900">{u.facility_name}</div>
-                        <div className={`text-[10px] uppercase font-bold tracking-wide mt-0.5 ${u.role === 'admin' ? 'text-zinc-900' : 'text-gray-400'}`}>{u.role}</div>
-                      </td>
-                      <td className="p-3">
-                        <div className="text-gray-900">{u.full_name || '-'}</div>
-                        <div className="text-xs text-gray-500">{u.contact_number}</div>
-                        <div className="text-xs text-gray-400 italic">{u.designation}</div>
-                      </td>
-                      <td className="p-3 text-gray-600">{u.email}</td>
-                      <td className="p-3 text-right whitespace-nowrap">
-                        <button onClick={() => setEditingUserId(u.id)} className="text-zinc-600 hover:text-zinc-900 p-1.5 hover:bg-gray-100 rounded mr-1 transition"><Edit size={16}/></button>
-                        {u.role !== 'admin' && <button onClick={() => initiateDelete(u)} className="text-gray-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded transition"><Trash2 size={16}/></button>}
-                      </td>
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Assigned Facility</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )
-          ) : (
-            <div className="max-w-lg mx-auto mt-4">
-              <RegisterUserForm facilities={facilities} client={client} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {users.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+                          No users found.
+                        </td>
+                      </tr>
+                    ) : (
+                      users.map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50 transition">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">{user.full_name || 'No Name'}</div>
+                            <div className="text-xs text-gray-500">{user.email}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded text-xs border ${
+                              user.role === 'admin' 
+                                ? 'bg-purple-50 text-purple-700 border-purple-100' 
+                                : 'bg-blue-50 text-blue-700 border-blue-100'
+                            }`}>
+                              {user.role}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {user.role === 'admin' ? (
+                              <span className="text-gray-400 italic">Global Access</span>
+                            ) : (
+                              user.facility_name || <span className="text-red-400 flex items-center gap-1"><AlertCircle size={12}/> Unassigned</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                             {/* Delete logic would go here */}
+                             <button className="text-gray-300 hover:text-red-500 transition">
+                                <Trash2 size={16} />
+                             </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
+
+          </div>
         </div>
       </div>
     </div>
