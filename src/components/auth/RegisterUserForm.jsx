@@ -2,10 +2,15 @@ import React, { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { toast } from 'sonner';
+// IMPORT SUPABASE AS A FALLBACK
+import { supabase } from '../../lib/supabase';
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
 export default function RegisterUserForm({ facilities, client, onSuccess }) {
+  // Use the passed client, or fallback to the imported default instance
+  const supabaseClient = client || supabase;
+
   const [formData, setFormData] = useState({
     email: '', 
     password: '', 
@@ -21,9 +26,22 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 1. CAPTCHA CHECK: Prevent submission if Captcha is required but missing
+    if (HCAPTCHA_SITE_KEY && !captchaToken) {
+        toast.error("Please complete the captcha verification.");
+        return;
+    }
+
     setLoading(true);
+
     try {
-      const { data: authData, error: authError } = await client.auth.signUp({
+      // 2. CLIENT CHECK: Ensure we have a valid client
+      if (!supabaseClient || !supabaseClient.auth) {
+          throw new Error("Supabase client is not initialized.");
+      }
+
+      const { data: authData, error: authError } = await supabaseClient.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -31,13 +49,14 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
           // DATA PASSED HERE IS ACCESSIBLE VIA raw_user_meta_data IN SQL
           data: { 
             full_name: formData.fullName,
-            designation: formData.designation,      // Added this
-            phone_number: formData.contactNumber,   // Added this (mapped to phone_number)
+            designation: formData.designation,      
+            phone_number: formData.contactNumber,   
             facility_name: formData.facility,
             role: formData.role
           }
         }
       });
+
       if (authError) throw authError;
       
       if (authData.user) {
@@ -52,15 +71,24 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
             facility: facilities[0] || '', 
             role: 'user'
          });
+         
+         // Notify parent and potentially unmount this component
          if(onSuccess) onSuccess();
+      } else {
+         // Edge case: User created but session/user object is null (e.g. email confirm required)
+         toast.info("User registration initiated. Check email for confirmation if required.");
       }
+
       if (captcha.current) captcha.current.resetCaptcha();
       setCaptchaToken(null);
+
     } catch (err) {
-      toast.error(err.message);
+      console.error("Registration Error:", err);
+      toast.error(err.message || "Failed to create user");
       if (captcha.current) captcha.current.resetCaptcha();
       setCaptchaToken(null);
     } finally {
+      // 3. STOP LOADING
       setLoading(false);
     }
   };
@@ -106,16 +134,27 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
             </select>
          </div>
        </div>
+       
        <div className="flex justify-center my-4">
-          <HCaptcha
-            ref={captcha}
-            sitekey={HCAPTCHA_SITE_KEY}
-            onVerify={(token) => {
-                setCaptchaToken(token)
-            }}
-          />
+          {HCAPTCHA_SITE_KEY ? (
+              <HCaptcha
+                ref={captcha}
+                sitekey={HCAPTCHA_SITE_KEY}
+                onVerify={(token) => {
+                    setCaptchaToken(token)
+                }}
+              />
+          ) : (
+              <p className="text-xs text-red-500 bg-red-50 p-2 rounded">
+                  Warning: VITE_HCAPTCHA_SITE_KEY is missing in .env
+              </p>
+          )}
        </div>
-       <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition text-sm font-medium flex justify-center items-center gap-2">{loading && <Loader2 size={16} className="animate-spin"/>} Create User</button>
+
+       <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition text-sm font-medium flex justify-center items-center gap-2">
+           {loading && <Loader2 size={16} className="animate-spin"/>} 
+           {loading ? 'Creating...' : 'Create User'}
+       </button>
     </form>
   );
 }

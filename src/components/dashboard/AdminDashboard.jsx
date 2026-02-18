@@ -1,9 +1,11 @@
-import React from 'react';
-import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 export default function AdminDashboard({ 
   onViewConsolidated, 
@@ -15,11 +17,20 @@ export default function AdminDashboard({
   month, setMonth,
   quarter, setQuarter,
   availableYears, availableMonths,
-  initiateDeleteFacility
+  initiateDeleteFacility 
 }) {
   const { facilities, user, facilityBarangays } = useApp();
   
-  // Fetch statuses for all facilities to display on cards
+  const [facilityMeta, setFacilityMeta] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
+  
+  // Custom Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({ 
+    isOpen: false, 
+    action: null, // 'archive' | 'restore' | 'delete'
+    facility: null 
+  });
+  
   const { facilityStatuses, fetchFacilityStatuses } = useReportData({
     user, 
     facilities, 
@@ -32,8 +43,95 @@ export default function AdminDashboard({
     adminViewMode: 'dashboard'
   });
 
+  const fetchFacilityMeta = async () => {
+    try {
+      const { data } = await supabase.from('facilities').select('name, status');
+      if (data) setFacilityMeta(data);
+    } catch (err) {
+      console.error("Error fetching facility meta", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchFacilityMeta();
+  }, [facilities]);
+
+  const requestAction = (e, facility, action) => {
+    e.stopPropagation();
+    setConfirmModal({ isOpen: true, action, facility });
+  };
+
+  const handleConfirmAction = async () => {
+    const { action, facility } = confirmModal;
+    setConfirmModal({ isOpen: false, action: null, facility: null });
+
+    if (action === 'delete') {
+        initiateDeleteFacility(facility);
+        return;
+    }
+
+    const newStatus = action === 'restore' ? 'Active' : 'Archived';
+    
+    try {
+      const { error } = await supabase
+        .from('facilities')
+        .update({ status: newStatus })
+        .eq('name', facility);
+
+      if (error) throw error;
+      
+      toast.success(`Facility ${newStatus === 'Active' ? 'restored' : 'archived'} successfully`);
+      fetchFacilityMeta();
+    } catch (err) {
+      toast.error(`Failed to ${action} facility`);
+      console.error(err);
+    }
+  };
+
+  const displayedFacilities = facilities.filter(f => {
+    const meta = facilityMeta.find(m => m.name === f);
+    const status = meta?.status || 'Active'; 
+    return showArchived ? status === 'Archived' : status === 'Active';
+  });
+
   return (
-    <div className="max-w-6xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="max-w-6xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500 relative">
+        
+        {/* Custom Confirmation Modal Overlay */}
+        {confirmModal.isOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
+                    <div className="p-6 text-center">
+                        <div className={`mx-auto mb-4 w-12 h-12 rounded-full flex items-center justify-center ${confirmModal.action === 'delete' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                            {confirmModal.action === 'delete' ? <Trash2 size={24} /> : <AlertTriangle size={24} />}
+                        </div>
+                        <h3 className="text-lg font-bold text-zinc-900 mb-2 capitalize">
+                            {confirmModal.action} Facility?
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-6">
+                            Are you sure you want to <strong>{confirmModal.action}</strong> the facility <span className="text-zinc-900 font-medium">"{confirmModal.facility}"</span>?
+                            {confirmModal.action === 'archive' && " It will be hidden from the main dashboard."}
+                            {confirmModal.action === 'delete' && " This action cannot be undone."}
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                            <button 
+                                onClick={() => setConfirmModal({ isOpen: false, action: null, facility: null })}
+                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleConfirmAction}
+                                className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition ${confirmModal.action === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-zinc-900 hover:bg-zinc-800'}`}
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Top Actions Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -41,6 +139,10 @@ export default function AdminDashboard({
             <p className="text-gray-500 text-sm mt-1">Overview of facility submissions</p>
           </div>
           <div className="flex gap-3">
+            <button onClick={() => setShowArchived(!showArchived)} className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 transition-colors ${showArchived ? 'bg-zinc-800 text-white' : 'bg-white border border-gray-200 text-zinc-600 hover:bg-gray-50'}`}>
+                {showArchived ? <RefreshCcw size={16} /> : <Archive size={16} />}
+                {showArchived ? 'View Active' : 'View Archived'}
+            </button>
             <button onClick={onAddFacility} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 hover:bg-blue-50 hover:text-blue-700">
                 <Plus size={16} /> Add Facility
             </button>
@@ -77,24 +179,40 @@ export default function AdminDashboard({
           <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-transparent text-sm text-gray-600 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
             {availableYears.map(y => <option key={y}>{y}</option>)}
           </select>
-          
-          {/* REMOVED: ArrowLeft button was here */}
         </div>
+        
+        {showArchived && (
+          <div className="mb-4 flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-100">
+            <Archive size={18} />
+            <span className="text-sm font-medium">Viewing Archived Facilities - Restore them to enable reporting.</span>
+          </div>
+        )}
 
         {/* Facility Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {facilities.map(f => {
+          {displayedFacilities.map(f => {
             const { main, cohort, lastUpdated } = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
             const type = f.includes("Hospital") || f === 'APH' ? 'Hospital' : (f.includes("Clinic") || f === 'AMDC' ? 'Clinic' : 'RHU');
             
+            // Determine Facility Status for Badge
+            const meta = facilityMeta.find(m => m.name === f);
+            const isArchived = meta?.status === 'Archived';
+            const facilityStatusLabel = isArchived ? 'Disabled' : 'Active';
+
             return (
-              <div key={f} className="bg-white p-5 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all group cursor-pointer flex flex-col h-full" onClick={() => onSelectFacility(f)}>
+              <div key={f} className={`p-5 rounded-xl border transition-all group cursor-pointer flex flex-col h-full ${showArchived ? 'bg-gray-50 border-gray-200 opacity-80' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'}`} onClick={() => !showArchived && onSelectFacility(f)}>
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-2 bg-gray-50 rounded-lg text-gray-600 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
+                  <div className={`p-2 rounded-lg transition-colors ${showArchived ? 'bg-gray-200 text-gray-500' : 'bg-gray-50 text-gray-600 group-hover:bg-zinc-900 group-hover:text-white'}`}>
                     {type === 'Hospital' ? <Hospital size={20}/> : (type === 'Clinic' ? <Stethoscope size={20}/> : <Building2 size={20}/>)}
                   </div>
                   <div className="flex flex-col gap-1 items-end">
-                    {/* Status Badges - Hidden if not Monthly */}
+                    {/* Facility Status Badge */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Status</span>
+                        <StatusBadge status={facilityStatusLabel} />
+                    </div>
+
+                    {/* Report Status Badges */}
                     <div className="flex items-center gap-1.5">
                         <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Form 1</span>
                         {periodType === 'Monthly' && <StatusBadge status={main} />}
@@ -111,15 +229,27 @@ export default function AdminDashboard({
                 
                 <div className="mt-auto pt-4 border-t border-gray-50">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-blue-600 group-hover:underline">View Report</span>
-                    {/* Delete Facility Icon */}
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); initiateDeleteFacility(f); }} 
-                        className="text-gray-300 hover:text-red-500 transition"
-                        title="Delete Facility"
-                    >
-                        <Trash2 size={14} />
-                    </button>
+                    <span className={`text-xs font-medium ${showArchived ? 'text-gray-400' : 'text-blue-600 group-hover:underline'}`}>
+                      {showArchived ? 'Archived' : 'View Report'}
+                    </span>
+                    
+                    <div className="flex gap-2">
+                      <button 
+                          onClick={(e) => requestAction(e, f, showArchived ? 'restore' : 'archive')} 
+                          className={`transition p-1.5 rounded-md ${showArchived ? 'text-green-600 hover:bg-green-50' : 'text-gray-300 hover:text-amber-600 hover:bg-amber-50'}`}
+                          title={showArchived ? "Restore Facility" : "Archive Facility"}
+                      >
+                          {showArchived ? <RefreshCcw size={14} /> : <Archive size={14} />}
+                      </button>
+
+                      <button 
+                          onClick={(e) => requestAction(e, f, 'delete')} 
+                          className="text-gray-300 hover:text-red-500 hover:bg-red-50 transition p-1.5 rounded-md"
+                          title="Delete Facility Permanently"
+                      >
+                          <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                   {lastUpdated && (
                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
@@ -131,6 +261,12 @@ export default function AdminDashboard({
               </div>
             );
           })}
+          
+          {displayedFacilities.length === 0 && (
+             <div className="col-span-full py-12 text-center border-2 border-dashed border-gray-200 rounded-xl">
+                <p className="text-gray-400 text-sm">No {showArchived ? 'archived' : 'active'} facilities found.</p>
+             </div>
+          )}
         </div>
     </div>
   );

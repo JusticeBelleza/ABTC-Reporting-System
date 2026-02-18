@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+// Removed DEFAULT_FACILITIES from the import logic below
 import { DEFAULT_FACILITIES, INITIAL_FACILITY_BARANGAYS } from '../lib/constants';
 import { toast } from 'sonner';
 
@@ -8,8 +9,8 @@ const AppContext = createContext();
 export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [facilities, setFacilities] = useState(DEFAULT_FACILITIES);
-  const [facilityBarangays, setFacilityBarangays] = useState(INITIAL_FACILITY_BARANGAYS);
+  const [facilities, setFacilities] = useState([]); // Start empty
+  const [facilityBarangays, setFacilityBarangays] = useState({}); // Start empty
   const [globalSettings, setGlobalSettings] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
 
@@ -31,7 +32,7 @@ export function AppProvider({ children }) {
     
     // Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // FIX: Only update state if the token actually changed (prevents Alt-Tab re-renders)
+      // Only update state if the token actually changed (prevents Alt-Tab re-renders)
       if (session?.access_token !== lastTokenRef.current || event === 'SIGNED_OUT') {
         lastTokenRef.current = session?.access_token;
         setSession(session);
@@ -57,21 +58,37 @@ export function AppProvider({ children }) {
 
   const fetchFacilitiesList = async () => {
     try {
+      // 1. Fetch strictly from the database
       const { data } = await supabase.from('facilities').select('*');
-      let combinedFacilities = [...DEFAULT_FACILITIES];
-      let combinedBarangays = { ...INITIAL_FACILITY_BARANGAYS };
+      
+      const dbFacilities = [];
+      const dbBarangays = {};
       
       if (data && data.length > 0) {
-        const dbNames = data.map(f => f.name);
-        const dbBarangays = {};
+        // Sort alphabetically for better UX
+        data.sort((a, b) => a.name.localeCompare(b.name));
+
         data.forEach(f => { 
-            if (f.barangays?.length > 0) dbBarangays[f.name] = f.barangays; 
+            dbFacilities.push(f.name);
+            
+            // 2. Safely parse Barangays (Handle both String and Array formats)
+            let bList = [];
+            if (Array.isArray(f.barangays)) {
+                bList = f.barangays;
+            } else if (typeof f.barangays === 'string' && f.barangays.trim().length > 0) {
+                // Split comma-separated string from SQL
+                bList = f.barangays.split(',').map(b => b.trim());
+            }
+            
+            if (bList.length > 0) {
+                dbBarangays[f.name] = bList;
+            }
         });
-        combinedFacilities = [...new Set([...combinedFacilities, ...dbNames])];
-        combinedBarangays = { ...combinedBarangays, ...dbBarangays };
       }
-      setFacilities(combinedFacilities);
-      setFacilityBarangays(combinedBarangays);
+      
+      // 3. Set state directly from DB results (No merging with defaults)
+      setFacilities(dbFacilities);
+      setFacilityBarangays(dbBarangays);
     } catch (err) { console.error("Error loading facilities", err); }
   };
 

@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Users, X, Loader2, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import RegisterUserForm from '../auth/RegisterUserForm'; // We will create this next
+import RegisterUserForm from '../auth/RegisterUserForm'; 
 import ProfileModal from './ProfileModal';
 
-// Added 'export default'
 export default function UserManagementModal({ onClose, facilities, client }) {
   const [activeTab, setActiveTab] = useState('list'); 
   const [users, setUsers] = useState([]);
@@ -14,9 +13,13 @@ export default function UserManagementModal({ onClose, facilities, client }) {
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
 
+  // Use passed client or fallback to imported supabase
+  const effectiveClient = client || supabase;
+
   const fetchUsers = async () => {
     setLoading(true);
-    const { data } = await supabase.from('profiles').select('*');
+    // Use effectiveClient just to be consistent, though strict Supabase import works fine for queries
+    const { data } = await effectiveClient.from('profiles').select('*');
     if (data) {
         const sorted = data.sort((a, b) => {
             if (a.role === 'admin' && b.role !== 'admin') return -1;
@@ -36,7 +39,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
     if (!userToDelete) return;
     setIsDeletingUser(true);
     try {
-      const { error } = await supabase.rpc('delete_user_by_id', { target_user_id: userToDelete.id });
+      const { error } = await effectiveClient.rpc('delete_user_by_id', { target_user_id: userToDelete.id });
       if (error) throw error;
       toast.success("User deleted");
       fetchUsers();
@@ -111,7 +114,8 @@ export default function UserManagementModal({ onClose, facilities, client }) {
             )
           ) : (
             <div className="max-w-lg mx-auto mt-4">
-              <RegisterUserForm facilities={facilities} client={client} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
+              {/* Pass effectiveClient to ensure it never receives undefined */}
+              <RegisterUserForm facilities={facilities} client={effectiveClient} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
             </div>
           )}
         </div>

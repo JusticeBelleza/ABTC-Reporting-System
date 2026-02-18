@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase';
 import { 
   MUNICIPALITIES, 
   INITIAL_ROW_STATE, 
-  INITIAL_COHORT_ROW, 
-  INITIAL_FACILITY_BARANGAYS 
+  INITIAL_COHORT_ROW
+  // REMOVED: INITIAL_FACILITY_BARANGAYS (No longer used here)
 } from '../lib/constants';
 import { 
   mapDbToRow, 
@@ -23,7 +23,7 @@ import {
 export function useReportData({
   user,
   facilities,
-  facilityBarangays,
+  facilityBarangays, // This now comes fully populated from the Database via AppContext
   year,
   month,
   quarter,
@@ -60,6 +60,7 @@ export function useReportData({
     if (consolidated) return MUNICIPALITIES;
     if (facilityName === "AMDC" || facilityName === "APH" || !facilityBarangays[facilityName]) return MUNICIPALITIES;
     
+    // Logic: Uses the DB-provided list (facilityBarangays) to decide which rows to show
     const barangays = facilityBarangays[facilityName] || [];
     const hostMunicipality = MUNICIPALITIES.find(m => facilityName.includes(m));
     
@@ -152,7 +153,6 @@ export function useReportData({
 
           const newVisibleOthers = new Set();
           
-          // --- FIX: Aggregation Logic (Sums up Monthly reports for Quarterly/Consolidated) ---
           if (rawRecords && rawRecords.length > 0) {
             rawRecords.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             
@@ -166,46 +166,39 @@ export function useReportData({
                     const c = newData[m];
                     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
                     
-                    // Sum the values
+                    // Sum the values (Handles Quarterly/Consolidated sums)
                     numericKeys.forEach(k => { 
                         c[k] = toInt(c[k]) + toInt(r[k]); 
                     });
                     
-                    // Aggregate Specs
                     if (r.othersSpec && r.othersSpec.trim()) {
                         c.othersSpec = aggregateAnimalSpecs([c.othersSpec, r.othersSpec]);
                     }
                     
-                    // Concatenate Remarks (if different)
                     if (record.remarks && record.remarks.trim()) {
                         if (!c.remarks.includes(record.remarks)) {
                             c.remarks = c.remarks ? `${c.remarks}; ${record.remarks}` : record.remarks;
                         }
                     }
 
-                    // Handle Visibility
                     const isBarangay = facilityBarangays[target]?.includes(m);
                     const host = MUNICIPALITIES.find(mun => target?.includes(mun));
                     if (!isBarangay && m !== host && hasData(r)) { newVisibleOthers.add(m); }
                 }
             });
 
-            // Clean up 0s to empty strings for UI
             Object.values(newData).forEach(row => {
                  const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
                  numericKeys.forEach(k => { if (row[k] === 0) row[k] = ''; });
             });
 
             setData(newData);
-            
-            // Determine Status
             const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (rawRecords[rawRecords.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
             setReportStatuses(prev => ({ ...prev, main: newStatus }));
           } else { setData(newData); setReportStatuses(prev => ({ ...prev, main: 'Draft' })); }
           setVisibleOtherMunicipalities(Array.from(newVisibleOthers));
 
       } else {
-          // --- COHORT AGGREGATION ---
           const newCohort = initData(fullRowKeys, true);
           let query = supabase.from('abtc_cohort_reports').select('*').eq('year', year);
           if (periodType === 'Monthly') query = query.eq('month', month);
@@ -230,12 +223,10 @@ export function useReportData({
                       const c = newCohort[m];
                       const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
                       
-                      // Sum the values
                       keys.forEach(k => { 
                           c[k] = toInt(c[k]) + toInt(r[k]); 
                       });
 
-                      // Concatenate Remarks
                       if (record.cat2_remarks) { if(!c.cat2_remarks.includes(record.cat2_remarks)) c.cat2_remarks = c.cat2_remarks ? `${c.cat2_remarks}; ${record.cat2_remarks}` : record.cat2_remarks; }
                       if (record.cat3_remarks) { if(!c.cat3_remarks.includes(record.cat3_remarks)) c.cat3_remarks = c.cat3_remarks ? `${c.cat3_remarks}; ${record.cat3_remarks}` : record.cat3_remarks; }
                       
@@ -248,14 +239,12 @@ export function useReportData({
                   }
               });
 
-              // Clean up 0s
               Object.values(newCohort).forEach(row => {
                 const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
                 keys.forEach(k => { if (row[k] === 0) row[k] = ''; });
               });
 
               setCohortData(newCohort);
-              
               const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (rawRecords[rawRecords.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
               setReportStatuses(prev => ({ ...prev, cohort: newStatus }));
           } else { setCohortData(newCohort); setReportStatuses(prev => ({ ...prev, cohort: 'Draft' })); }
@@ -300,6 +289,8 @@ export function useReportData({
             const n = { ...prev }; 
             n[m] = { ...(n[m] || INITIAL_ROW_STATE), [f]: v };
 
+            // AUTO-COMPUTATION LOGIC:
+            // Checks if the modified row 'm' is inside the DB-provided barangay list.
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const existingRemarks = n[currentHostMunicipality]?.remarks || '';
                 const tot = { ...INITIAL_ROW_STATE };
@@ -307,6 +298,7 @@ export function useReportData({
                 
                 const specsToAggregate = [];
 
+                // Loops through the DB-provided list to sum them up
                 facilityBarangays[activeFacilityName].forEach(b => { 
                   const r = n[b] || INITIAL_ROW_STATE; 
                   keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); 
@@ -330,6 +322,7 @@ export function useReportData({
         if (userRole === 'admin' || m === currentHostMunicipality) return;
         setCohortData(prev => {
             const n = { ...prev }; n[m] = { ...(n[m] || INITIAL_COHORT_ROW), [f]: v };
+            // COHORT AUTO-COMPUTATION LOGIC
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const tot = { ...INITIAL_COHORT_ROW };
                 const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
@@ -350,7 +343,6 @@ export function useReportData({
     if (!target) { toast.error("Error: Could not determine facility name."); return false; }
     const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
     
-    // Check: Prevent Admin from approving/rejecting a Draft
     if (userRole === 'admin' && (newStatus === 'Approved' || newStatus === 'Rejected') && currentStatus === 'Draft') {
         toast.error("Cannot approve or reject a report that has not been submitted.");
         return false;
@@ -458,6 +450,7 @@ export function useReportData({
 
     Object.entries(data).forEach(([key, row]) => { 
         if (key === "Others:") return;
+        // GRAND TOTAL LOGIC: Exclude rows that are IN the catchment area (because the host municipality row already sums them up)
         if (currentBarangays.includes(key)) return;
 
         if (hasData(row)) { 
@@ -487,6 +480,7 @@ export function useReportData({
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
     Object.entries(cohortData).forEach(([key, row]) => { 
         if (key === "Others:") return;
+        // COHORT GRAND TOTAL LOGIC: Same here, exclude catchment rows
         if (currentBarangays.includes(key)) return;
         if (hasCohortData(row, 'cat2') || hasCohortData(row, 'cat3')) { keys.forEach(k => t[k] += toInt(row[k])); } 
     });
