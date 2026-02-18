@@ -26,7 +26,7 @@ Data is processed solely for automated accomplishment reports, **Animal Bite Tre
 ### 4. Security Measures
 The System utilizes industry-standard security protocols to protect your data:
 * **Encryption:** All data is encrypted-at-rest and encrypted-in-transit via the platform provider (Supabase).
-* **Access Control:** Strict Role-Based Access Control (RBAC) ensures only authorized personnel can access ABTC data.
+* **Access Control:** Strict Role-Based Access Control (RBAC) ensures only authorized personnel can access **ABTC data**.
 * **Compliance:** The infrastructure provider adheres to SOC2 and HIPAA compliance standards.
 
 ### 5. Contact Information (Data Protection)
