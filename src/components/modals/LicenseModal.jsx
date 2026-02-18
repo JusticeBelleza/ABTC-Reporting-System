@@ -22,9 +22,9 @@ export default function LicenseModal({ onClose }) {
         {/* Content */}
         <div className="p-8 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-8 pr-4 custom-scrollbar">
           
-          {/* Grant Preamble */}
+          {/* Official Grant Preamble */}
           <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 text-indigo-900 text-xs leading-5">
-            <strong>OFFICIAL GRANT:</strong> This software is expressly provided <strong>FREE OF CHARGE</strong> to the <strong>Abra Provincial Health Office</strong> for use by its authorized Health Facilities. It is a dedicated modernization initiative.
+            <strong>OFFICIAL GRANT:</strong> This software is expressly provided <strong>FREE OF CHARGE</strong> to the <strong>Abra Provincial Health Office</strong> for use by its authorized <strong>Animal Bite Treatment Centers (ABTC)</strong>. It is a dedicated modernization initiative.
           </div>
 
           {/* Section 1: Ownership */}
@@ -54,8 +54,8 @@ export default function LicenseModal({ onClose }) {
                 <li>Platform compatibility updates.</li>
                 <li>Security patching.</li>
               </ul>
-              <p className="mt-2 text-xs font-bold text-emerald-800">
-                NOTE: Individual Health Facilities are NOT authorized to modify the source code.
+              <p className="mt-3 text-xs font-bold text-emerald-800 uppercase tracking-tight">
+                NOTE: Individual Animal Bite Treatment Centers (ABTC) are NOT authorized to modify the source code.
               </p>
             </div>
           </section>
@@ -65,7 +65,7 @@ export default function LicenseModal({ onClose }) {
             <h3 className="font-bold text-zinc-900 text-base mb-3 flex items-center gap-2">
               <Ban size={16} className="text-red-500"/> 3. Restrictions
             </h3>
-            <p className="mb-2">
+            <p className="mb-2 text-zinc-700">
               Unless expressly authorized in writing by the Developer, no person or entity may:
             </p>
             <ul className="list-disc pl-5 space-y-1">
@@ -79,8 +79,8 @@ export default function LicenseModal({ onClose }) {
           {/* Section 4: Disclaimer */}
           <section>
             <h3 className="font-bold text-zinc-900 text-base mb-2">4. Disclaimer of Warranty</h3>
-            <p className="text-xs uppercase font-bold text-gray-500 mb-1">Provided "AS IS"</p>
-            <p className="italic">
+            <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-widest">Provided "AS IS"</p>
+            <p className="italic text-gray-500">
               THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. THE DEVELOPER SHALL NOT BE LIABLE FOR ANY DAMAGES, DATA LOSS, OR REPORTING INACCURACIES ARISING FROM THE USE OF THIS SOFTWARE.
             </p>
           </section>
@@ -100,18 +100,18 @@ export default function LicenseModal({ onClose }) {
             <h3 className="font-bold text-red-900 text-base mb-2 flex items-center gap-2">
               <AlertTriangle size={16} className="text-red-500"/> 6. Termination of Grant
             </h3>
-            <p className="text-red-800/80">
+            <p className="text-red-800/80 italic">
               The Developer reserves the right to terminate this License Grant immediately if the Abra Provincial Health Office violates the Restrictions outlined in Section 3, particularly regarding unauthorized distribution or commercial use of the Software.
             </p>
           </section>
 
         </div>
         
-        {/* Footer - Centered Button */}
+        {/* Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex justify-center">
           <button 
             onClick={onClose}
-            className="px-6 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 transition-colors shadow-sm flex items-center gap-2"
+            className="px-8 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 active:scale-95 transition-all shadow-sm flex items-center gap-2"
           >
             <CheckCircle size={16} />
             Understood
