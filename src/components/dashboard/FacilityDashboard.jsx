@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import StatusBadge from './StatusBadge';
+import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';

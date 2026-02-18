@@ -8,17 +8,19 @@ const AppContext = createContext();
 export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [facilities, setFacilities] = useState([]);
-  const [facilityBarangays, setFacilityBarangays] = useState({});
+  const [facilities, setFacilities] = useState(DEFAULT_FACILITIES);
+  const [facilityBarangays, setFacilityBarangays] = useState(INITIAL_FACILITY_BARANGAYS);
   const [globalSettings, setGlobalSettings] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
 
+  // Use a ref to track the current access token to prevent unnecessary updates
   const lastTokenRef = useRef(null);
 
   // Auth & Session Logic
   useEffect(() => {
     if (!supabase) { setLoading(false); return; }
     
+    // Initial Session Check
     supabase.auth.getSession().then(({ data: { session } }) => { 
         if (session?.access_token !== lastTokenRef.current) {
             lastTokenRef.current = session?.access_token;
@@ -27,11 +29,14 @@ export function AppProvider({ children }) {
         setLoading(false); 
     });
     
+    // Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // FIX: Only update state if the token actually changed (prevents Alt-Tab re-renders)
       if (session?.access_token !== lastTokenRef.current || event === 'SIGNED_OUT') {
         lastTokenRef.current = session?.access_token;
         setSession(session);
       }
+      
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem('abtc_login_time');
         lastTokenRef.current = null;
@@ -41,7 +46,7 @@ export function AppProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch Metadata
+  // Fetch Metadata (Facilities, Settings, Profile)
   useEffect(() => {
     if (session) {
       supabase.from('settings').select('*').single().then(({data}) => { if(data) setGlobalSettings(data); });
@@ -52,39 +57,22 @@ export function AppProvider({ children }) {
 
   const fetchFacilitiesList = async () => {
     try {
-      // 1. Fetch ALL facilities (Active and Disabled) so reports work for everyone
-      const { data } = await supabase
-        .from('facilities')
-        .select('*')
-        .order('name');
+      const { data } = await supabase.from('facilities').select('*');
+      let combinedFacilities = [...DEFAULT_FACILITIES];
+      let combinedBarangays = { ...INITIAL_FACILITY_BARANGAYS };
       
-      let dbNames = [];
-      let dbBarangays = {};
-
       if (data && data.length > 0) {
-        // 2. Map the DB data to the App Context structure
-        data.forEach(f => {
-           // Add to the list (names)
-           dbNames.push(f.name);
-           
-           // Add to the Catchment Area map
-           // We support both 'catchment_area' (new) and 'barangays' (old/backup) columns
-           const areas = f.catchment_area || f.barangays;
-           if (areas && areas.length > 0) {
-              dbBarangays[f.name] = areas;
-           }
+        const dbNames = data.map(f => f.name);
+        const dbBarangays = {};
+        data.forEach(f => { 
+            if (f.barangays?.length > 0) dbBarangays[f.name] = f.barangays; 
         });
+        combinedFacilities = [...new Set([...combinedFacilities, ...dbNames])];
+        combinedBarangays = { ...combinedBarangays, ...dbBarangays };
       }
-
-      setFacilities(dbNames);
-      setFacilityBarangays(dbBarangays);
-      
-    } catch (err) { 
-      console.error("Error loading facilities", err); 
-      // Fallback to constants if DB fails, though currently empty
-      setFacilities(DEFAULT_FACILITIES);
-      setFacilityBarangays(INITIAL_FACILITY_BARANGAYS);
-    }
+      setFacilities(combinedFacilities);
+      setFacilityBarangays(combinedBarangays);
+    } catch (err) { console.error("Error loading facilities", err); }
   };
 
   const user = useMemo(() => {
@@ -115,8 +103,7 @@ export function AppProvider({ children }) {
     setGlobalSettings,
     userProfile,
     setUserProfile,
-    logout,
-    refreshFacilities: fetchFacilitiesList // Exposed so AdminDashboard can trigger updates
+    logout
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

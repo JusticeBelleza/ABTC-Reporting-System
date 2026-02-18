@@ -62,7 +62,7 @@ To ensure optimal performance for health facilities:
 ### For End-Users (ABTC Staff)
 * **Web Browser:** Google Chrome, Microsoft Edge, or Firefox (Latest Versions). *Internet Explorer is not supported.*
 * **Network:** Stable internet connection (Required for real-time synchronization).
-* **Device:** Desktop or Laptop is recommended for data entry; Mobile Phones and Tablets are supported for dashboard viewing.
+* **Device:** Desktop or Laptop is recommended for data entry; Tablets are supported for dashboard viewing.
 
 ### For Administrators
 * **Database Access:** Requires authorized credentials for the Supabase project dashboard.
