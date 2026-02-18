@@ -28,6 +28,7 @@ In addition to the Zero-Patient Data Policy, users are prohibited from:
 ### 5. Suspension & Termination
 The Abra Provincial Health Office and the Developer reserve the right to immediately suspend or revoke your center's access credentials without notice for:
 * **Violation of the Zero-Patient Data Policy.**
+* **Loss of Government Accreditation:** If the facility ceases to be an accredited Animal Bite Treatment Center recognized by the Provincial Health Office.
 * Breach of these Terms of Use.
 * Security risks or unauthorized sharing of credentials.
 
@@ -39,3 +40,6 @@ The Developer shall not be liable for any interruption of service, data loss, or
 
 ### 8. Governing Law
 These Terms shall be governed by the laws of the **Republic of the Philippines**. Any legal action shall be brought exclusively in the proper courts of the **Province of Abra**.
+
+### 9. Severability
+If any provision of these Terms is found to be unenforceable or invalid under applicable law, that provision shall be limited or eliminated to the minimum extent necessary so that these Terms shall otherwise remain in full force and effect and enforceable.
