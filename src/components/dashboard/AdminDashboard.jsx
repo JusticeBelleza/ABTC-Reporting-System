@@ -76,7 +76,7 @@ export default function AdminDashboard({
     };
 
     fetchFacilityOwners();
-  }, [facilities]); // Re-run if facilities list changes, though usually static
+  }, [facilities]); 
 
   useEffect(() => {
     fetchFacilityMeta();
@@ -158,51 +158,82 @@ export default function AdminDashboard({
             </div>
         )}
 
-        {/* Top Actions Bar */}
+        {/* Top Actions Bar - IMPROVED FOR MOBILE */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Dashboard</h2>
             <p className="text-gray-500 text-sm mt-1">Overview of facility submissions</p>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => setShowArchived(!showArchived)} className={`px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 transition-colors ${showArchived ? 'bg-zinc-800 text-white' : 'bg-white border border-gray-200 text-zinc-600 hover:bg-gray-50'}`}>
-                {showArchived ? <RefreshCcw size={16} /> : <Archive size={16} />}
-                {showArchived ? 'View Active' : 'View Archived'}
+          
+          {/* Button grid for mobile layout */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 md:gap-3">
+            <button 
+              onClick={() => setShowArchived(!showArchived)} 
+              className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium shadow-sm flex items-center justify-center gap-2 transition-colors ${showArchived ? 'bg-zinc-800 text-white' : 'bg-white border border-gray-200 text-zinc-600 hover:bg-gray-50'}`}
+            >
+                {showArchived ? <RefreshCcw size={14} /> : <Archive size={14} />}
+                <span className="truncate">{showArchived ? 'Active' : 'Archived'}</span>
             </button>
-            <button onClick={onAddFacility} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 hover:bg-blue-50 hover:text-blue-700">
-                <Plus size={16} /> Add Facility
+            <button 
+              onClick={onAddFacility} 
+              className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-xs md:text-sm font-medium shadow-sm flex items-center justify-center gap-2 hover:bg-blue-50 hover:text-blue-700"
+            >
+                <Plus size={14} /> <span className="truncate">Add Facility</span>
             </button>
-            <button onClick={onManageUsers} className="bg-white border border-gray-200 text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 hover:bg-indigo-50 hover:text-indigo-700">
-                <Users size={16} /> Users
+            <button 
+              onClick={onManageUsers} 
+              className="bg-white border border-gray-200 text-zinc-900 px-3 py-2 rounded-lg text-xs md:text-sm font-medium shadow-sm flex items-center justify-center gap-2 hover:bg-indigo-50 hover:text-indigo-700"
+            >
+                <Users size={14} /> <span className="truncate">Users</span>
             </button>
-            <button onClick={onViewConsolidated} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center gap-2">
-                <Layers size={16} /> Consolidated
+            <button 
+              onClick={onViewConsolidated} 
+              className="bg-zinc-900 text-white px-3 py-2 rounded-lg text-xs md:text-sm font-medium hover:bg-zinc-800 shadow-sm flex items-center justify-center gap-2"
+            >
+                <Layers size={14} /> <span className="truncate">Consolidated</span>
             </button>
           </div>
         </div>
 
-        {/* Date Filters */}
-        <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 inline-flex items-center gap-2">
-          <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-transparent text-sm font-medium text-zinc-900 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
+        {/* Date Filters - IMPROVED FOR MOBILE */}
+        <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 flex flex-wrap items-center gap-1 md:gap-2">
+          <select 
+            value={periodType} 
+            onChange={e => setPeriodType(e.target.value)} 
+            className="bg-transparent text-xs md:text-sm font-medium text-zinc-900 p-2 outline-none cursor-pointer hover:bg-gray-50 rounded-lg"
+          >
             <option value="Monthly">Monthly</option>
             <option value="Quarterly">Quarterly</option>
             <option value="Annual">Annual</option>
           </select>
-          <div className="w-px h-4 bg-gray-200"></div>
+          
+          <div className="w-px h-4 bg-gray-200 hidden xs:block"></div>
           
           {periodType === 'Monthly' && (
-            <select value={month} onChange={e => setMonth(e.target.value)} className="bg-transparent text-sm text-gray-600 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
+            <select 
+              value={month} 
+              onChange={e => setMonth(e.target.value)} 
+              className="bg-transparent text-xs md:text-sm text-gray-600 p-2 outline-none cursor-pointer hover:bg-gray-50 rounded-lg"
+            >
                 {availableMonths.map(m => <option key={m}>{m}</option>)}
             </select>
           )}
           
           {periodType === 'Quarterly' && (
-            <select value={quarter} onChange={e => setQuarter(e.target.value)} className="bg-transparent text-sm text-gray-600 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
+            <select 
+              value={quarter} 
+              onChange={e => setQuarter(e.target.value)} 
+              className="bg-transparent text-xs md:text-sm text-gray-600 p-2 outline-none cursor-pointer hover:bg-gray-50 rounded-lg"
+            >
                 {QUARTERS.map(q => <option key={q}>{q}</option>)}
             </select>
           )}
           
-          <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-transparent text-sm text-gray-600 p-2 px-3 outline-none cursor-pointer hover:bg-gray-50 rounded-lg">
+          <select 
+            value={year} 
+            onChange={e => setYear(Number(e.target.value))} 
+            className="bg-transparent text-xs md:text-sm text-gray-600 p-2 outline-none cursor-pointer hover:bg-gray-50 rounded-lg"
+          >
             {availableYears.map(y => <option key={y}>{y}</option>)}
           </select>
         </div>
@@ -220,28 +251,27 @@ export default function AdminDashboard({
             const { main, cohort, lastUpdated } = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
             const type = f.includes("Hospital") || f === 'APH' ? 'Hospital' : (f.includes("Clinic") || f === 'AMDC' ? 'Clinic' : 'RHU');
             
-            // Determine Facility Status for Badge
             const meta = facilityMeta.find(m => m.name === f);
             const isArchived = meta?.status === 'Archived';
             const facilityStatusLabel = isArchived ? 'Disabled' : 'Active';
-
-            // Get owner name
             const ownerName = facilityOwners[f];
 
             return (
-              <div key={f} className={`p-5 rounded-xl border transition-all group cursor-pointer flex flex-col h-full ${showArchived ? 'bg-gray-50 border-gray-200 opacity-80' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'}`} onClick={() => !showArchived && onSelectFacility(f)}>
+              <div 
+                key={f} 
+                className={`p-5 rounded-xl border transition-all group cursor-pointer flex flex-col h-full ${showArchived ? 'bg-gray-50 border-gray-200 opacity-80' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'}`} 
+                onClick={() => !showArchived && onSelectFacility(f)}
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div className={`p-2 rounded-lg transition-colors ${showArchived ? 'bg-gray-200 text-gray-500' : 'bg-gray-50 text-gray-600 group-hover:bg-zinc-900 group-hover:text-white'}`}>
                     {type === 'Hospital' ? <Hospital size={20}/> : (type === 'Clinic' ? <Stethoscope size={20}/> : <Building2 size={20}/>)}
                   </div>
                   <div className="flex flex-col gap-1 items-end">
-                    {/* Facility Status Badge */}
                     <div className="flex items-center gap-1.5">
                         <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Status</span>
                         <StatusBadge status={facilityStatusLabel} />
                     </div>
 
-                    {/* Report Status Badges */}
                     <div className="flex items-center gap-1.5">
                         <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Form 1</span>
                         {periodType === 'Monthly' && <StatusBadge status={main} />}
@@ -253,10 +283,9 @@ export default function AdminDashboard({
                   </div>
                 </div>
                 
-                <h3 className="font-semibold text-zinc-900 mb-1">{f}</h3>
+                <h3 className="font-semibold text-zinc-900 mb-1 truncate">{f}</h3>
                 <p className="text-xs text-gray-500 mb-2">Report for {periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</p>
                 
-                {/* User Name Display */}
                 <div className="mb-4 flex items-center gap-1 text-xs">
                     <span className="font-medium text-gray-400">User:</span>
                     <span className="text-zinc-700 font-medium truncate" title={ownerName || 'Unassigned'}>
@@ -274,7 +303,7 @@ export default function AdminDashboard({
                       <button 
                           onClick={(e) => requestAction(e, f, showArchived ? 'restore' : 'archive')} 
                           className={`transition p-1.5 rounded-md ${showArchived ? 'text-green-600 hover:bg-green-50' : 'text-gray-300 hover:text-amber-600 hover:bg-amber-50'}`}
-                          title={showArchived ? "Restore Facility" : "Archive Facility"}
+                          title={showArchived ? "Restore" : "Archive"}
                       >
                           {showArchived ? <RefreshCcw size={14} /> : <Archive size={14} />}
                       </button>
@@ -282,7 +311,7 @@ export default function AdminDashboard({
                       <button 
                           onClick={(e) => requestAction(e, f, 'delete')} 
                           className="text-gray-300 hover:text-red-500 hover:bg-red-50 transition p-1.5 rounded-md"
-                          title="Delete Facility Permanently"
+                          title="Delete"
                       >
                           <Trash2 size={14} />
                       </button>
