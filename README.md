@@ -33,7 +33,7 @@ To ensure strict compliance with **RA 10173 (Data Privacy Act of 2012)**, the sy
 -   **Role-Based Access Control (RBAC):** Strict separation of duties between System Admins, Program Coordinators, and ABTC Staff.
 
 ### ⚡ Operational Capabilities
--   **Centralized Reporting:** Real-time submission of bite cases from remote ABTCs (Government & Private) to the Provincial Office.
+-   **Centralized Reporting:** Real-time submission of bite cases from remote ABTCs (Government & Private) to the Provincial Health Office.
 -   **Automated Analytics:** Instant compilation of monthly and quarterly cohorts without manual tabulation.
 -   **Vaccine Inventory Tracking:** Monitoring of human rabies vaccine (PVRV, PCECV) and RIG (HRIG, ERIG) usage.
 
