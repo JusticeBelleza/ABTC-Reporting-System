@@ -1,15 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, FileText, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, FileText, AlertCircle, CheckCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { supabase } from '../../lib/supabase';
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
-// Added 'export default' here:
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isResetMode, setIsResetMode] = useState(false);
@@ -80,7 +80,23 @@ export default function Login() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5">Password</label>
-              <input type="password" required className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder:text-gray-300" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  required 
+                  className="w-full bg-white border border-gray-200 p-2.5 pr-10 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder:text-gray-300" 
+                  placeholder="••••••••" 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)} 
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div className="flex justify-center py-2">

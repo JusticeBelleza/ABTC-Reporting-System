@@ -20,7 +20,7 @@ import {
 } from '../lib/utils';
 
 export function useReportData({
-  user, // This should now ideally contain the profile data (role/facility) from the DB
+  user, 
   facilities,
   facilityBarangays,
   year,
@@ -32,7 +32,6 @@ export function useReportData({
   adminViewMode,
   selectedFacility
 }) {
-  // Use profile-based values to prevent metadata manipulation security risks
   const userRole = user?.role; 
   const userFacility = user?.facility; 
 
@@ -49,22 +48,36 @@ export function useReportData({
   const reportStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
   const isConsolidatedView = adminViewMode === 'consolidated';
   
-  // Logic remains consistent with your original requirements: PHO for admin, or the specific facility
   const activeFacilityName = userRole === 'admin' 
     ? (isConsolidatedView ? 'PHO' : selectedFacility) 
     : userFacility;
   
   const currentHostMunicipality = useMemo(() => {
-    if (!activeFacilityName || isConsolidatedView || activeFacilityName === "AMDC" || activeFacilityName === "APH") return null;
+    if (!activeFacilityName || isConsolidatedView) return null;
+    
+    // NEW: If the facility is a hospital, it does not have a single host municipality to roll up into
+    const barangays = facilityBarangays[activeFacilityName] || [];
+    const isHospital = MUNICIPALITIES.every(m => barangays.includes(m));
+    
+    if (isHospital || activeFacilityName === "AMDC" || activeFacilityName === "APH") return null;
+    
     return MUNICIPALITIES.find(m => activeFacilityName.includes(m)) || null;
-  }, [activeFacilityName, isConsolidatedView]);
+  }, [activeFacilityName, isConsolidatedView, facilityBarangays]);
 
   const getRowKeysForFacility = useCallback((facilityName, consolidated = false, returnAll = false, forCohort = false, specificVisible = null) => {
     if (!facilityName) return []; 
     if (consolidated) return MUNICIPALITIES;
+    
     if (facilityName === "AMDC" || facilityName === "APH" || !facilityBarangays[facilityName]) return MUNICIPALITIES;
     
     const barangays = facilityBarangays[facilityName] || [];
+    
+    // Prevent duplicating the list of municipalities for Hospitals
+    const isHospitalOrClinic = MUNICIPALITIES.every(m => barangays.includes(m));
+    if (isHospitalOrClinic) {
+        return MUNICIPALITIES;
+    }
+
     const hostMunicipality = MUNICIPALITIES.find(m => facilityName.includes(m));
     
     if (barangays.length > 0 && hostMunicipality) {
@@ -75,7 +88,8 @@ export function useReportData({
       const visibleOther = other.filter(m => visible.includes(m));
       return [hostMunicipality, ...barangays, "Others:", ...visibleOther];
     }
-    return barangays.length > 0 ? [...barangays, "Others:", ...MUNICIPALITIES] : MUNICIPALITIES;
+
+    return [...new Set([...barangays, "Others:", ...MUNICIPALITIES])];
   }, [facilityBarangays, visibleOtherMunicipalities]);
 
   const currentRows = useMemo(() => 
@@ -397,10 +411,18 @@ export function useReportData({
     const t = { ...INITIAL_ROW_STATE, sexTotal: 0, ageTotal: 0, cat23: 0, catTotal: 0, animalTotal: 0 };
     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
     numericKeys.forEach(k => t[k] = 0);
+    
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
+    // NEW: Check if this is a hospital
+    const isHospital = MUNICIPALITIES.every(m => currentBarangays.includes(m));
     const specsToAggregate = [];
+    
     Object.entries(data).forEach(([key, row]) => { 
-        if (key === "Others:" || currentBarangays.includes(key)) return;
+        if (key === "Others:") return;
+        
+        // FIX: Only skip rows if it's an RHU (because RHUs roll barangay data up). Hospitals need all rows counted!
+        if (!isHospital && currentBarangays.includes(key)) return;
+        
         if (hasData(row)) { 
             const c = getComputations(row); 
             numericKeys.forEach(k => t[k] += toInt(row[k])); 
@@ -418,9 +440,17 @@ export function useReportData({
     const t = { ...INITIAL_COHORT_ROW };
     const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
     keys.forEach(k => t[k] = 0);
+    
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
+    // NEW: Check if this is a hospital
+    const isHospital = MUNICIPALITIES.every(m => currentBarangays.includes(m));
+
     Object.entries(cohortData).forEach(([key, row]) => { 
-        if (key === "Others:" || currentBarangays.includes(key)) return;
+        if (key === "Others:") return;
+        
+        // FIX: Only skip rows if it's an RHU
+        if (!isHospital && currentBarangays.includes(key)) return;
+        
         if (hasCohortData(row, 'cat2') || hasCohortData(row, 'cat3')) { keys.forEach(k => t[k] += toInt(row[k])); } 
     });
     return t;

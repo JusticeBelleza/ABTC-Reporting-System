@@ -61,12 +61,11 @@ function DashboardContent() {
   const [deleteFacilityInput, setDeleteFacilityInput] = useState('');
   const [isDeletingFacility, setIsDeletingFacility] = useState(false);
 
-  // Admin Actions: Add Facility (UPDATED TO INSERT ALL FIELDS)
+  // Admin Actions: Add Facility
   const handleAddFacility = async (name, type, barangaysList, municipality, ownership) => {
     if (facilities.includes(name)) { toast.error('Name exists'); return; }
     try {
-      // FIX: Removed the "type === 'RHU'" restriction. 
-      // Now Hospitals/Clinics will parse the auto-filled list of municipalities into a valid array instead of sending 'null'.
+      // Parse the list into a proper JavaScript Array
       let bArray = barangaysList ? barangaysList.split(',').map(b => b.trim()).filter(b => b) : [];
       
       const payload = { 
@@ -74,8 +73,8 @@ function DashboardContent() {
           type, 
           barangays: bArray,
           municipality: municipality || null, 
-          // Note: If you created a specific 'catchment_area' column in Supabase, uncomment the line below:
-          // catchment_area: barangaysList || null,
+          // FIX: Pass the properly formatted Array (bArray) to match Supabase's expected format
+          catchment_area: bArray.length > 0 ? bArray : null, 
           ownership: ownership 
       };
 
