@@ -138,7 +138,15 @@ export default function NotificationBell({ user }) {
                         {notification.message || notification.content}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        {new Date(notification.created_at).toLocaleDateString()} • {new Date(notification.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {new Date(notification.created_at).toLocaleDateString('en-US', { 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          year: 'numeric' 
+                        })} • {new Date(notification.created_at).toLocaleTimeString('en-US', {
+                          hour: 'numeric', 
+                          minute: '2-digit', 
+                          hour12: true 
+                        })}
                       </p>
                     </div>
                   </div>
