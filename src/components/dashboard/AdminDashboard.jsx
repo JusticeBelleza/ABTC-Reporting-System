@@ -46,7 +46,8 @@ export default function AdminDashboard({
 
   const fetchFacilityMeta = async () => {
     try {
-      const { data } = await supabase.from('facilities').select('name, status');
+      // MODIFIED: Added 'type' and 'ownership' to the select query
+      const { data } = await supabase.from('facilities').select('name, status, type, ownership');
       if (data) setFacilityMeta(data);
     } catch (err) {
       console.error("Error fetching facility meta", err);
@@ -249,13 +250,14 @@ export default function AdminDashboard({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayedFacilities.map(f => {
             const { main, cohort, lastUpdated } = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
-            const type = f.includes("Hospital") || f === 'APH' ? 'Hospital' : (f.includes("Clinic") || f === 'AMDC' ? 'Clinic' : 'RHU');
             
-            // AUTOMATIC OWNERSHIP CATEGORIZATION
-            const ownership = (f === 'APH' || type === 'RHU') ? 'Government' : 'Private';
-
+            // MODIFIED: Ownership & Type logic now prioritizes the database values
             const meta = facilityMeta.find(m => m.name === f);
+            
+            const type = meta?.type || (f.includes("Hospital") || f === 'APH' ? 'Hospital' : (f.includes("Clinic") || f === 'AMDC' ? 'Clinic' : 'RHU'));
+            const ownership = meta?.ownership || ((f === 'APH' || type === 'RHU') ? 'Government' : 'Private');
             const isArchived = meta?.status === 'Archived';
+            
             const facilityStatusLabel = isArchived ? 'Disabled' : 'Active';
             const ownerName = facilityOwners[f];
 
@@ -286,8 +288,8 @@ export default function AdminDashboard({
                   </div>
                 </div>
                 
-                {/* MODIFIED: Added Ownership Badge Below Name */}
-                <h3 className="font-semibold text-zinc-900 leading-tight truncate">{f}</h3>
+                {/* MODIFIED: Changed truncate to break-words so long names wrap correctly */}
+                <h3 className="font-semibold text-zinc-900 leading-tight break-words">{f}</h3>
                 <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider mb-2 block">{ownership}</span>
                 <p className="text-xs text-gray-500 mb-2">Report for {periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</p>
                 

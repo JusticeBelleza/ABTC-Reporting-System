@@ -65,22 +65,33 @@ function DashboardContent() {
   const handleAddFacility = async (name, type, barangaysList, municipality, ownership) => {
     if (facilities.includes(name)) { toast.error('Name exists'); return; }
     try {
-      let bArray = type === 'RHU' && barangaysList ? barangaysList.split(',').map(b => b.trim()).filter(b => b) : null;
+      // FIX: Removed the "type === 'RHU'" restriction. 
+      // Now Hospitals/Clinics will parse the auto-filled list of municipalities into a valid array instead of sending 'null'.
+      let bArray = barangaysList ? barangaysList.split(',').map(b => b.trim()).filter(b => b) : [];
       
-      const { error } = await supabase.from('facilities').insert({ 
+      const payload = { 
           name, 
           type, 
           barangays: bArray,
-          municipality: municipality || null,
-          catchment_area: barangaysList || null,
-          ownership: ownership
-      });
+          municipality: municipality || null, 
+          // Note: If you created a specific 'catchment_area' column in Supabase, uncomment the line below:
+          // catchment_area: barangaysList || null,
+          ownership: ownership 
+      };
+
+      const { error } = await supabase.from('facilities').insert(payload);
       
       if (error) throw error;
+      
       setFacilities(prev => [...prev, name]);
-      if (bArray) setFacilityBarangays(prev => ({ ...prev, [name]: bArray }));
-      toast.success("Facility added"); setShowAddFacilityModal(false);
-    } catch (err) { toast.error(err.message); }
+      if (bArray.length > 0) setFacilityBarangays(prev => ({ ...prev, [name]: bArray }));
+      
+      toast.success("Facility added successfully!"); 
+      setShowAddFacilityModal(false);
+    } catch (err) { 
+      toast.error(err.message); 
+      console.error("Supabase Insert Error:", err);
+    }
   };
 
   // Admin Actions: Delete Facility (Includes deleting all reports associated)
