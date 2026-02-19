@@ -37,6 +37,8 @@ export default function AddFacilityForm({ onAdd, loading }) {
           setName('');
           // Auto-fill ALL municipalities for Hospital/Clinic
           setBarangays(MUNICIPALITIES.join(', '));
+          // Default to Private for clinics
+          if (newType === 'Clinic') setOwnership('Private');
       } else {
           // Reverting to RHU
           setOwnership('Government'); // Reset to default for RHU
@@ -47,9 +49,8 @@ export default function AddFacilityForm({ onAdd, loading }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Combine name with ownership if needed, but usually just the name is enough.
-    // The user might type "Abra Provincial Hospital".
-    onAdd(name, type, barangays);
+    // Pass ALL data points up to the Dashboard
+    onAdd(name, type, barangays, selectedMunicipality, ownership);
   };
 
   return (

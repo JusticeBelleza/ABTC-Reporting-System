@@ -15,7 +15,7 @@ import TermsModal from '../modals/TermsModal';
 import SettingsModal from '../modals/SettingsModal';
 import ProfileModal from '../modals/ProfileModal';
 import UserManagementModal from '../modals/UserManagementModal';
-import LicenseModal from '../modals/LicenseModal'; // [!code ++]
+import LicenseModal from '../modals/LicenseModal'; 
 import ErrorBoundary from '../ErrorBoundary';
 
 function DashboardContent() {
@@ -54,19 +54,28 @@ function DashboardContent() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
-  const [showLicense, setShowLicense] = useState(false); // [!code ++]
+  const [showLicense, setShowLicense] = useState(false); 
   
   // Facility Deletion State (Master Data)
   const [facilityToDelete, setFacilityToDelete] = useState(null);
   const [deleteFacilityInput, setDeleteFacilityInput] = useState('');
   const [isDeletingFacility, setIsDeletingFacility] = useState(false);
 
-  // Admin Actions: Add Facility
-  const handleAddFacility = async (name, type, barangaysList) => {
+  // Admin Actions: Add Facility (UPDATED TO INSERT ALL FIELDS)
+  const handleAddFacility = async (name, type, barangaysList, municipality, ownership) => {
     if (facilities.includes(name)) { toast.error('Name exists'); return; }
     try {
       let bArray = type === 'RHU' && barangaysList ? barangaysList.split(',').map(b => b.trim()).filter(b => b) : null;
-      const { error } = await supabase.from('facilities').insert({ name, type, barangays: bArray });
+      
+      const { error } = await supabase.from('facilities').insert({ 
+          name, 
+          type, 
+          barangays: bArray,
+          municipality: municipality || null,
+          catchment_area: barangaysList || null,
+          ownership: ownership
+      });
+      
       if (error) throw error;
       setFacilities(prev => [...prev, name]);
       if (bArray) setFacilityBarangays(prev => ({ ...prev, [name]: bArray }));
@@ -188,7 +197,7 @@ function DashboardContent() {
         
         {showPrivacyPolicy && <PrivacyModal onClose={() => setShowPrivacyPolicy(false)} />}
         {showTermsOfUse && <TermsModal onClose={() => setShowTermsOfUse(false)} />}
-        {showLicense && <LicenseModal onClose={() => setShowLicense(false)} />} {/* [!code ++] */}
+        {showLicense && <LicenseModal onClose={() => setShowLicense(false)} />} 
       </main>
 
       {/* FOOTER */}
@@ -200,7 +209,7 @@ function DashboardContent() {
             <div className="flex items-center gap-4">
               <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-zinc-900 hover:underline transition">Privacy Policy</button>
               <button onClick={() => setShowTermsOfUse(true)} className="hover:text-zinc-900 hover:underline transition">Terms of Use</button>
-              <button onClick={() => setShowLicense(true)} className="hover:text-zinc-900 hover:underline transition">License</button> {/* [!code ++] */}
+              <button onClick={() => setShowLicense(true)} className="hover:text-zinc-900 hover:underline transition">License</button> 
               {/* Added User Manual Link */}
               <a href="/images/System_Manual.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 hover:underline transition">User Manual</a>
             </div>
