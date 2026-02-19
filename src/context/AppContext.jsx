@@ -7,6 +7,7 @@ const AppContext = createContext();
 export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true); // Added profile loading state
   const [facilities, setFacilities] = useState([]); 
   const [facilityBarangays, setFacilityBarangays] = useState({}); 
   const [globalSettings, setGlobalSettings] = useState(null);
@@ -15,13 +16,18 @@ export function AppProvider({ children }) {
   const lastTokenRef = useRef(null);
 
   useEffect(() => {
-    if (!supabase) { setLoading(false); return; }
+    if (!supabase) { 
+        setLoading(false); 
+        setProfileLoading(false);
+        return; 
+    }
     
     supabase.auth.getSession().then(({ data: { session } }) => { 
         if (session?.access_token !== lastTokenRef.current) {
             lastTokenRef.current = session?.access_token;
             setSession(session); 
         }
+        if (!session) setProfileLoading(false);
         setLoading(false); 
     });
     
@@ -35,6 +41,7 @@ export function AppProvider({ children }) {
         localStorage.removeItem('abtc_login_time');
         lastTokenRef.current = null;
         setUserProfile(null);
+        setProfileLoading(false);
       }
     });
 
@@ -43,8 +50,16 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (session) {
+      setProfileLoading(true);
       supabase.from('settings').select('*').single().then(({data}) => { if(data) setGlobalSettings(data); });
-      supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({data}) => { if(data) setUserProfile(data); });
+      
+      // Fetch the secure profile from the DB
+      supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({data, error}) => { 
+          if(data) setUserProfile(data); 
+          if(error) console.error("Error fetching profile:", error);
+          setProfileLoading(false); // Mark profile as loaded
+      });
+      
       fetchFacilitiesList();
     }
   }, [session]);
@@ -75,19 +90,20 @@ export function AppProvider({ children }) {
     } catch (err) { console.error("Error loading facilities", err); }
   };
 
-  // UPDATED: This memo now relies on userProfile to ensure facility is not undefined
+  // SECURE USER OBJECT: Strictly relies on database profiles, not client metadata
   const user = useMemo(() => {
     if (!session) return null;
+    if (profileLoading) return null; // Wait until DB profile is fetched
+    
     return {
       id: session.user.id,
       email: session.user.email,
-      // Source data from userProfile (database) first, then fallback to metadata
-      name: userProfile?.facility_name || session.user.user_metadata?.facility_name || 'Unknown Facility',
-      fullName: userProfile?.full_name || session.user.user_metadata?.full_name, 
-      role: userProfile?.role || session.user.user_metadata?.role || 'user',
-      facility: userProfile?.facility_name || session.user.user_metadata?.facility_name
+      name: userProfile?.facility_name || 'Unknown Facility',
+      fullName: userProfile?.full_name || session.user.email, 
+      role: userProfile?.role || 'user', // Defaults to 'user' safely
+      facility: userProfile?.facility_name || null
     };
-  }, [session, userProfile]); // userProfile added as a dependency
+  }, [session, userProfile, profileLoading]);
 
   const logout = () => {
     lastTokenRef.current = null;
@@ -97,7 +113,7 @@ export function AppProvider({ children }) {
   const value = {
     session,
     user,
-    loading,
+    loading: loading || profileLoading, // App waits for both session and DB profile
     facilities,
     setFacilities,
     facilityBarangays,

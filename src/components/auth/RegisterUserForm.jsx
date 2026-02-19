@@ -2,13 +2,11 @@ import React, { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { toast } from 'sonner';
-// IMPORT SUPABASE AS A FALLBACK
 import { supabase } from '../../lib/supabase';
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
 export default function RegisterUserForm({ facilities, client, onSuccess }) {
-  // Use the passed client, or fallback to the imported default instance
   const supabaseClient = client || supabase;
 
   const [formData, setFormData] = useState({
@@ -18,7 +16,7 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
     designation: '', 
     contactNumber: '', 
     facility: facilities[0] || '', 
-    role: 'user' // Default to user, since admin option is removed
+    role: 'user' 
   });
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState();
@@ -27,7 +25,6 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // 1. CAPTCHA CHECK: Prevent submission if Captcha is required but missing
     if (HCAPTCHA_SITE_KEY && !captchaToken) {
         toast.error("Please complete the captcha verification.");
         return;
@@ -36,32 +33,40 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
     setLoading(true);
 
     try {
-      // 2. CLIENT CHECK: Ensure we have a valid client
       if (!supabaseClient || !supabaseClient.auth) {
           throw new Error("Supabase client is not initialized.");
       }
 
+      // Step 1: Create the User Auth Record using the helper client
       const { data: authData, error: authError } = await supabaseClient.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          captchaToken,
-          // DATA PASSED HERE IS ACCESSIBLE VIA raw_user_meta_data IN SQL
-          data: { 
-            full_name: formData.fullName,
-            designation: formData.designation,      
-            phone_number: formData.contactNumber,   
-            facility_name: formData.facility,
-            role: formData.role
-          }
+          captchaToken
+          // Sensitive auth data (role/facility) has been removed from here
         }
       });
 
       if (authError) throw authError;
       
       if (authData.user) {
-         toast.success("User created successfully");
-         // Reset form
+         // Step 2: Write secure authorization data directly to the server-side table
+         // Using 'supabase' instead of 'supabaseClient' so it uses the Admin's login session
+         const { error: profileError } = await supabase.from('profiles').upsert({
+             id: authData.user.id,
+             full_name: formData.fullName,
+             designation: formData.designation,
+             contact_number: formData.contactNumber, // Fixed column name
+             facility_name: formData.facility,
+             role: formData.role
+         });
+
+         if (profileError) {
+             console.error("Profile Error:", profileError);
+             throw new Error("User created, but failed to assign facility and role.");
+         }
+
+         toast.success("User and permissions created successfully");
          setFormData({
             email: '', 
             password: '', 
@@ -72,10 +77,8 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
             role: 'user'
          });
          
-         // Notify parent and potentially unmount this component
          if(onSuccess) onSuccess();
       } else {
-         // Edge case: User created but session/user object is null (e.g. email confirm required)
          toast.info("User registration initiated. Check email for confirmation if required.");
       }
 
@@ -88,7 +91,6 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
       if (captcha.current) captcha.current.resetCaptcha();
       setCaptchaToken(null);
     } finally {
-      // 3. STOP LOADING
       setLoading(false);
     }
   };
@@ -120,7 +122,6 @@ export default function RegisterUserForm({ facilities, client, onSuccess }) {
           </div>
        </div>
        
-       {/* Removed Role Dropdown and adjusted grid to single column for Facility */}
        <div className="grid grid-cols-1 gap-4">
          <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Facility</label>

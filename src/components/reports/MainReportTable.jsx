@@ -122,7 +122,8 @@ export default function MainReportTable({
             isAggregationMode || 
             (reportStatus !== 'Draft' && reportStatus !== 'Rejected');
 
-          const isOtherRow = visibleOtherMunicipalities.includes(key);
+          // FIXED: Requires currentHostMunicipality to not be null (excludes Hospitals/Clinics)
+          const isOtherRow = currentHostMunicipality !== null && visibleOtherMunicipalities.includes(key);
 
           return (
             <ReportRow 

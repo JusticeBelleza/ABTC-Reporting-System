@@ -42,7 +42,9 @@ export default function CohortReportTable({
               const hideClass = isEmpty ? 'pdf-hide-empty' : '';
               const row = data[key] || INITIAL_COHORT_ROW;
               const isRowReadOnly = userRole === 'admin' || key === currentHostMunicipality;
-              const isOtherRow = visibleList.includes(key);
+              
+              // FIXED: Requires currentHostMunicipality to not be null (excludes Hospitals/Clinics)
+              const isOtherRow = currentHostMunicipality !== null && visibleList.includes(key);
 
               if (key === "Others:") {
                 const host = currentHostMunicipality;

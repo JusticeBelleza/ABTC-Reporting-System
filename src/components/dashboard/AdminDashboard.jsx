@@ -195,8 +195,8 @@ export default function AdminDashboard({
           </div>
         </div>
 
-        {/* Date Filters - IMPROVED FOR MOBILE */}
-        <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 flex flex-wrap items-center gap-1 md:gap-2">
+        {/* Date Filters - MODIFIED TO w-fit and inline-flex */}
+        <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 inline-flex flex-wrap items-center gap-1 md:gap-2 w-fit">
           <select 
             value={periodType} 
             onChange={e => setPeriodType(e.target.value)} 
@@ -251,6 +251,9 @@ export default function AdminDashboard({
             const { main, cohort, lastUpdated } = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
             const type = f.includes("Hospital") || f === 'APH' ? 'Hospital' : (f.includes("Clinic") || f === 'AMDC' ? 'Clinic' : 'RHU');
             
+            // AUTOMATIC OWNERSHIP CATEGORIZATION
+            const ownership = (f === 'APH' || type === 'RHU') ? 'Government' : 'Private';
+
             const meta = facilityMeta.find(m => m.name === f);
             const isArchived = meta?.status === 'Archived';
             const facilityStatusLabel = isArchived ? 'Disabled' : 'Active';
@@ -283,10 +286,12 @@ export default function AdminDashboard({
                   </div>
                 </div>
                 
-                <h3 className="font-semibold text-zinc-900 mb-1 truncate">{f}</h3>
+                {/* MODIFIED: Added Ownership Badge Below Name */}
+                <h3 className="font-semibold text-zinc-900 leading-tight truncate">{f}</h3>
+                <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider mb-2 block">{ownership}</span>
                 <p className="text-xs text-gray-500 mb-2">Report for {periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</p>
                 
-                <div className="mb-4 flex items-center gap-1 text-xs">
+                <div className="mb-4 flex items-center gap-1 text-xs mt-1">
                     <span className="font-medium text-gray-400">User:</span>
                     <span className="text-zinc-700 font-medium truncate" title={ownerName || 'Unassigned'}>
                         {ownerName || <span className="italic text-gray-400 font-normal">Unassigned</span>}
