@@ -120,7 +120,7 @@ export default function NotificationBell({ user }) {
 
       {isOpen && (
         <div className="fixed top-16 left-4 right-4 z-50 sm:absolute sm:top-full sm:right-0 sm:left-auto sm:w-96 sm:mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-          <div className="flex items-center justify-between p-4 border-b border-gray-50 bg-gray-50/50">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50">
             <h3 className="font-semibold text-zinc-900">Notifications</h3>
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
