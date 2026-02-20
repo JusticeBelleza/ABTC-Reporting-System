@@ -50,7 +50,7 @@ export default function Login() {
         captchaToken
       });
       if (error) throw error;
-      setResetMessage('Reset link sent.');
+      setResetMessage('Reset link sent. Please check your email.');
     } catch (err) { setError(err.message); } finally { 
       setLoading(false); 
       if (captcha.current) captcha.current.resetCaptcha();
@@ -59,32 +59,71 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="w-full max-w-sm animate-in fade-in zoom-in duration-300">
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center justify-center p-3 rounded-xl bg-gray-50 text-zinc-900 mb-4 ring-1 ring-gray-200">
-            <FileText size={32} strokeWidth={1.5} />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-8 font-sans selection:bg-blue-100 selection:text-blue-900">
+      
+      {/* Main Login Card */}
+      <div className="w-full max-w-md bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-gray-100 p-8 sm:p-10 relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+        
+        {/* Decorative Top Gradient Line */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-500"></div>
+
+        {/* Header Section */}
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-blue-50/50 text-blue-600 mb-5 shadow-inner border border-blue-100/50 transition-transform hover:scale-105 duration-300">
+            <FileText size={32} strokeWidth={2} />
           </div>
-          <h1 className="text-xl font-semibold text-zinc-900 tracking-tight">ABTC-Reporting System</h1>
-          <p className="text-sm text-gray-500 mt-1 italic">For ABTC facility registration and account creation, please contact the Program Coordinator.</p>
+          <h1 className="text-2xl font-extrabold text-zinc-900 tracking-tight">ABTC Reporting System</h1>
+          <p className="text-sm text-gray-500 mt-2 font-medium">
+            {isResetMode ? "Reset your password" : "Securely sign in to your account"}
+          </p>
         </div>
         
-        {error && <div className="bg-red-50 text-red-600 p-3 rounded text-xs mb-6 border border-red-100 flex gap-2"><AlertCircle size={14}/> {error}</div>}
-        {resetMessage && <div className="bg-green-50 text-green-600 p-3 rounded text-xs mb-6 border border-green-100 flex gap-2"><CheckCircle size={14}/> {resetMessage}</div>}
+        {/* Status Messages */}
+        {error && (
+            <div className="bg-rose-50 text-rose-600 p-3.5 rounded-xl text-sm mb-6 border border-rose-100 flex items-start gap-2.5 animate-in slide-in-from-top-2">
+                <AlertCircle size={18} className="mt-0.5 flex-shrink-0" /> 
+                <span className="font-medium leading-tight">{error}</span>
+            </div>
+        )}
+        
+        {resetMessage && (
+            <div className="bg-emerald-50 text-emerald-700 p-3.5 rounded-xl text-sm mb-6 border border-emerald-100 flex items-start gap-2.5 animate-in slide-in-from-top-2">
+                <CheckCircle size={18} className="mt-0.5 flex-shrink-0" /> 
+                <span className="font-medium leading-tight">{resetMessage}</span>
+            </div>
+        )}
 
+        {/* Login Form */}
         {!isResetMode ? (
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Email address</label>
-              <input type="email" required className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder:text-gray-300" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Email Address</label>
+              <input 
+                type="email" 
+                required 
+                className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400 font-medium text-zinc-900 shadow-sm" 
+                placeholder="name@example.com" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+              />
             </div>
+            
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Password</label>
+              <div className="flex justify-between items-center mb-2 ml-1 mr-1">
+                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">Password</label>
+                 <button 
+                    type="button" 
+                    onClick={() => { setIsResetMode(true); setError(''); setResetMessage(''); }} 
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-wider"
+                 >
+                    Forgot?
+                 </button>
+              </div>
               <div className="relative">
                 <input 
                   type={showPassword ? "text" : "password"} 
                   required 
-                  className="w-full bg-white border border-gray-200 p-2.5 pr-10 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder:text-gray-300" 
+                  className="w-full bg-gray-50 border border-gray-200 p-3.5 pr-12 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400 font-medium text-zinc-900 shadow-sm" 
                   placeholder="••••••••" 
                   value={password} 
                   onChange={e => setPassword(e.target.value)} 
@@ -92,14 +131,14 @@ export default function Login() {
                 <button 
                   type="button" 
                   onClick={() => setShowPassword(!showPassword)} 
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            <div className="flex justify-center py-2">
+            <div className="flex justify-center py-2 scale-95 origin-center">
               <HCaptcha
                 ref={captcha}
                 sitekey={HCAPTCHA_SITE_KEY}
@@ -107,35 +146,60 @@ export default function Login() {
               />
             </div>
 
-            <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin"/> : 'Sign In'}
+            <button 
+                type="submit" 
+                disabled={loading} 
+                className="w-full bg-zinc-900 text-white p-3.5 rounded-xl hover:bg-zinc-800 hover:shadow-lg hover:shadow-zinc-900/20 active:scale-[0.98] transition-all text-sm font-semibold flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin"/> : 'Sign In'}
             </button>
-            <div className="text-center pt-2">
-              <button type="button" onClick={() => { setIsResetMode(true); setError(''); setResetMessage(''); }} className="text-xs text-gray-500 hover:text-zinc-900 transition-colors">Forgot password?</button>
+            
+            <div className="text-center pt-4 border-t border-gray-100 mt-6">
+               <p className="text-xs text-gray-400 font-medium">
+                <br className="sm:hidden" />For ABTC facility registration and account creation, please contact the Program Coordinator.
+               </p>
             </div>
           </form>
         ) : (
-          <form onSubmit={handleResetPassword} className="space-y-5">
-             <div className="text-center mb-6">
-               <h3 className="font-medium text-zinc-900">Reset Password</h3>
-               <p className="text-xs text-gray-500 mt-1">We'll send you a link to reset it.</p>
-             </div>
+          
+          /* Password Reset Form */
+          <form onSubmit={handleResetPassword} className="space-y-5 animate-in slide-in-from-right-4 duration-300">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Email address</label>
-              <input type="email" required className="w-full bg-white border border-gray-200 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Account Email</label>
+              <input 
+                  type="email" 
+                  required 
+                  className="w-full bg-gray-50 border border-gray-200 p-3.5 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium text-zinc-900 shadow-sm" 
+                  placeholder="Enter your email address"
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+              />
             </div>
-            <div className="flex justify-center py-2">
+            
+            <div className="flex justify-center py-2 scale-95 origin-center">
               <HCaptcha
                 ref={captcha}
                 sitekey={HCAPTCHA_SITE_KEY}
                 onVerify={(token) => setCaptchaToken(token)}
               />
             </div>
-            <button type="submit" disabled={loading} className="w-full bg-zinc-900 text-white p-2.5 rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin"/> : 'Send Link'}
+            
+            <button 
+                type="submit" 
+                disabled={loading} 
+                className="w-full bg-zinc-900 text-white p-3.5 rounded-xl hover:bg-zinc-800 hover:shadow-lg hover:shadow-zinc-900/20 active:scale-[0.98] transition-all text-sm font-semibold flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin"/> : 'Send Reset Link'}
             </button>
+            
             <div className="text-center pt-2">
-              <button type="button" onClick={() => { setIsResetMode(false); setError(''); setResetMessage(''); }} className="text-xs text-gray-500 hover:text-zinc-900 flex items-center justify-center gap-1"><ArrowLeft size={12}/> Back to Login</button>
+              <button 
+                  type="button" 
+                  onClick={() => { setIsResetMode(false); setError(''); setResetMessage(''); }} 
+                  className="text-xs font-bold text-gray-500 hover:text-zinc-900 uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 mx-auto p-2 rounded-lg hover:bg-gray-50"
+              >
+                  <ArrowLeft size={14} strokeWidth={2.5}/> Back to Login
+              </button>
             </div>
           </form>
         )}
