@@ -48,8 +48,18 @@ const ReportRow = React.memo(({
     cursor: isLocked || isRowReadOnly ? 'default' : 'text',
   });
 
+  // Modern Web Classes for Inputs (Ignored by jspdf-autotable)
+  // Added py-1, min-h-[28px], and focus:ring-inset for better typing UI
+  const inputWebClasses = isRowReadOnly 
+    ? "outline-none bg-transparent w-full h-full" 
+    : "outline-none transition-all hover:bg-gray-100 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full h-full py-1 min-h-[28px]";
+
+  const textareaWebClasses = isRowReadOnly
+    ? "outline-none bg-transparent w-full"
+    : "outline-none transition-all hover:bg-gray-100 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full py-1";
+
   return (
-    <tr style={rowStyle} className={className}>
+    <tr style={rowStyle} className={`${className || ''} hover:bg-blue-50/50 transition-colors group`}>
       {/* Municipality Name */}
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(rowKey) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
         <div className="flex justify-between items-center group/row">
@@ -72,6 +82,7 @@ const ReportRow = React.memo(({
             value={row[f]} 
             onChange={e=>handleChange(f, e.target.value)} 
             style={getInputStyle()} 
+            className={inputWebClasses}
           />
         </td>
       ))}
@@ -87,6 +98,7 @@ const ReportRow = React.memo(({
             value={row[f]} 
             onChange={e=>handleChange(f, e.target.value)} 
             style={getInputStyle()} 
+            className={inputWebClasses}
           />
         </td>
       ))}
@@ -102,6 +114,7 @@ const ReportRow = React.memo(({
             value={row[f]} 
             onChange={e=>handleChange(f, e.target.value)} 
             style={getInputStyle()} 
+            className={inputWebClasses}
           />
         </td>
       ))}
@@ -118,6 +131,7 @@ const ReportRow = React.memo(({
             value={row[f]} 
             onChange={e=>handleChange(f, e.target.value)} 
             style={getInputStyle()} 
+            className={inputWebClasses}
           />
         </td>
       ))}
@@ -132,6 +146,7 @@ const ReportRow = React.memo(({
             value={row[f]} 
             onChange={e=>handleChange(f, e.target.value)} 
             style={getInputStyle()} 
+            className={inputWebClasses}
           />
         </td>
       ))}
@@ -146,11 +161,12 @@ const ReportRow = React.memo(({
             value={row[f]} 
             onChange={e=>handleChange(f, e.target.value)} 
             style={getInputStyle()} 
+            className={inputWebClasses}
           />
         </td>
       ))}
       
-      {/* Others Count (Reverted to Gray/Locked Style) */}
+      {/* Others Count (Locked Style) */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <input 
           readOnly={true} 
@@ -163,6 +179,7 @@ const ReportRow = React.memo(({
             color: '#6b7280',
             pointerEvents: 'none'
           }} 
+          className="outline-none bg-transparent w-full h-full"
         />
       </td>
 
@@ -186,6 +203,7 @@ const ReportRow = React.memo(({
             cursor: isRowReadOnly ? 'default' : 'text'
           }} 
           rows={1}
+          className={textareaWebClasses}
         />
       </td>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.animalTotal}</td>
@@ -199,6 +217,7 @@ const ReportRow = React.memo(({
           value={row.washed} 
           onChange={e=>handleChange('washed', e.target.value)} 
           style={getInputStyle()} 
+          className={inputWebClasses}
         />
       </td>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontSize:'10px', color:'#6b7280'}}>{c.percent}</td>
@@ -220,6 +239,7 @@ const ReportRow = React.memo(({
             cursor: isRowReadOnly ? 'default' : 'text'
           }} 
           rows={2}
+          className={textareaWebClasses}
         />
       </td>
     </tr>
