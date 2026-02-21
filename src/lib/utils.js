@@ -5,6 +5,8 @@ import { INITIAL_ROW_STATE, INITIAL_COHORT_ROW } from './constants';
 
 export const toInt = (val) => val === '' ? 0 : Number(val);
 
+export const toDbInt = (val) => val === '' ? null : Number(val);
+
 export const mapDbToRow = (r) => ({ 
   ...INITIAL_ROW_STATE, 
   ...r, 
@@ -31,25 +33,24 @@ export const mapDbToRow = (r) => ({
 });
 
 export const mapCohortDbToRow = (r) => {
-  const safe = (v) => (v === 0 || v === null) ? '' : v;
+  const safe = (v) => (v === null) ? '' : v;
   return {
     cat2_registered: safe(r.cat2_registered), cat2_rig: safe(r.cat2_rig), cat2_complete: safe(r.cat2_complete), cat2_incomplete: safe(r.cat2_incomplete), cat2_booster: safe(r.cat2_booster), cat2_none: safe(r.cat2_none), cat2_died: safe(r.cat2_died), cat2_remarks: r.cat2_remarks || '',
     cat3_registered: safe(r.cat3_registered), cat3_rig: safe(r.cat3_rig), cat3_complete: safe(r.cat3_complete), cat3_incomplete: safe(r.cat3_incomplete), cat3_booster: safe(r.cat3_booster), cat3_none: safe(r.cat3_none), cat3_died: safe(r.cat3_died), cat3_remarks: r.cat3_remarks || ''
   };
 };
 
-export const mapRowToDb = (r) => ({ male: toInt(r.male), female: toInt(r.female), age_lt_15: toInt(r.ageLt15), age_gt_15: toInt(r.ageGt15), cat_1: toInt(r.cat1), cat_2: toInt(r.cat2), cat_3: toInt(r.cat3), total_patients: toInt(r.totalPatients), ab_count: toInt(r.abCount), hr_count: toInt(r.hrCount), pvrv: toInt(r.pvrv), pcecv: toInt(r.pcecv), hrig: toInt(r.hrig), erig: toInt(r.erig), dog: toInt(r.dog), cat: toInt(r.cat), others_count: toInt(r.others_count), others_spec: r.othersSpec, washed: toInt(r.washed), remarks: r.remarks });
+export const mapRowToDb = (r) => ({ male: toDbInt(r.male), female: toDbInt(r.female), age_lt_15: toDbInt(r.ageLt15), age_gt_15: toDbInt(r.ageGt15), cat_1: toDbInt(r.cat1), cat_2: toDbInt(r.cat2), cat_3: toDbInt(r.cat3), total_patients: toDbInt(r.totalPatients), ab_count: toDbInt(r.abCount), hr_count: toDbInt(r.hrCount), pvrv: toDbInt(r.pvrv), pcecv: toDbInt(r.pcecv), hrig: toDbInt(r.hrig), erig: toDbInt(r.erig), dog: toDbInt(r.dog), cat: toDbInt(r.cat), others_count: toDbInt(r.othersCount), others_spec: r.othersSpec, washed: toDbInt(r.washed), remarks: r.remarks });
 
 export const mapCohortRowToDb = (r) => ({
-  cat2_registered: toInt(r.cat2_registered), cat2_rig: toInt(r.cat2_rig), cat2_complete: toInt(r.cat2_complete), cat2_incomplete: toInt(r.cat2_incomplete), cat2_booster: toInt(r.cat2_booster), cat2_none: toInt(r.cat2_none), cat2_died: toInt(r.cat2_died), cat2_remarks: r.cat2_remarks,
-  cat3_registered: toInt(r.cat3_registered), cat3_rig: toInt(r.cat3_rig), cat3_complete: toInt(r.cat3_complete), cat3_incomplete: toInt(r.cat3_incomplete), cat3_booster: toInt(r.cat3_booster), cat3_none: toInt(r.cat3_none), cat3_died: toInt(r.cat3_died), cat3_remarks: r.cat3_remarks
+  cat2_registered: toDbInt(r.cat2_registered), cat2_rig: toDbInt(r.cat2_rig), cat2_complete: toDbInt(r.cat2_complete), cat2_incomplete: toDbInt(r.cat2_incomplete), cat2_booster: toDbInt(r.cat2_booster), cat2_none: toDbInt(r.cat2_none), cat2_died: toDbInt(r.cat2_died), cat2_remarks: r.cat2_remarks,
+  cat3_registered: toDbInt(r.cat3_registered), cat3_rig: toDbInt(r.cat3_rig), cat3_complete: toDbInt(r.cat3_complete), cat3_incomplete: toDbInt(r.cat3_incomplete), cat3_booster: toDbInt(r.cat3_booster), cat3_none: toDbInt(r.cat3_none), cat3_died: toDbInt(r.cat3_died), cat3_remarks: r.cat3_remarks
 });
 
 // --- NEW HELPER FUNCTIONS FOR ANIMAL PARSING & AGGREGATION ---
 
 export const parseAnimalCountFromText = (str) => {
   if (!str) return 0;
-  // Matches "1 monkey", "monkey 1", "2 pigs", etc.
   const numbers = str.match(/(\d+)/g);
   if (!numbers) return 0;
   return numbers.reduce((acc, curr) => acc + parseInt(curr, 10), 0);
@@ -60,19 +61,16 @@ export const aggregateAnimalSpecs = (specsList) => {
   
   specsList.forEach(spec => {
     if (!spec) return;
-    // Split by comma, semicolon, or newlines
     const items = spec.split(/[,;\n]+/);
     
     items.forEach(item => {
       const match = item.match(/(\d+)/);
       if (match) {
         const count = parseInt(match[0], 10);
-        // Extract name: remove number, trim, lowercase
         let name = item.replace(match[0], '').trim().toLowerCase();
         
-        // Basic cleaning
-        if (name.endsWith('s')) name = name.slice(0, -1); // singularize
-        name = name.replace(/[^a-z0-9\s-]/g, ''); // remove special chars
+        if (name.endsWith('s')) name = name.slice(0, -1); 
+        name = name.replace(/[^a-z0-9\s-]/g, ''); 
         
         if (name) {
           counts[name] = (counts[name] || 0) + count;
@@ -81,19 +79,15 @@ export const aggregateAnimalSpecs = (specsList) => {
     });
   });
 
-  // Reconstruct string, sorted by highest count
   return Object.entries(counts)
     .sort((a, b) => b[1] - a[1]) 
     .map(([name, count]) => {
        const label = count > 1 ? `${name}s` : name;
-       // Capitalize first letter
        const display = label.charAt(0).toUpperCase() + label.slice(1);
        return `${count} ${display}`; 
     })
     .join(', ');
 };
-
-// -----------------------------------------------------------
 
 export const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["January", "February", "March"]; if (q === "2nd Quarter") return ["April", "May", "June"]; if (q === "3rd Quarter") return ["July", "August", "September"]; if (q === "4th Quarter") return ["October", "November", "December"]; return []; };
 
@@ -129,8 +123,8 @@ export const getComputations = (row) => {
 // --- DATA-DRIVEN PDF ENGINE (JSPDF + AUTOTABLE) ---
 
 export const downloadPDF = async ({ 
-  type, // 'main' | 'cohort'
-  cohortType, // 'cat2' | 'cat3'
+  type, 
+  cohortType, 
   filename, 
   data, 
   rowKeys, 
@@ -154,6 +148,12 @@ export const downloadPDF = async ({
       try { doc.addImage(userProfile.facility_logo, 'PNG', width - 90, 20, 50, 50); } catch(e) { console.warn("Facility logo error", e); }
     }
 
+    // --- ZERO REPORT LOGIC ---
+    // If every row in the dataset is completely empty (hasData returns false), it triggers the Zero Report flag.
+    const isZeroReport = type === 'main' 
+      ? rowKeys.every(key => key === "Others:" || !hasData(data[key]))
+      : rowKeys.every(key => key === "Others:" || !hasCohortData(data[key], cohortType));
+
     // --- HEADERS ---
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
@@ -167,6 +167,14 @@ export const downloadPDF = async ({
     doc.text(`Reporting For: ${periodText}`, width / 2, 65, { align: 'center' });
     doc.text(`Health Facility: ${facilityName}`, width / 2, 78, { align: 'center' });
 
+    // --- INJECT "ZERO CASE REPORT" WARNING ---
+    if (isZeroReport) {
+      doc.setTextColor(220, 38, 38); // Make text a prominent Red
+      doc.setFontSize(12);
+      doc.text("*** ZERO CASE REPORT ***", width / 2, 95, { align: 'center' });
+      doc.setTextColor(0, 0, 0); // Reset color to black so the rest of the PDF is normal
+    }
+
     // --- TABLE GENERATION ---
     let head = [];
     let body = [];
@@ -174,7 +182,6 @@ export const downloadPDF = async ({
     if (type === 'main') {
       const firstColTitle = isConsolidated ? "Municipality" : "Barangay / Municipality";
       head = [
-        // --- Row 1 ---
         [
           { content: firstColTitle, rowSpan: 3, styles: { valign: 'middle', halign: 'center' } },
           { content: 'Human Cases', colSpan: 17 },
@@ -184,7 +191,6 @@ export const downloadPDF = async ({
           { content: 'Percentage', rowSpan: 3, styles: { valign: 'middle' } },
           { content: 'Remarks', rowSpan: 3, styles: { valign: 'middle' } }
         ],
-        // --- Row 2 ---
         [
           { content: 'Sex', colSpan: 2 },
           { content: 'Total', rowSpan: 2, styles: { valign: 'middle' } },
@@ -200,7 +206,6 @@ export const downloadPDF = async ({
           { content: 'Cat', rowSpan: 2, styles: { valign: 'middle' } },
           { content: 'Others (Specify)', colSpan: 2 }
         ],
-        // --- Row 3 ---
         [
           'Male', 'Female', 
           '<15', '>15', 
@@ -266,7 +271,6 @@ export const downloadPDF = async ({
       ]);
     } 
     else {
-      // ... (Cohort table generation logic unchanged)
       head = [[
         { content: 'Municipality', styles: { halign: 'left', valign: 'middle' } },
         'Registered', 'W/ RIG', 'Complete', 'Incomplete', 'Booster', 'None', 'Died', 'Remarks'
@@ -305,15 +309,14 @@ export const downloadPDF = async ({
     }
 
     autoTable(doc, {
-      startY: 90,
+      // Adjust table placement downward slightly if "Zero Case Report" label is printed
+      startY: isZeroReport ? 110 : 90, 
       head: head,
       body: body,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 3, halign: 'center', lineWidth: 0.5, lineColor: [200, 200, 200] },
       headStyles: { fillColor: [250, 250, 250], textColor: [50, 50, 50], lineWidth: 0.5, lineColor: [200, 200, 200] },
     });
-
-    // ... (Signatory logic unchanged)
     
     let finalY = doc.lastAutoTable.finalY + 30;
     if (finalY + 100 > doc.internal.pageSize.getHeight()) {

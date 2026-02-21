@@ -55,7 +55,6 @@ export function useReportData({
   const currentHostMunicipality = useMemo(() => {
     if (!activeFacilityName || isConsolidatedView) return null;
     
-    // NEW: If the facility is a hospital, it does not have a single host municipality to roll up into
     const barangays = facilityBarangays[activeFacilityName] || [];
     const isHospital = MUNICIPALITIES.every(m => barangays.includes(m));
     
@@ -72,7 +71,6 @@ export function useReportData({
     
     const barangays = facilityBarangays[facilityName] || [];
     
-    // Prevent duplicating the list of municipalities for Hospitals
     const isHospitalOrClinic = MUNICIPALITIES.every(m => barangays.includes(m));
     if (isHospitalOrClinic) {
         return MUNICIPALITIES;
@@ -180,7 +178,13 @@ export function useReportData({
                     r.othersSpec = record.others_spec ?? record.othersSpec ?? '';
                     const c = newData[m];
                     const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-                    numericKeys.forEach(k => { c[k] = toInt(c[k]) + toInt(r[k]); });
+                    
+                    numericKeys.forEach(k => {
+                        if (r[k] !== '') {
+                            c[k] = c[k] === '' ? toInt(r[k]) : toInt(c[k]) + toInt(r[k]);
+                        }
+                    });
+                    
                     if (r.othersSpec && r.othersSpec.trim()) { c.othersSpec = aggregateAnimalSpecs([c.othersSpec, r.othersSpec]); }
                     if (record.remarks && record.remarks.trim()) {
                         if (!c.remarks.includes(record.remarks)) { c.remarks = c.remarks ? `${c.remarks}; ${record.remarks}` : record.remarks; }
@@ -189,10 +193,6 @@ export function useReportData({
                     const host = MUNICIPALITIES.find(mun => target?.includes(mun));
                     if (!isBarangay && m !== host && hasData(r)) { newVisibleOthers.add(m); }
                 }
-            });
-            Object.values(newData).forEach(row => {
-                 const numericKeys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-                 numericKeys.forEach(k => { if (row[k] === 0) row[k] = ''; });
             });
             setData(newData);
             const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (rawRecords[rawRecords.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
@@ -223,7 +223,13 @@ export function useReportData({
                       const r = mapCohortDbToRow(record);
                       const c = newCohort[m];
                       const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-                      keys.forEach(k => { c[k] = toInt(c[k]) + toInt(r[k]); });
+                      
+                      keys.forEach(k => { 
+                          if (r[k] !== '') {
+                              c[k] = c[k] === '' ? toInt(r[k]) : toInt(c[k]) + toInt(r[k]);
+                          }
+                      });
+                      
                       if (record.cat2_remarks) { if(!c.cat2_remarks.includes(record.cat2_remarks)) c.cat2_remarks = c.cat2_remarks ? `${c.cat2_remarks}; ${record.cat2_remarks}` : record.cat2_remarks; }
                       if (record.cat3_remarks) { if(!c.cat3_remarks.includes(record.cat3_remarks)) c.cat3_remarks = c.cat3_remarks ? `${c.cat3_remarks}; ${record.cat3_remarks}` : record.cat3_remarks; }
                       const isBarangay = facilityBarangays[target]?.includes(m);
@@ -233,10 +239,6 @@ export function useReportData({
                           if (hasCohortData(r, 'cat3')) newVisibleCat3.add(m);
                       }
                   }
-              });
-              Object.values(newCohort).forEach(row => {
-                const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-                keys.forEach(k => { if (row[k] === 0) row[k] = ''; });
               });
               setCohortData(newCohort);
               const newStatus = periodType === 'Monthly' && !isConsolidatedView ? (rawRecords[rawRecords.length - 1]?.status || 'Draft') : (isConsolidatedView ? 'View Only' : 'Draft');
@@ -289,10 +291,13 @@ export function useReportData({
                 const specsToAggregate = [];
                 facilityBarangays[activeFacilityName].forEach(b => { 
                   const r = n[b] || INITIAL_ROW_STATE; 
-                  keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); 
+                  keys.forEach(k => {
+                      if (r[k] !== '') {
+                          tot[k] = tot[k] === '' ? toInt(r[k]) : toInt(tot[k]) + toInt(r[k]);
+                      }
+                  }); 
                   if (r.othersSpec && r.othersSpec.trim()) { specsToAggregate.push(r.othersSpec); }
                 });
-                keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
                 tot.othersSpec = aggregateAnimalSpecs(specsToAggregate);
                 n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot, remarks: existingRemarks };
             }
@@ -305,8 +310,14 @@ export function useReportData({
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
                 const tot = { ...INITIAL_COHORT_ROW };
                 const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died', 'cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-                facilityBarangays[activeFacilityName].forEach(b => { const r = n[b] || INITIAL_COHORT_ROW; keys.forEach(k => tot[k] = toInt(tot[k]) + toInt(r[k])); });
-                keys.forEach(k => { if(tot[k] === 0) tot[k] = ''; });
+                facilityBarangays[activeFacilityName].forEach(b => { 
+                    const r = n[b] || INITIAL_COHORT_ROW; 
+                    keys.forEach(k => {
+                        if (r[k] !== '') {
+                            tot[k] = tot[k] === '' ? toInt(r[k]) : toInt(tot[k]) + toInt(r[k]);
+                        }
+                    }); 
+                });
                 n[currentHostMunicipality] = { ...n[currentHostMunicipality], ...tot };
             }
             return n;
@@ -344,7 +355,7 @@ export function useReportData({
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
                 let rem = row.remarks; 
                 const dbRow = mapRowToDb(row);
-                dbRow.others_count = toInt(row.othersCount);  
+                dbRow.others_count = row.othersCount === '' ? null : toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
                 return { ...dbRow, municipality: m, status: newStatus, remarks: rem };
             }).filter(x => x !== null);
@@ -372,7 +383,8 @@ export function useReportData({
             toast.success(isResubmission ? 'Resubmitted' : 'Submitted'); 
         }
         else if (newStatus === 'Approved') { 
-            await createDbNotification(target, 'Approved', `Report approved.`, 'success'); 
+            // FIXED: Added a more professional, detailed success message containing reportType and periodStr.
+            await createDbNotification(target, 'Report Approved', `Your ${reportType} ${periodStr} has been successfully reviewed and approved.`, 'success'); 
             toast.success('Approved'); 
         }
         else if (newStatus === 'Rejected') { 
@@ -413,14 +425,12 @@ export function useReportData({
     numericKeys.forEach(k => t[k] = 0);
     
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
-    // NEW: Check if this is a hospital
     const isHospital = MUNICIPALITIES.every(m => currentBarangays.includes(m));
     const specsToAggregate = [];
     
     Object.entries(data).forEach(([key, row]) => { 
         if (key === "Others:") return;
         
-        // FIX: Only skip rows if it's an RHU (because RHUs roll barangay data up). Hospitals need all rows counted!
         if (!isHospital && currentBarangays.includes(key)) return;
         
         if (hasData(row)) { 
@@ -442,13 +452,11 @@ export function useReportData({
     keys.forEach(k => t[k] = 0);
     
     const currentBarangays = facilityBarangays[activeFacilityName] || [];
-    // NEW: Check if this is a hospital
     const isHospital = MUNICIPALITIES.every(m => currentBarangays.includes(m));
 
     Object.entries(cohortData).forEach(([key, row]) => { 
         if (key === "Others:") return;
         
-        // FIX: Only skip rows if it's an RHU
         if (!isHospital && currentBarangays.includes(key)) return;
         
         if (hasCohortData(row, 'cat2') || hasCohortData(row, 'cat3')) { keys.forEach(k => t[k] += toInt(row[k])); } 

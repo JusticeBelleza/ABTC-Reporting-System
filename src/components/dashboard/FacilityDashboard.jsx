@@ -5,7 +5,7 @@ import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
-import { downloadPDF } from '../../lib/utils';
+import { downloadPDF, hasData, hasCohortData } from '../../lib/utils';
 import MainReportTable from '../reports/MainReportTable';
 import CohortReportTable from '../reports/CohortReportTable';
 
@@ -25,9 +25,14 @@ export default function FacilityDashboard({
 
   // --- MODAL STATES ---
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false); 
   const [showDeleteReportModal, setShowDeleteReportModal] = useState(false);
   const [deleteRowConfirmation, setDeleteRowConfirmation] = useState({ isOpen: false, rowKey: null }); 
   const [rejectionReason, setRejectionReason] = useState('');
+  
+  // Submit Confirmation Modal States
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isZeroSubmit, setIsZeroSubmit] = useState(false);
 
   const {
     data, cohortData, reportStatus, loading, isSaving, 
@@ -44,16 +49,51 @@ export default function FacilityDashboard({
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
+  // --- ZERO REPORT BANNER LOGIC ---
+  const isZeroReportActiveTab = activeTab === 'main' 
+    ? currentRows.length > 0 && currentRows.every(key => key === "Others:" || !hasData(data[key]))
+    : Object.keys(cohortData).length > 0 && Object.keys(cohortData).every(key => key === "Others:" || (!hasCohortData(cohortData[key], 'cat2') && !hasCohortData(cohortData[key], 'cat3')));
+
+  const showZeroBanner = isZeroReportActiveTab && reportStatus !== 'Draft' && !loading;
+
   // Handlers
   const onSaveClick = async (status) => {
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
-    await handleSave(status);
+    
+    if (status === 'Approved') {
+        setShowApproveModal(true);
+        return;
+    }
+    
+    if (status === 'Pending') {
+        let isZero = false;
+        if (activeTab === 'main') {
+            isZero = currentRows.every(key => key === "Others:" || !hasData(data[key]));
+        } else {
+            isZero = Object.keys(cohortData).every(key => key === "Others:" || (!hasCohortData(cohortData[key], 'cat2') && !hasCohortData(cohortData[key], 'cat3')));
+        }
+        setIsZeroSubmit(isZero);
+        setShowSubmitModal(true);
+        return;
+    }
+
+    await handleSave(status); 
+  };
+
+  const confirmApprove = async () => {
+    setShowApproveModal(false);
+    await handleSave('Approved');
   };
 
   const confirmRejection = async () => { 
     if (!rejectionReason.trim()) { toast.error("Reason required"); return; } 
     setShowRejectModal(false); 
     await handleSave('Rejected', rejectionReason);
+  };
+
+  const confirmSubmit = async () => {
+    setShowSubmitModal(false);
+    await handleSave('Pending');
   };
 
   const handleDeleteReportClick = async () => {
@@ -69,6 +109,13 @@ export default function FacilityDashboard({
     }
   };
 
+  // --- PERIOD TEXT HELPERS ---
+  const getCurrentPeriodText = () => {
+    if (periodType === 'Annual') return `Annual ${year}`;
+    if (periodType === 'Quarterly') return `${quarter} ${year}`;
+    return `${month} ${year}`;
+  };
+
   const getPreviousPeriodText = () => {
     if (periodType === 'Annual') return `Annual ${year - 1}`;
     if (periodType === 'Quarterly') { const idx = QUARTERS.indexOf(quarter); if (idx === 0) return `4th Quarter ${year - 1}`; return `${QUARTERS[idx - 1]} ${year}`; }
@@ -77,7 +124,13 @@ export default function FacilityDashboard({
 
   const handleDownloadClick = async () => {
     setIsDownloadingPdf(true);
-    const periodText = activeTab === 'cohort' ? getPreviousPeriodText() : (periodType === 'Monthly' ? `${month} ${year}` : (periodType === 'Quarterly' ? `${quarter} ${year}` : `Annual ${year}`));
+    
+    // Use the dynamic text helper for the PDF Export
+    const currentPeriodText = getCurrentPeriodText();
+    const periodText = activeTab === 'cohort' 
+        ? `${getPreviousPeriodText()} (Current Period: ${currentPeriodText})` 
+        : currentPeriodText;
+        
     const suffix = activeTab === 'cohort' ? (cohortSubTab === 'cat2' ? '_Category_II' : '_Category_III') : '';
     const filename = `Report_${activeFacilityName.replace(/\s+/g,'_')}_${year}${suffix}.pdf`;
     
@@ -106,11 +159,17 @@ export default function FacilityDashboard({
                         <ArrowLeft size={20}/>
                     </button>
                 )}
-                <div>
-                    <h2 className="text-3xl font-extrabold tracking-tight text-zinc-900 flex items-center gap-3">
-                        {isConsolidatedView ? 'Consolidated Report' : `${activeFacilityName}`}
+                
+                <div className="max-w-2xl">
+                    <h2 className={`font-extrabold tracking-tight text-zinc-900 flex flex-wrap items-center gap-3 leading-tight
+                        ${isConsolidatedView ? 'text-3xl' : 
+                          activeFacilityName?.length > 50 ? 'text-xl' : 
+                          activeFacilityName?.length > 30 ? 'text-2xl' : 
+                          'text-3xl'}`}
+                    >
+                        <span>{isConsolidatedView ? 'Consolidated Report' : activeFacilityName}</span>
                         {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && (
-                            <div className="mt-1">
+                            <div className="mt-1 shrink-0">
                                 <StatusBadge status={reportStatus} />
                             </div>
                         )}
@@ -118,7 +177,7 @@ export default function FacilityDashboard({
                     <div className="flex items-center gap-2 mt-2 text-sm font-medium text-gray-500">
                         <span className="bg-gray-100 px-2.5 py-1 rounded-md text-gray-700">{periodType}</span> 
                         <span>&bull;</span> 
-                        <span>{periodType === 'Monthly' ? month : (periodType === 'Quarterly' ? quarter : 'Annual')} {year}</span>
+                        <span>{getCurrentPeriodText()}</span>
                     </div>
                 </div>
             </div>
@@ -169,11 +228,12 @@ export default function FacilityDashboard({
                     </select>
                 </div>
 
-                {/* PDF Download */}
+                {/* --- PDF Download --- */}
                 <button 
-                    disabled={isDownloadingPdf} 
+                    disabled={isDownloadingPdf || (!isConsolidatedView && reportStatus !== 'Approved')} 
                     onClick={handleDownloadClick} 
-                    className="bg-white border border-gray-200 text-zinc-700 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all duration-200 disabled:opacity-70 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                    title={!isConsolidatedView && reportStatus !== 'Approved' ? "Only Approved reports can be exported to PDF." : "Export PDF"}
+                    className="bg-white border border-gray-200 text-zinc-700 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
                 >
                     {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
                     <span>Export PDF</span>
@@ -234,7 +294,16 @@ export default function FacilityDashboard({
         </div>
 
         {/* Main Table Container */}
-        <div className="bg-white rounded-2xl print:rounded-none print:shadow-none print:border-none" style={{...PDF_STYLES.container}}>
+        <div className="bg-white rounded-2xl print:rounded-none print:shadow-none print:border-none relative" style={{...PDF_STYLES.container}}>
+            
+            {/* --- ZERO REPORT BANNER DISPLAY --- */}
+            {showZeroBanner && (
+                <div className="bg-red-50 text-red-700 font-bold py-3 flex items-center justify-center gap-2 border-b border-red-200 rounded-t-2xl no-print tracking-widest shadow-inner">
+                    <AlertCircle size={20} strokeWidth={2.5} />
+                    *** ZERO CASE REPORT ***
+                </div>
+            )}
+
             {activeTab === 'main' ? (
                 <MainReportTable 
                     data={data} rowKeys={currentRows} isConsolidated={isConsolidatedView} isAggregationMode={isAggregationMode} reportStatus={reportStatus} userRole={user.role} activeFacilityName={activeFacilityName} currentHostMunicipality={currentHostMunicipality} 
@@ -245,12 +314,13 @@ export default function FacilityDashboard({
                 />
             ) : (
                 <div className="p-1">
-                    <div className="mb-6 p-4 bg-blue-50/80 text-blue-800 text-sm rounded-xl border border-blue-100 flex items-center gap-3 no-print shadow-sm">
-                        <AlertCircle size={18} className="text-blue-600" />
-                        <span><strong>Guide:</strong> Viewing Cohort Report. Reporting for <u>previous period</u>: <strong>{getPreviousPeriodText()}</strong>.</span>
+                    {/* --- UPDATED GUIDE TEXT BANNER --- */}
+                    <div className="mb-6 mt-4 mx-4 p-4 bg-blue-50/80 text-blue-800 text-sm rounded-xl border border-blue-100 flex items-center gap-3 no-print shadow-sm">
+                        <AlertCircle size={18} className="text-blue-600 shrink-0" />
+                        <span><strong>Guide:</strong> Viewing Cohort Report. Reporting for <u>previous period</u>: <strong>{getPreviousPeriodText()}</strong> (Current Period: <strong>{getCurrentPeriodText()}</strong>).</span>
                     </div>
                     
-                    <div className="flex gap-6 mb-6 border-b border-gray-200 no-print px-2">
+                    <div className="flex gap-6 mb-6 border-b border-gray-200 no-print px-6">
                         <button 
                             onClick={() => setCohortSubTab('cat2')} 
                             className={`text-sm font-bold pb-3 border-b-2 transition-all duration-200 ${cohortSubTab==='cat2' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}
@@ -275,6 +345,77 @@ export default function FacilityDashboard({
                 </div>
             )}
         </div>
+
+        {/* --- APPROVE CONFIRMATION MODAL --- */}
+        {showApproveModal && (
+            <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="bg-emerald-50 p-4 rounded-full mb-5 text-emerald-600 shadow-inner">
+                            <CheckCircle size={28} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">Approve Report?</h3>
+                        <p className="text-sm text-gray-500 mt-2 mb-6 leading-relaxed">
+                            Are you sure you want to approve this report? Once approved, it will be included in the consolidated reporting.
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowApproveModal(false)} 
+                                disabled={isSaving} 
+                                className="flex-1 py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={confirmApprove} 
+                                disabled={isSaving} 
+                                className="flex-1 py-2.5 px-4 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 hover:shadow-emerald-600/20 shadow-sm transition-all flex justify-center items-center gap-2"
+                            >
+                                {isSaving && <Loader2 size={16} className="animate-spin"/>} Approve
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- SUBMIT CONFIRMATION MODAL --- */}
+        {showSubmitModal && (
+            <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+                    <div className="flex flex-col items-center text-center">
+                        <div className={`p-4 rounded-full mb-5 shadow-inner ${isZeroSubmit ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                            <AlertCircle size={28} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">
+                            {isZeroSubmit ? "Submit Zero Case Report?" : "Are you sure to submit report?"}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-2 mb-6 leading-relaxed">
+                            {isZeroSubmit 
+                                ? "You are about to submit a completely blank form. Are you sure you want to submit a ZERO CASE report?" 
+                                : "Please verify that all data entries are correct before confirming submission."}
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowSubmitModal(false)} 
+                                disabled={isSaving} 
+                                className="flex-1 py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={confirmSubmit} 
+                                disabled={isSaving} 
+                                className={`flex-1 py-2.5 px-4 text-white rounded-xl text-sm font-semibold shadow-sm transition-all flex justify-center items-center gap-2 ${isZeroSubmit ? 'bg-amber-600 hover:bg-amber-700 hover:shadow-amber-600/20' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-600/20'}`}
+                            >
+                                {isSaving && <Loader2 size={16} className="animate-spin"/>} 
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* --- REJECT MODAL --- */}
         {showRejectModal && (
