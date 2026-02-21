@@ -118,7 +118,7 @@ const ReportRow = React.memo(({
           />
         </td>
       ))}
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, color:'#6b7280'}}>{c.cat23}</td>
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, color:'#0a2d75'}}>{c.cat23}</td>
       <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.catTotal}</td>
       
       {/* Status */}
