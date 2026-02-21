@@ -13,10 +13,8 @@ export default function MainReportTable({
   const hasBarangays = facilityBarangays[activeFacilityName] && facilityBarangays[activeFacilityName].length > 0;
 
   return (
-    // 1. ADDED WRAPPER: Responsive scrollable container
     <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-gray-200 rounded-lg bg-white relative">
       <table className="w-full border-collapse" style={{ borderColor: PDF_STYLES.border.borderColor }}>
-        {/* 2. ADDED STICKY HEADER: Keeps the header visible when scrolling. Changed to light gray */}
         <thead className="sticky top-0 z-20 shadow-sm bg-gray-100">
           {/* --- ROW 1 --- */}
           <tr style={isConsolidated ? PDF_STYLES.header : PDF_STYLES.subHeader}>
@@ -87,11 +85,10 @@ export default function MainReportTable({
 
               const showAddControls = userRole !== 'admin' && !isConsolidated && !isAggregationMode && (reportStatus === 'Draft' || reportStatus === 'Rejected');
               return (
-                <tr key="others-separator" className={hideClass} style={{ ...PDF_STYLES.rowEven, ...PDF_STYLES.bgGray }}>
-                  {/* 3. MODERNIZED ADD ROW SECTION: Added jspdf-ignore to hide buttons from PDF */}
-                  <td colSpan={26} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', ...PDF_STYLES.bgGray, padding:'8px'}}>
+                <tr key="others-separator" className={hideClass} style={{ ...PDF_STYLES.rowEven, backgroundColor: '#CBDCEB' }}>
+                  <td colSpan={26} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', backgroundColor: '#CBDCEB', padding:'8px'}}>
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-500 uppercase tracking-wider text-xs">Other Municipalities</span>
+                        <span className="font-bold text-gray-700 uppercase tracking-wider text-xs">Other Municipalities</span>
                         {showAddControls && (
                           <div className="flex items-center gap-2 no-print jspdf-ignore">
                             <select id="other-mun-select" className="bg-white border border-gray-300 text-xs rounded shadow-sm p-1.5 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
@@ -144,28 +141,28 @@ export default function MainReportTable({
             );
           })}
           
-          {/* Grand Total Row */}
-          <tr style={{ ...PDF_STYLES.bgDark, fontWeight:'bold', fontSize:'11px' }}>
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46', textAlign:'left', paddingLeft:'0.75rem'}}>{isConsolidated ? "PROVINCIAL TOTAL" : "GRAND TOTAL"}</td>
-            {['male','female'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals[k]}</td>)}
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}>{grandTotals.sexTotal}</td>
-            {['ageLt15','ageGt15'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals[k]}</td>)}
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}>{grandTotals.ageTotal}</td>
-            {['cat1','cat2','cat3'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals[k]}</td>)}
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}>{grandTotals.cat23}</td>
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}>{grandTotals.catTotal}</td>
-            {['totalPatients','abCount','pvrv','pcecv','hrig','erig','dog','cat'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals[k]}</td>)}
+          {/* Grand Total Row - UPDATED TO #CBDCEB */}
+          <tr style={{ backgroundColor: '#CBDCEB', fontWeight:'bold', fontSize:'11px', color: '#111827' }}>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', textAlign:'left', paddingLeft:'0.75rem'}}>{isConsolidated ? "PROVINCIAL TOTAL" : "GRAND TOTAL"}</td>
+            {['male','female'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals[k]}</td>)}
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals.sexTotal}</td>
+            {['ageLt15','ageGt15'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals[k]}</td>)}
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals.ageTotal}</td>
+            {['cat1','cat2','cat3'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals[k]}</td>)}
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals.cat23}</td>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals.catTotal}</td>
+            {['totalPatients','abCount','pvrv','pcecv','hrig','erig','dog','cat'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals[k]}</td>)}
             
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals.othersCount}</td>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals.othersCount}</td>
 
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46', fontSize:'9px', whiteSpace: 'pre-wrap'}}>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', fontSize:'9px', whiteSpace: 'pre-wrap'}}>
               {grandTotals.othersSpec}
             </td>
 
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}>{grandTotals.animalTotal}</td>
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, borderColor:'#3f3f46'}}>{grandTotals.washed}</td>
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}>{grandTotals.percent}</td>
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#27272a', color:'#ffffff', borderColor:'#3f3f46'}}></td>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals.animalTotal}</td>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals.washed}</td>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}>{grandTotals.percent}</td>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB'}}></td>
           </tr>
         </tbody>
       </table>

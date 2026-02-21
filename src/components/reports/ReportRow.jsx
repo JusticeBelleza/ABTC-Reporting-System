@@ -48,8 +48,6 @@ const ReportRow = React.memo(({
     cursor: isLocked || isRowReadOnly ? 'default' : 'text',
   });
 
-  // Modern Web Classes for Inputs (Ignored by jspdf-autotable)
-  // Added py-1, min-h-[28px], and focus:ring-inset for better typing UI
   const inputWebClasses = isRowReadOnly 
     ? "outline-none bg-transparent w-full h-full" 
     : "outline-none transition-all hover:bg-gray-100 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full h-full py-1 min-h-[28px]";
@@ -60,10 +58,10 @@ const ReportRow = React.memo(({
 
   return (
     <tr style={rowStyle} className={`${className || ''} hover:bg-blue-50/50 transition-colors group`}>
-      {/* Municipality Name */}
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...rowStyle, textAlign:'left', whiteSpace:'nowrap', color: MUNICIPALITIES.includes(rowKey) ? '#111827' : '#4b5563', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
+      {/* Municipality Name - UPDATED TO #CBDCEB */}
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', textAlign:'left', whiteSpace:'nowrap', color: '#111827', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
         <div className="flex justify-between items-center group/row">
-            <span>{rowKey} {isHost && <span style={{fontSize:'10px', color:'#9ca3af', fontWeight:'normal'}}>(Total)</span>}</span>
+            <span>{rowKey} {isHost && <span style={{fontSize:'10px', color:'#4b5563', fontWeight:'normal'}}>(Total)</span>}</span>
             {isOtherRow && !isRowReadOnly && (
               <button onClick={() => onDeleteRow(rowKey)} className="text-gray-400 hover:text-red-600 transition px-2 no-print" title="Remove row">
                 <XCircle size={14} />
@@ -86,7 +84,7 @@ const ReportRow = React.memo(({
           />
         </td>
       ))}
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.sexTotal}</td>
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', fontWeight:'bold'}}>{c.sexTotal}</td>
       
       {/* Age */}
       {['ageLt15','ageGt15'].map(f => (
@@ -102,7 +100,7 @@ const ReportRow = React.memo(({
           />
         </td>
       ))}
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold', color: c.sexMismatch ? '#ef4444' : 'inherit'}}>{c.ageTotal}</td>
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', fontWeight:'bold', color: c.sexMismatch ? '#ef4444' : 'inherit'}}>{c.ageTotal}</td>
       
       {/* Category */}
       {['cat1','cat2','cat3'].map(f => (
@@ -118,8 +116,8 @@ const ReportRow = React.memo(({
           />
         </td>
       ))}
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, color:'#0a2d75'}}>{c.cat23}</td>
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.catTotal}</td>
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', color:'#0a2d75'}}>{c.cat23}</td>
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', fontWeight:'bold'}}>{c.catTotal}</td>
       
       {/* Status */}
       {['totalPatients','abCount'].map(f => (
@@ -166,8 +164,8 @@ const ReportRow = React.memo(({
         </td>
       ))}
       
-      {/* Others Count (Locked Style) */}
-      <td style={{...PDF_STYLES.border, padding:0}}>
+      {/* Others Count */}
+      <td style={{...PDF_STYLES.border, padding:0, backgroundColor: '#CBDCEB'}}>
         <input 
           readOnly={true} 
           type="number" 
@@ -175,7 +173,7 @@ const ReportRow = React.memo(({
           tabIndex={-1} 
           style={{
             ...getInputStyle(true), 
-            backgroundColor: '#f3f4f6', 
+            backgroundColor: '#CBDCEB', 
             color: '#6b7280',
             pointerEvents: 'none'
           }} 
@@ -183,7 +181,7 @@ const ReportRow = React.memo(({
         />
       </td>
 
-      {/* Others Specify (Auto-Resizing) */}
+      {/* Others Specify */}
       <td style={{...PDF_STYLES.border, padding:0}}>
         <textarea 
           ref={specifyRef} 
@@ -206,7 +204,7 @@ const ReportRow = React.memo(({
           className={textareaWebClasses}
         />
       </td>
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontWeight:'bold'}}>{c.animalTotal}</td>
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', fontWeight:'bold'}}>{c.animalTotal}</td>
       
       {/* Washed */}
       <td style={{...PDF_STYLES.border, padding:0}}>
@@ -220,7 +218,7 @@ const ReportRow = React.memo(({
           className={inputWebClasses}
         />
       </td>
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, fontSize:'10px', color:'#6b7280'}}>{c.percent}</td>
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#CBDCEB', fontSize:'10px', color:'#6b7280'}}>{c.percent}</td>
       
       {/* Remarks */}
       <td style={{...PDF_STYLES.border, padding:0}}>
