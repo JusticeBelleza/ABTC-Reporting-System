@@ -122,6 +122,7 @@ export const getComputations = (row) => {
 
 // --- DATA-DRIVEN PDF ENGINE (JSPDF + AUTOTABLE) ---
 
+// <-- UPDATED SIGNATURE TO ACCEPT TYPE & OWNERSHIP
 export const downloadPDF = async ({ 
   type, 
   cohortType, 
@@ -134,7 +135,9 @@ export const downloadPDF = async ({
   facilityName, 
   userProfile, 
   globalSettings,
-  isConsolidated
+  isConsolidated,
+  facilityType,
+  facilityOwnership
 }) => {
   try {
     const doc = new jsPDF('landscape', 'pt', 'legal'); 
@@ -157,14 +160,22 @@ export const downloadPDF = async ({
     // --- HEADERS ---
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text("NATIONAL RABIES PREVENTION AND CONTROL PROGRAM", width / 2, 35, { align: 'center' });
+    
+    // <-- ADDED CONDITIONAL HEADER LOGIC
+    let topHeaderText = "Department of Health";
+    if (facilityType === 'Hospital' && facilityOwnership === 'Government') {
+        topHeaderText = "Provincial Health Office";
+    }
+
+    doc.text(topHeaderText, width / 2, 20, { align: 'center' }); 
+    doc.text("National Rabies Prevention and Control Program", width / 2, 35, { align: 'center' });
     
     doc.setFontSize(12);
-    const title = type === 'main' ? "FORM 1 - ACCOMPLISHMENT REPORT" : `COHORT REPORT - ${cohortType === 'cat2' ? 'CATEGORY II' : 'CATEGORY III'}`;
+    const title = type === 'main' ? "Form 1 - Accomplishment Report" : `Cohort Report - ${cohortType === 'cat2' ? 'Category II' : 'Category III'}`;
     doc.text(title, width / 2, 50, { align: 'center' });
     
     doc.setFontSize(10);
-    doc.text(`Reporting For: ${periodText}`, width / 2, 65, { align: 'center' });
+    doc.text(`Period: ${periodText}`, width / 2, 65, { align: 'center' });
     doc.text(`Health Facility: ${facilityName}`, width / 2, 78, { align: 'center' });
 
     // --- INJECT "ZERO CASE REPORT" WARNING ---

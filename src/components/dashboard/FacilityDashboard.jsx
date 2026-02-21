@@ -18,7 +18,7 @@ export default function FacilityDashboard({
   adminViewMode, selectedFacility, onBack,
   setReportToDelete
 }) {
-  const { user, facilities, facilityBarangays, globalSettings, userProfile } = useApp();
+  const { user, facilities, facilityBarangays, facilityDetails, globalSettings, userProfile } = useApp();
   const [activeTab, setActiveTab] = useState('main'); 
   const [cohortSubTab, setCohortSubTab] = useState('cat2'); 
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -134,11 +134,18 @@ export default function FacilityDashboard({
     const suffix = activeTab === 'cohort' ? (cohortSubTab === 'cat2' ? '_Category_II' : '_Category_III') : '';
     const filename = `Report_${activeFacilityName.replace(/\s+/g,'_')}_${year}${suffix}.pdf`;
     
+    // Get Facility Info for Dynamic Header
+    const activeDetails = facilityDetails?.[activeFacilityName] || {};
+    const facilityType = activeDetails.type || 'RHU';
+    const facilityOwnership = activeDetails.ownership || 'Government';
+
     await downloadPDF({
         type: activeTab, cohortType: cohortSubTab, filename, data: activeTab === 'main' ? data : cohortData,
         rowKeys: activeTab === 'main' ? currentRows : (cohortSubTab === 'cat2' ? cohortRowsCat2 : cohortRowsCat3),
         grandTotals, cohortTotals, periodText, facilityName: activeFacilityName, userProfile, globalSettings,
-        isConsolidated: isConsolidatedView
+        isConsolidated: isConsolidatedView,
+        facilityType,      
+        facilityOwnership  
     });
     setIsDownloadingPdf(false);
   };
@@ -169,7 +176,7 @@ export default function FacilityDashboard({
                     >
                         <span>{isConsolidatedView ? 'Consolidated Report' : activeFacilityName}</span>
                         {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && (
-                            <div className="mt-1 shrink-0">
+                            <div className="shrink-0 flex items-center">
                                 <StatusBadge status={reportStatus} />
                             </div>
                         )}
@@ -230,9 +237,9 @@ export default function FacilityDashboard({
 
                 {/* --- PDF Download --- */}
                 <button 
-                    disabled={isDownloadingPdf || (!isConsolidatedView && reportStatus !== 'Approved')} 
+                    disabled={isDownloadingPdf || (!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved')} 
                     onClick={handleDownloadClick} 
-                    title={!isConsolidatedView && reportStatus !== 'Approved' ? "Only Approved reports can be exported to PDF." : "Export PDF"}
+                    title={(!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved') ? "Only Approved reports can be exported to PDF." : "Export PDF"}
                     className="bg-white border border-gray-200 text-zinc-700 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
                 >
                     {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 

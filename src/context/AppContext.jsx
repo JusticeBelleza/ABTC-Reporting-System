@@ -7,9 +7,10 @@ const AppContext = createContext();
 export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true); // Added profile loading state
+  const [profileLoading, setProfileLoading] = useState(true); 
   const [facilities, setFacilities] = useState([]); 
   const [facilityBarangays, setFacilityBarangays] = useState({}); 
+  const [facilityDetails, setFacilityDetails] = useState({}); // <-- ADDED STATE
   const [globalSettings, setGlobalSettings] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
 
@@ -69,11 +70,16 @@ export function AppProvider({ children }) {
       const { data } = await supabase.from('facilities').select('*');
       const dbFacilities = [];
       const dbBarangays = {};
+      const dbDetails = {}; // <-- ADDED VARIABLE
       
       if (data && data.length > 0) {
         data.sort((a, b) => a.name.localeCompare(b.name));
         data.forEach(f => { 
             dbFacilities.push(f.name);
+            
+            // <-- ADDED TO STORE TYPE AND OWNERSHIP
+            dbDetails[f.name] = { type: f.type, ownership: f.ownership }; 
+
             let bList = [];
             if (Array.isArray(f.barangays)) {
                 bList = f.barangays;
@@ -87,6 +93,7 @@ export function AppProvider({ children }) {
       }
       setFacilities(dbFacilities);
       setFacilityBarangays(dbBarangays);
+      setFacilityDetails(dbDetails); // <-- ADDED STATE UPDATE
     } catch (err) { console.error("Error loading facilities", err); }
   };
 
@@ -118,6 +125,7 @@ export function AppProvider({ children }) {
     setFacilities,
     facilityBarangays,
     setFacilityBarangays,
+    facilityDetails, // <-- EXPORTED NEW STATE
     globalSettings,
     setGlobalSettings,
     userProfile,
