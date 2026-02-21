@@ -140,7 +140,8 @@ export const downloadPDF = async ({
   facilityOwnership
 }) => {
   try {
-    const doc = new jsPDF('landscape', 'pt', 'legal'); 
+    // UPDATED: 612pt x 936pt represents standard 8.5" x 13" Long Bond Paper
+    const doc = new jsPDF('landscape', 'pt', [612, 936]); 
     const width = doc.internal.pageSize.getWidth();
     
     // --- BRANDING ---
@@ -161,9 +162,10 @@ export const downloadPDF = async ({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     
-    // <-- ADDED CONDITIONAL HEADER LOGIC
+    // <-- UPDATED CONDITIONAL HEADER LOGIC
     let topHeaderText = "Department of Health";
-    if (facilityType === 'Hospital' && facilityOwnership === 'Government') {
+    // Check if it's the consolidated report OR a government hospital
+    if (isConsolidated || (facilityType === 'Hospital' && facilityOwnership === 'Government')) {
         topHeaderText = "Provincial Health Office";
     }
 
