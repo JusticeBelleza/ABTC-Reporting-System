@@ -32,7 +32,7 @@ export default function AdminDashboard({
     facility: null 
   });
 
-  // NEW: State for Status Details Modal with reportType tracking
+  // State for Status Details Modal with reportType tracking
   const [statusModal, setStatusModal] = useState({
     isOpen: false,
     status: null, // 'Approved', 'Pending', or 'Rejected'
@@ -353,11 +353,11 @@ export default function AdminDashboard({
             
             {/* Form 1 Section */}
             <div>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 pl-1">Form 1 Overview</h3>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 pl-1">Form 1 (Main Report) Overview</h3>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div 
                     onClick={() => setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' })}
-                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer group"
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-200 transition-all duration-300 cursor-pointer group"
                   >
                       <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
                           <CheckCircle size={20} strokeWidth={2.5} />
@@ -370,7 +370,7 @@ export default function AdminDashboard({
                   
                   <div 
                     onClick={() => setStatusModal({ isOpen: true, status: 'Pending', reportType: 'main' })}
-                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-blue-200 transition-all duration-300 cursor-pointer group"
                   >
                       <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
                           <Clock size={20} strokeWidth={2.5} />
@@ -383,7 +383,7 @@ export default function AdminDashboard({
 
                   <div 
                     onClick={() => setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'main' })}
-                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-rose-200 transition-all cursor-pointer group"
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-200 transition-all duration-300 cursor-pointer group"
                   >
                       <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-100 transition-colors">
                           <XCircle size={20} strokeWidth={2.5} />
@@ -394,7 +394,7 @@ export default function AdminDashboard({
                       </div>
                   </div>
 
-                  <div className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3">
+                  <div className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-indigo-200 transition-all duration-300">
                       <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                           <TrendingUp size={20} strokeWidth={2.5} />
                       </div>
@@ -412,7 +412,7 @@ export default function AdminDashboard({
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div 
                     onClick={() => setStatusModal({ isOpen: true, status: 'Approved', reportType: 'cohort' })}
-                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer group"
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-200 transition-all duration-300 cursor-pointer group"
                   >
                       <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
                           <CheckCircle size={20} strokeWidth={2.5} />
@@ -425,7 +425,7 @@ export default function AdminDashboard({
                   
                   <div 
                     onClick={() => setStatusModal({ isOpen: true, status: 'Pending', reportType: 'cohort' })}
-                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-blue-200 transition-all duration-300 cursor-pointer group"
                   >
                       <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
                           <Clock size={20} strokeWidth={2.5} />
@@ -438,7 +438,7 @@ export default function AdminDashboard({
 
                   <div 
                     onClick={() => setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'cohort' })}
-                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-rose-200 transition-all cursor-pointer group"
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-200 transition-all duration-300 cursor-pointer group"
                   >
                       <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-100 transition-colors">
                           <XCircle size={20} strokeWidth={2.5} />
@@ -449,7 +449,7 @@ export default function AdminDashboard({
                       </div>
                   </div>
 
-                  <div className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3">
+                  <div className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-indigo-200 transition-all duration-300">
                       <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                           <TrendingUp size={20} strokeWidth={2.5} />
                       </div>

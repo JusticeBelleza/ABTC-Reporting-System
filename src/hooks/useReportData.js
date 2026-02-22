@@ -355,6 +355,7 @@ export function useReportData({
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
                 let rem = row.remarks; 
                 const dbRow = mapRowToDb(row);
+                delete dbRow.reported_by; // <--- FIX: Ensure reported_by is removed from the payload
                 dbRow.others_count = row.othersCount === '' ? null : toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
                 return { ...dbRow, municipality: m, status: newStatus, remarks: rem };
@@ -363,7 +364,9 @@ export function useReportData({
             type = 'cohort';
             payload = Object.entries(cohortData).map(([m, row]) => {
                 if (!hasCohortData(row, 'cat2') && !hasCohortData(row, 'cat3') && !getRowKeysForFacility(target, false, false, true, visibleCat2).includes(m) && !getRowKeysForFacility(target, false, false, true, visibleCat3).includes(m)) return null;
-                return { ...mapCohortRowToDb(row), municipality: m, status: newStatus };
+                const dbCohortRow = mapCohortRowToDb(row);
+                delete dbCohortRow.reported_by; // <--- FIX: Ensure reported_by is removed from the payload
+                return { ...dbCohortRow, municipality: m, status: newStatus };
             }).filter(x => x !== null);
         }
 
@@ -383,7 +386,6 @@ export function useReportData({
             toast.success(isResubmission ? 'Resubmitted' : 'Submitted'); 
         }
         else if (newStatus === 'Approved') { 
-            // FIXED: Added a more professional, detailed success message containing reportType and periodStr.
             await createDbNotification(target, 'Report Approved', `Your ${reportType} ${periodStr} has been successfully reviewed and approved.`, 'success'); 
             toast.success('Approved'); 
         }
