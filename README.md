@@ -29,7 +29,7 @@ To ensure strict compliance with **RA 10173 (Data Privacy Act of 2012)**, the sy
 
 ### 🛡️ Compliance & Security
 -   **Zero PII Collection:** Eliminates privacy risks by rejecting Patient Personally Identifiable Information (PII).
--   **RA 10173 Adherence:** Built-in safeguards including automated data purging for inactive personnel accounts.
+-   **Republic Act (R.A.) No. 10173 Adherence:** Built-in safeguards including automated data purging for inactive personnel accounts.
 -   **Role-Based Access Control (RBAC):** Strict separation of duties between System Admins, Program Coordinators, and ABTC Staff.
 
 ### ⚡ Operational Capabilities
@@ -72,11 +72,11 @@ To ensure optimal performance for health facilities:
 
 ## Legal Documentation
 
-Usage of this system is governed by the following legally binding documents:
+Usage of this system is governed by the following legally binding instruments:
 
-* [**Privacy Policy**](PRIVACY.md): Details the strict non-collection of patient data and handling of personnel info.
-* [**Terms of Use**](TERMS.md): Guidelines for authorized ABTCs, including acceptable use and prohibited acts.
-* [**Software License**](LICENSE.md): The Institutional Grant outlining ownership, succession rights, and the "Free of Charge" provision.
+* [**Privacy Policy**](PRIVACY.md): Establishes the strict non-collection of patient data and prescribes the handling of personnel information.
+* [**Terms of Use**](TERMS.md): Sets forth the guidelines for authorized ABTCs, including acceptable use provisions and prohibited acts.
+* [**Software License**](LICENSE.md): Defines the Institutional License Grant, outlining ownership, succession rights, and the free‑of‑charge provision. 
 
 ---
 

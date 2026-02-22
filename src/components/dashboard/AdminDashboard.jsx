@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X, CheckCircle, XCircle, TrendingUp, ChevronRight } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
@@ -31,6 +31,13 @@ export default function AdminDashboard({
     action: null, // 'archive' | 'restore' | 'delete'
     facility: null 
   });
+
+  // NEW: State for Status Details Modal with reportType tracking
+  const [statusModal, setStatusModal] = useState({
+    isOpen: false,
+    status: null, // 'Approved', 'Pending', or 'Rejected'
+    reportType: 'main' // 'main' or 'cohort'
+  });
   
   const { facilityStatuses, fetchFacilityStatuses } = useReportData({
     user, 
@@ -46,7 +53,6 @@ export default function AdminDashboard({
 
   const fetchFacilityMeta = async () => {
     try {
-      // MODIFIED: Added 'type' and 'ownership' to the select query
       const { data } = await supabase.from('facilities').select('name, status, type, ownership');
       if (data) setFacilityMeta(data);
     } catch (err) {
@@ -54,7 +60,6 @@ export default function AdminDashboard({
     }
   };
 
-  // Fetch profiles to map Facilities -> User Names
   useEffect(() => {
     const fetchFacilityOwners = async () => {
       try {
@@ -121,9 +126,103 @@ export default function AdminDashboard({
     return showArchived ? status === 'Archived' : status === 'Active';
   });
 
+  // Calculate stats for Form 1
+  const mainStats = displayedFacilities.reduce((acc, f) => {
+    const status = facilityStatuses[f]?.main || 'Draft';
+    if (status === 'Approved') acc.approved++;
+    if (status === 'Pending') acc.pending++;
+    if (status === 'Rejected') acc.rejected++;
+    if (status !== 'Draft' && status !== 'View Only') acc.submitted++;
+    return acc;
+  }, { approved: 0, pending: 0, rejected: 0, submitted: 0 });
+
+  // Calculate stats for Cohort
+  const cohortStats = displayedFacilities.reduce((acc, f) => {
+    const status = facilityStatuses[f]?.cohort || 'Draft';
+    if (status === 'Approved') acc.approved++;
+    if (status === 'Pending') acc.pending++;
+    if (status === 'Rejected') acc.rejected++;
+    if (status !== 'Draft' && status !== 'View Only') acc.submitted++;
+    return acc;
+  }, { approved: 0, pending: 0, rejected: 0, submitted: 0 });
+
+  const totalFacilities = displayedFacilities.length;
+  const mainReportingRate = totalFacilities > 0 ? Math.round((mainStats.submitted / totalFacilities) * 100) : 0;
+  const cohortReportingRate = totalFacilities > 0 ? Math.round((cohortStats.submitted / totalFacilities) * 100) : 0;
+
+  // Helper to get facilities by specific status and specific report type
+  const getFacilitiesByStatus = (statusType, reportType) => {
+    return displayedFacilities.filter(f => (facilityStatuses[f]?.[reportType] || 'Draft') === statusType);
+  };
+
   return (
     <div className="max-w-7xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500 relative pb-12">
         
+        {/* --- STATUS DETAILS MODAL --- */}
+        {statusModal.isOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200 border border-gray-100">
+                    <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center 
+                                ${statusModal.status === 'Approved' ? 'bg-emerald-100 text-emerald-600' : 
+                                  statusModal.status === 'Pending' ? 'bg-blue-100 text-blue-600' : 
+                                  'bg-rose-100 text-rose-600'}`}>
+                                {statusModal.status === 'Approved' ? <CheckCircle size={20} strokeWidth={2.5}/> : 
+                                 statusModal.status === 'Pending' ? <Clock size={20} strokeWidth={2.5}/> : 
+                                 <XCircle size={20} strokeWidth={2.5}/>}
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-zinc-900 leading-tight">
+                                    {statusModal.reportType === 'cohort' ? 'Cohort' : 'Form 1'} - {statusModal.status}
+                                </h3>
+                                <p className="text-xs font-medium text-gray-500">{month} {year}</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })}
+                            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                    
+                    <div className="overflow-y-auto p-2 custom-scrollbar flex-1">
+                        {getFacilitiesByStatus(statusModal.status, statusModal.reportType).length === 0 ? (
+                            <div className="p-8 text-center flex flex-col items-center justify-center">
+                                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                                    <Archive size={20} className="text-gray-400" />
+                                </div>
+                                <p className="text-sm font-semibold text-gray-600">No {statusModal.status.toLowerCase()} reports</p>
+                                <p className="text-xs text-gray-400 mt-1">There are no facilities currently in this status.</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-1 p-2">
+                                {getFacilitiesByStatus(statusModal.status, statusModal.reportType).map(f => (
+                                    <div 
+                                        key={f} 
+                                        onClick={() => { 
+                                            setStatusModal({ isOpen: false, status: null, reportType: 'main' }); 
+                                            onSelectFacility(f); 
+                                        }}
+                                        className="group px-4 py-3 hover:bg-blue-50/50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-blue-100 transition-all"
+                                    >
+                                        <div className="flex flex-col overflow-hidden">
+                                            <span className="font-bold text-sm text-zinc-800 truncate group-hover:text-blue-700 transition-colors">{f}</span>
+                                            <span className="text-xs font-medium text-gray-500 truncate mt-0.5 flex items-center gap-1.5">
+                                                <Users size={12} /> {facilityOwners[f] || 'Unassigned'}
+                                            </span>
+                                        </div>
+                                        <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 transition-colors shrink-0" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Custom Confirmation Modal Overlay */}
         {confirmModal.isOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -215,7 +314,7 @@ export default function AdminDashboard({
                 onChange={e => setMonth(e.target.value)} 
                 className="bg-transparent text-sm font-medium text-gray-600 py-1.5 px-3 outline-none cursor-pointer hover:bg-white hover:shadow-sm rounded-lg transition-all"
               >
-                  {availableMonths.map(m => <option key={m}>{m}</option>)}
+                {availableMonths.map(m => <option key={m}>{m}</option>)}
               </select>
             )}
             
@@ -225,7 +324,7 @@ export default function AdminDashboard({
                 onChange={e => setQuarter(e.target.value)} 
                 className="bg-transparent text-sm font-medium text-gray-600 py-1.5 px-3 outline-none cursor-pointer hover:bg-white hover:shadow-sm rounded-lg transition-all"
               >
-                  {QUARTERS.map(q => <option key={q}>{q}</option>)}
+                {QUARTERS.map(q => <option key={q}>{q}</option>)}
               </select>
             )}
             
@@ -247,6 +346,123 @@ export default function AdminDashboard({
             </div>
           )}
         </div>
+
+        {/* --- DUAL STATUS SUMMARY CARDS (Only visible on Monthly) --- */}
+        {periodType === 'Monthly' && (
+          <div className="space-y-6 mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
+            
+            {/* Form 1 Section */}
+            <div>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 pl-1">Form 1 Overview</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div 
+                    onClick={() => setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' })}
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer group"
+                  >
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                          <CheckCircle size={20} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Approved</p>
+                          <p className="text-xl font-black text-zinc-900 leading-none">{mainStats.approved}</p>
+                      </div>
+                  </div>
+                  
+                  <div 
+                    onClick={() => setStatusModal({ isOpen: true, status: 'Pending', reportType: 'main' })}
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
+                  >
+                      <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                          <Clock size={20} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Pending</p>
+                          <p className="text-xl font-black text-zinc-900 leading-none">{mainStats.pending}</p>
+                      </div>
+                  </div>
+
+                  <div 
+                    onClick={() => setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'main' })}
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-rose-200 transition-all cursor-pointer group"
+                  >
+                      <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-100 transition-colors">
+                          <XCircle size={20} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Rejected</p>
+                          <p className="text-xl font-black text-zinc-900 leading-none">{mainStats.rejected}</p>
+                      </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                          <TrendingUp size={20} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Reporting Rate</p>
+                          <p className="text-xl font-black text-zinc-900 leading-none">{mainReportingRate}%</p>
+                      </div>
+                  </div>
+              </div>
+            </div>
+
+            {/* Cohort Report Section */}
+            <div>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 pl-1">Cohort Report Overview</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div 
+                    onClick={() => setStatusModal({ isOpen: true, status: 'Approved', reportType: 'cohort' })}
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer group"
+                  >
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                          <CheckCircle size={20} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Approved</p>
+                          <p className="text-xl font-black text-zinc-900 leading-none">{cohortStats.approved}</p>
+                      </div>
+                  </div>
+                  
+                  <div 
+                    onClick={() => setStatusModal({ isOpen: true, status: 'Pending', reportType: 'cohort' })}
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
+                  >
+                      <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                          <Clock size={20} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Pending</p>
+                          <p className="text-xl font-black text-zinc-900 leading-none">{cohortStats.pending}</p>
+                      </div>
+                  </div>
+
+                  <div 
+                    onClick={() => setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'cohort' })}
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3 hover:shadow-md hover:border-rose-200 transition-all cursor-pointer group"
+                  >
+                      <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-100 transition-colors">
+                          <XCircle size={20} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Rejected</p>
+                          <p className="text-xl font-black text-zinc-900 leading-none">{cohortStats.rejected}</p>
+                      </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                          <TrendingUp size={20} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Reporting Rate</p>
+                          <p className="text-xl font-black text-zinc-900 leading-none">{cohortReportingRate}%</p>
+                      </div>
+                  </div>
+              </div>
+            </div>
+
+          </div>
+        )}
 
         {/* Facility Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
