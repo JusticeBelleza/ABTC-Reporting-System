@@ -399,7 +399,7 @@ export default function AdminDashboard({
                           <TrendingUp size={20} strokeWidth={2.5} />
                       </div>
                       <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Reporting Rate</p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Facility Compliance</p>
                           <p className="text-xl font-black text-zinc-900 leading-none">{mainReportingRate}%</p>
                       </div>
                   </div>
@@ -454,7 +454,7 @@ export default function AdminDashboard({
                           <TrendingUp size={20} strokeWidth={2.5} />
                       </div>
                       <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Reporting Rate</p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Facility Compliance</p>
                           <p className="text-xl font-black text-zinc-900 leading-none">{cohortReportingRate}%</p>
                       </div>
                   </div>
