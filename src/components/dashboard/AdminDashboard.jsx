@@ -353,7 +353,7 @@ export default function AdminDashboard({
             
             {/* Form 1 Section */}
             <div>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 pl-1">Form 1 (Main Report) Overview</h3>
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 pl-1">Form 1 Overview</h3>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div 
                     onClick={() => setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' })}
