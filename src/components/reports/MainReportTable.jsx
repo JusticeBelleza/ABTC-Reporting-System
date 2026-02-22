@@ -13,8 +13,8 @@ export default function MainReportTable({
   const hasBarangays = facilityBarangays[activeFacilityName] && facilityBarangays[activeFacilityName].length > 0;
 
   return (
-    <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#CBD5E1] rounded-lg bg-white relative">
-      <table className="w-full border-collapse [&_th]:!border-[#CBD5E1] [&_td]:!border-[#CBD5E1]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
+    <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-lg bg-white relative">
+      <table className="w-full border-collapse [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
         <thead className="sticky top-0 z-20 shadow-sm bg-gray-100">
           {/* --- ROW 1 --- */}
           <tr style={isConsolidated ? PDF_STYLES.header : PDF_STYLES.subHeader}>

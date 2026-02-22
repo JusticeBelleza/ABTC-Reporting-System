@@ -29,25 +29,25 @@ export default function CohortReportTable({
     return (
       <div className={`cohort-table-hidden ${subTab === category ? 'block' : 'hidden'} mb-8`}>
         {/* Table Title Bar */}
-        <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #e5e7eb', borderBottom: 'none', borderTopLeftRadius: '0.5rem', borderTopRightRadius: '0.5rem', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>
+        <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #94A3B8', borderBottom: 'none', borderTopLeftRadius: '0.5rem', borderTopRightRadius: '0.5rem', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>
             {isCat2 ? 'CATEGORY II - EXPOSURES' : 'CATEGORY III - EXPOSURES'}
         </div>
         
         {/* Scrollable Responsive Wrapper */}
-        <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-gray-200 rounded-b-lg bg-white relative">
-          <table className="w-full border-collapse" style={{ borderColor: PDF_STYLES.border.borderColor }}>
+        <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-b-lg bg-white relative">
+          <table className="w-full border-collapse [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
             {/* Sticky Header */}
             <thead className="sticky top-0 z-20 shadow-sm bg-white">
               <tr style={PDF_STYLES.subHeader}>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgGray, textAlign:'left', width: '200px', minWidth: '200px'}}>Municipality</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width: '100px'}}>Registered Exposures</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width: '100px'}}>Patients w/ RIG</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Complete</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Incomplete</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Booster</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: None</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell}}>Outcome: Died</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, width:'150px', minWidth: '150px'}}>Remarks</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'left', width: '200px', minWidth: '200px'}}>Municipality</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width: '100px'}}>Registered Exposures</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width: '100px'}}>Patients w/ RIG</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Complete</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Incomplete</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Booster</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: None</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Died</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width:'150px', minWidth: '150px'}}>Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -71,10 +71,10 @@ export default function CohortReportTable({
 
                   const showAddControls = userRole !== 'admin' && !isConsolidated;
                   return (
-                    <tr key={`cohort-others-sep-${category}`} className={hideClass} style={{ ...PDF_STYLES.rowEven, ...PDF_STYLES.bgGray }}>
-                      <td colSpan={9} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', ...PDF_STYLES.bgGray, padding:'8px'}}>
+                    <tr key={`cohort-others-sep-${category}`} className={hideClass} style={{ ...PDF_STYLES.rowEven, backgroundColor: '#E2E8F0' }}>
+                      <td colSpan={9} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', backgroundColor: '#E2E8F0', padding:'8px'}}>
                         <div className="flex justify-between items-center">
-                          <span className="font-bold text-gray-500 uppercase tracking-wider text-xs">Other Municipalities</span>
+                          <span className="font-bold text-slate-700 uppercase tracking-wider text-xs">Other Municipalities</span>
                           {showAddControls && (
                             <div className="flex items-center gap-2 no-print jspdf-ignore">
                               <select id={`cohort-other-select-${category}`} className="bg-white border border-gray-300 text-xs rounded shadow-sm p-1.5 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
@@ -94,7 +94,8 @@ export default function CohortReportTable({
                 
                 return (
                   <tr key={key} className={`${hideClass} hover:bg-blue-50/50 transition-colors group`} style={PDF_STYLES.rowEven}>
-                    <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal', paddingLeft: MUNICIPALITIES.includes(key) ? '0.75rem' : '1.5rem'}}>
+                    {/* Municipality cell */}
+                    <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'left', color: '#1E293B', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal', paddingLeft: MUNICIPALITIES.includes(key) ? '0.75rem' : '1.5rem'}}>
                       <div className="flex justify-between items-center group/row">
                         <span>{key}</span>
                         {isOtherRow && !isRowReadOnly && (
@@ -128,12 +129,13 @@ export default function CohortReportTable({
                   </tr>
                 );
               })}
-              <tr style={{ ...PDF_STYLES.bgDark, fontWeight:'bold', fontSize:'11px' }}>
-                <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark, textAlign:'left', paddingLeft:'0.75rem'}}>TOTAL</td>
+              {/* TOTAL ROW */}
+              <tr style={{ backgroundColor: '#E2E8F0', fontWeight:'bold', fontSize:'11px', color: '#1E293B' }}>
+                <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'left', paddingLeft:'0.75rem'}}>TOTAL</td>
                 {[`${isCat2?'cat2':'cat3'}_registered`, `${isCat2?'cat2':'cat3'}_rig`, `${isCat2?'cat2':'cat3'}_complete`, `${isCat2?'cat2':'cat3'}_incomplete`, `${isCat2?'cat2':'cat3'}_booster`, `${isCat2?'cat2':'cat3'}_none`, `${isCat2?'cat2':'cat3'}_died`].map(k => (
-                   <td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark}}>{cohortTotals[k]}</td>
+                   <td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0'}}>{cohortTotals[k]}</td>
                 ))}
-                <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, ...PDF_STYLES.bgDark}}></td>
+                <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0'}}></td>
               </tr>
             </tbody>
           </table>
