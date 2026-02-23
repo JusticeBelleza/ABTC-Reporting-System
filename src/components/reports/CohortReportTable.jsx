@@ -2,6 +2,7 @@ import React from 'react';
 import { XCircle } from 'lucide-react';
 import { PDF_STYLES, MUNICIPALITIES, INITIAL_COHORT_ROW } from '../../lib/constants';
 import { hasCohortData } from '../../lib/utils';
+import { useApp } from '../../context/AppContext';
 
 export default function CohortReportTable({
   subTab, data, rowKeysCat2, rowKeysCat3, isConsolidated, 
@@ -9,6 +10,11 @@ export default function CohortReportTable({
   visibleCat2, setVisibleCat2, visibleCat3, setVisibleCat3,
   onChange, onDeleteRow, cohortTotals
 }) {
+
+  // --- NEW: Access facility details to determine the column header ---
+  const { facilityDetails } = useApp();
+  const facilityType = facilityDetails?.[activeFacilityName]?.type || 'RHU';
+  const locationHeader = isConsolidated ? 'Municipality' : (facilityType === 'RHU' ? 'Barangay/Municipality' : 'Municipality');
 
   // Helper functions to generate modern input classes based on read-only state
   const getInputWebClasses = (isReadOnly) => isReadOnly
@@ -39,7 +45,10 @@ export default function CohortReportTable({
             {/* Sticky Header */}
             <thead className="sticky top-0 z-20 shadow-sm bg-white">
               <tr style={PDF_STYLES.subHeader}>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'left', width: '200px', minWidth: '200px'}}>Municipality</th>
+                {/* DYNAMIC HEADER */}
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'center', width: '200px', minWidth: '200px'}}>
+                  {locationHeader}
+                </th>
                 <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width: '100px'}}>Registered Exposures</th>
                 <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width: '100px'}}>Patients w/ RIG</th>
                 <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Complete</th>

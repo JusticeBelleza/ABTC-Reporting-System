@@ -266,28 +266,29 @@ export default function AdminDashboard({
           </div>
           
           <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3">
+            {/* UPDATED VIEW ARCHIVED BUTTON HOVER COLOR */}
             <button 
               onClick={() => setShowArchived(!showArchived)} 
-              className={`px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 ${showArchived ? 'bg-zinc-800 text-white shadow-md' : 'bg-white border border-gray-200 text-zinc-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm'}`}
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-0.5 ${showArchived ? 'bg-zinc-800 text-white shadow-md hover:bg-zinc-700 hover:shadow-lg' : 'bg-white border border-gray-200 text-zinc-700 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 shadow-sm hover:shadow-md'}`}
             >
                 {showArchived ? <RefreshCcw size={16} /> : <Archive size={16} />}
                 <span className="truncate">{showArchived ? 'View Active' : 'View Archived'}</span>
             </button>
             <button 
               onClick={onAddFacility} 
-              className="bg-white border border-gray-200 text-zinc-700 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center justify-center gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all duration-200"
+              className="bg-white border border-gray-200 text-zinc-700 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all duration-300"
             >
                 <Plus size={16} /> <span className="truncate">Add Facility</span>
             </button>
             <button 
               onClick={onManageUsers} 
-              className="bg-white border border-gray-200 text-zinc-700 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm flex items-center justify-center gap-2 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all duration-200"
+              className="bg-white border border-gray-200 text-zinc-700 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all duration-300"
             >
                 <Users size={16} /> <span className="truncate">Manage Users</span>
             </button>
             <button 
               onClick={onViewConsolidated} 
-              className="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-sm hover:shadow-blue-600/20 flex items-center justify-center gap-2 transition-all duration-200"
+              className="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:bg-indigo-600 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 flex items-center justify-center gap-2 transition-all duration-300"
             >
                 <Layers size={16} /> <span className="truncate">Consolidated</span>
             </button>
@@ -347,8 +348,8 @@ export default function AdminDashboard({
           )}
         </div>
 
-        {/* --- DUAL STATUS SUMMARY CARDS (Only visible on Monthly) --- */}
-        {periodType === 'Monthly' && (
+        {/* --- DUAL STATUS SUMMARY CARDS (Only visible on Monthly and not in Archived view) --- */}
+        {periodType === 'Monthly' && !showArchived && (
           <div className="space-y-6 mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
             
             {/* Form 1 Section */}

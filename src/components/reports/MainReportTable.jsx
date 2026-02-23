@@ -2,6 +2,7 @@ import React from 'react';
 import { PDF_STYLES, MUNICIPALITIES, INITIAL_ROW_STATE } from '../../lib/constants';
 import { getComputations, hasData } from '../../lib/utils';
 import ReportRow from './ReportRow';
+import { useApp } from '../../context/AppContext';
 
 export default function MainReportTable({ 
   data, rowKeys, isConsolidated, isAggregationMode, reportStatus, 
@@ -12,6 +13,11 @@ export default function MainReportTable({
   
   const hasBarangays = facilityBarangays[activeFacilityName] && facilityBarangays[activeFacilityName].length > 0;
 
+  // --- NEW: Access facility details to determine the column header ---
+  const { facilityDetails } = useApp();
+  const facilityType = facilityDetails?.[activeFacilityName]?.type || 'RHU';
+  const locationHeader = isConsolidated ? 'Municipality' : (facilityType === 'RHU' ? 'Barangay/Municipality' : 'Municipality');
+
   return (
     <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-lg bg-white relative">
       <table className="w-full border-collapse [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
@@ -19,7 +25,8 @@ export default function MainReportTable({
           {/* --- ROW 1 --- */}
           <tr style={isConsolidated ? PDF_STYLES.header : PDF_STYLES.subHeader}>
             <th rowSpan={3} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#E2E8F0', textAlign:'center', fontWeight:'bold', width: '200px', minWidth: '200px', color:'#1E293B'}}>
-              {isConsolidated ? "Municipality" : (hasBarangays ? "Barangay / Municipality" : "Municipality")}
+              {/* DYNAMIC HEADER */}
+              {locationHeader}
             </th>
             <th colSpan={17} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#E2E8F0', color:'#1E293B', fontWeight:'bold'}}>Human Cases</th>
             <th colSpan={4} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor:'#E2E8F0', color:'#1E293B', fontWeight:'bold'}}>Biting Animals</th>

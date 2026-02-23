@@ -55,6 +55,7 @@ function DashboardContent() {
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
   const [showLicense, setShowLicense] = useState(false); 
+  const [showLogoutModal, setShowLogoutModal] = useState(false); // NEW STATE FOR LOGOUT MODAL
   
   // Facility Deletion State (Master Data)
   const [facilityToDelete, setFacilityToDelete] = useState(null);
@@ -119,17 +120,47 @@ function DashboardContent() {
              <span className="font-semibold tracking-tight text-sm md:text-lg">ABTC-Reporting System</span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
+            
             <NotificationBell user={user} />
+            
             <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
-            <div className="flex items-center gap-3 cursor-pointer p-1.5 rounded-lg hover:bg-zinc-100 transition" onClick={() => setShowProfileModal(true)}>
+            
+            {/* Profile Group */}
+            <div 
+                className="flex items-center gap-3 cursor-pointer p-1.5 rounded-xl hover:bg-blue-50 hover:-translate-y-0.5 transition-all duration-300 group" 
+                onClick={() => setShowProfileModal(true)}
+            >
               <div className="text-right hidden md:block">
-                <div className="text-sm font-medium leading-none">{userProfile?.full_name || user.fullName || user.name}</div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mt-1">{user.role}</div>
+                <div className="text-sm font-medium leading-none group-hover:text-blue-700 transition-colors">
+                    {userProfile?.full_name || user.fullName || user.name}
+                </div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider font-medium mt-1 group-hover:text-blue-500/80 transition-colors">
+                    {user.role}
+                </div>
               </div>
-              <div className="bg-gray-100 p-2 rounded-full text-gray-600"><User size={16}/></div>
+              <div className="bg-gray-100 p-2 rounded-full text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                  <User size={16}/>
+              </div>
             </div>
-            <button onClick={() => setShowSettingsModal(true)} className="text-gray-500 hover:text-zinc-900 p-2 rounded-lg hover:bg-zinc-100 transition"><Settings size={20} /></button>
-            <button onClick={logout} className="text-gray-500 hover:text-red-600 p-2 transition ml-2"><LogOut size={20} /></button>
+            
+            {/* Settings Button */}
+            <button 
+                onClick={() => setShowSettingsModal(true)} 
+                className="text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 hover:-translate-y-0.5 p-2 rounded-xl transition-all duration-300"
+                title="Settings"
+            >
+                <Settings size={20} />
+            </button>
+            
+            {/* Logout Button - Now opens the confirmation modal */}
+            <button 
+                onClick={() => setShowLogoutModal(true)} 
+                className="text-gray-500 hover:text-rose-600 hover:bg-rose-50 hover:-translate-y-0.5 p-2 rounded-xl transition-all duration-300 ml-1"
+                title="Logout"
+            >
+                <LogOut size={20} />
+            </button>
+            
           </div>
         </div>
       </header>
@@ -198,6 +229,37 @@ function DashboardContent() {
                             <button onClick={() => setFacilityToDelete(null)} disabled={isDeletingFacility} className="flex-1 py-2 px-4 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
                             <button onClick={confirmDeleteFacility} disabled={isDeletingFacility || deleteFacilityInput !== 'delete'} className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex justify-center items-center gap-2">
                                 {isDeletingFacility && <Loader2 size={14} className="animate-spin"/>} Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- LOGOUT CONFIRMATION MODAL --- */}
+        {showLogoutModal && (
+            <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="bg-rose-50 p-4 rounded-full mb-5 text-rose-600 shadow-inner">
+                            <LogOut size={28} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">Log Out?</h3>
+                        <p className="text-sm text-gray-500 mt-2 mb-6 leading-relaxed">
+                            Are you sure you want to log out of your account? You will need to sign in again to access the system.
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowLogoutModal(false)} 
+                                className="flex-1 py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:-translate-y-0.5 transition-all duration-300"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={logout} 
+                                className="flex-1 py-2.5 px-4 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700 hover:shadow-lg hover:shadow-rose-600/30 hover:-translate-y-0.5 shadow-sm transition-all duration-300 flex justify-center items-center gap-2"
+                            >
+                                Log Out
                             </button>
                         </div>
                     </div>

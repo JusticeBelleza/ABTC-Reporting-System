@@ -27,6 +27,8 @@ export default function FacilityDashboard({
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false); 
   const [showDeleteReportModal, setShowDeleteReportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false); 
+  const [showDraftModal, setShowDraftModal] = useState(false); 
   const [deleteRowConfirmation, setDeleteRowConfirmation] = useState({ isOpen: false, rowKey: null }); 
   const [rejectionReason, setRejectionReason] = useState('');
   
@@ -59,11 +61,8 @@ export default function FacilityDashboard({
   // Handlers
   const onSaveClick = async (status) => {
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
-    
-    if (status === 'Approved') {
-        setShowApproveModal(true);
-        return;
-    }
+    if (status === 'Approved') { setShowApproveModal(true); return; }
+    if (status === 'Draft') { setShowDraftModal(true); return; } 
     
     if (status === 'Pending') {
         let isZero = false;
@@ -96,6 +95,11 @@ export default function FacilityDashboard({
     await handleSave('Pending');
   };
 
+  const confirmSaveDraft = async () => {
+    setShowDraftModal(false);
+    await handleSave('Draft');
+  };
+
   const handleDeleteReportClick = async () => {
     setShowDeleteReportModal(false);
     await confirmDeleteReport();
@@ -122,10 +126,10 @@ export default function FacilityDashboard({
     const idx = MONTHS.indexOf(month); if (idx === 0) return `December ${year - 1}`; return `${MONTHS[idx - 1]} ${year}`;
   };
 
-  const handleDownloadClick = async () => {
+  const confirmExportPdf = async () => {
+    setShowExportModal(false);
     setIsDownloadingPdf(true);
     
-    // Use the dynamic text helper for the PDF Export
     const currentPeriodText = getCurrentPeriodText();
     const periodText = activeTab === 'cohort' 
         ? `${getPreviousPeriodText()} (Current Period: ${currentPeriodText})` 
@@ -134,7 +138,6 @@ export default function FacilityDashboard({
     const suffix = activeTab === 'cohort' ? (cohortSubTab === 'cat2' ? '_Category_II' : '_Category_III') : '';
     const filename = `Report_${activeFacilityName.replace(/\s+/g,'_')}_${year}${suffix}.pdf`;
     
-    // Get Facility Info for Dynamic Header
     const activeDetails = facilityDetails?.[activeFacilityName] || {};
     const facilityType = activeDetails.type || 'RHU';
     const facilityOwnership = activeDetails.ownership || 'Government';
@@ -157,10 +160,11 @@ export default function FacilityDashboard({
             
             {/* Title Area */}
             <div className="flex items-start gap-4">
+                {/* UPDATED BACK BUTTON HOVER EFFECTS */}
                 {user.role === 'admin' && (
                     <button 
                         onClick={onBack} 
-                        className="mt-1 p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:shadow-sm text-gray-600 transition-all duration-200"
+                        className="mt-1 p-2 bg-white border border-gray-200 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
                         title="Back to Dashboard"
                     >
                         <ArrowLeft size={20}/>
@@ -235,12 +239,12 @@ export default function FacilityDashboard({
                     </select>
                 </div>
 
-                {/* --- PDF Download --- */}
+                {/* --- PDF Download Button --- */}
                 <button 
                     disabled={isDownloadingPdf || (!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved')} 
-                    onClick={handleDownloadClick} 
+                    onClick={() => setShowExportModal(true)} 
                     title={(!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved') ? "Only Approved reports can be exported to PDF." : "Export PDF"}
-                    className="bg-white border border-gray-200 text-zinc-700 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                    className="bg-white border border-gray-200 text-zinc-700 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:shadow-md hover:-translate-y-0.5 flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
                 >
                     {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
                     <span>Export PDF</span>
@@ -254,7 +258,7 @@ export default function FacilityDashboard({
                         <button 
                             onClick={() => onSaveClick('Approved')} 
                             disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Draft'} 
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-sm hover:shadow-emerald-600/20 flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-sm hover:shadow-lg hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve
                         </button>
@@ -262,7 +266,7 @@ export default function FacilityDashboard({
                         <button 
                             onClick={() => onSaveClick('Rejected')} 
                             disabled={loading || isSaving || reportStatus === 'Rejected' || reportStatus === 'Draft'} 
-                            className="bg-white border border-gray-200 text-rose-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-rose-50 hover:border-rose-200 shadow-sm flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-white border border-gray-200 text-rose-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-rose-50 hover:border-rose-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject
                         </button>
@@ -270,7 +274,7 @@ export default function FacilityDashboard({
                         <button 
                             onClick={() => setShowDeleteReportModal(true)} 
                             disabled={loading || isSaving || reportStatus === 'Draft'} 
-                            className="bg-white border border-gray-200 text-red-600 p-2 rounded-xl text-sm font-semibold hover:bg-red-50 hover:border-red-200 shadow-sm flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ml-1"
+                            className="bg-white border border-gray-200 text-red-600 p-2 rounded-xl text-sm font-semibold hover:bg-red-50 hover:border-red-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ml-1"
                             title="Delete Report"
                         >
                             <Trash2 size={18} />
@@ -281,7 +285,7 @@ export default function FacilityDashboard({
                         <button 
                             onClick={() => onSaveClick('Draft')} 
                             disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} 
-                            className="bg-white border border-gray-200 text-zinc-700 px-5 py-2 rounded-xl text-sm font-semibold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 shadow-sm flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-white border border-gray-200 text-zinc-700 px-5 py-2 rounded-xl text-sm font-semibold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Save Draft
                         </button>
@@ -289,7 +293,7 @@ export default function FacilityDashboard({
                         <button 
                             onClick={() => onSaveClick('Pending')} 
                             disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} 
-                            className="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-sm hover:shadow-blue-600/20 flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-sm hover:shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5 flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin"/> : null} Submit Report
                         </button>
@@ -352,6 +356,72 @@ export default function FacilityDashboard({
                 </div>
             )}
         </div>
+
+        {/* --- EXPORT PDF CONFIRMATION MODAL --- */}
+        {showExportModal && (
+            <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="bg-rose-50 p-4 rounded-full mb-5 text-rose-600 shadow-inner">
+                            <FileDown size={28} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">Export to PDF?</h3>
+                        <p className="text-sm text-gray-500 mt-2 mb-6 leading-relaxed">
+                            Are you sure you want to download the <strong>{activeTab === 'main' ? 'Form 1' : 'Cohort'}</strong> report as a PDF document?
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowExportModal(false)} 
+                                disabled={isDownloadingPdf} 
+                                className="flex-1 py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={confirmExportPdf} 
+                                disabled={isDownloadingPdf} 
+                                className="flex-1 py-2.5 px-4 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700 hover:shadow-rose-600/20 shadow-sm transition-all flex justify-center items-center gap-2"
+                            >
+                                {isDownloadingPdf && <Loader2 size={16} className="animate-spin"/>} Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- DRAFT CONFIRMATION MODAL --- */}
+        {showDraftModal && (
+            <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="bg-indigo-50 p-4 rounded-full mb-5 text-indigo-600 shadow-inner">
+                            <Save size={28} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">Save as Draft?</h3>
+                        <p className="text-sm text-gray-500 mt-2 mb-6 leading-relaxed">
+                            Are you sure you want to save your current progress as a draft? You can return to edit it later before submitting.
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={() => setShowDraftModal(false)} 
+                                disabled={isSaving} 
+                                className="flex-1 py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={confirmSaveDraft} 
+                                disabled={isSaving} 
+                                className="flex-1 py-2.5 px-4 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 hover:shadow-indigo-600/20 shadow-sm transition-all flex justify-center items-center gap-2"
+                            >
+                                {isSaving && <Loader2 size={16} className="animate-spin"/>} Save Draft
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* --- APPROVE CONFIRMATION MODAL --- */}
         {showApproveModal && (
