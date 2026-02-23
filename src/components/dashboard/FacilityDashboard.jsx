@@ -160,7 +160,6 @@ export default function FacilityDashboard({
             
             {/* Title Area */}
             <div className="flex items-start gap-4">
-                {/* UPDATED BACK BUTTON HOVER EFFECTS */}
                 {user.role === 'admin' && (
                     <button 
                         onClick={onBack} 
@@ -255,17 +254,19 @@ export default function FacilityDashboard({
                     <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
                     {user.role === 'admin' ? (
                         <>
+                        {/* UPDATE: Added "reportStatus === 'Rejected'" to disable condition */}
                         <button 
                             onClick={() => onSaveClick('Approved')} 
-                            disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Draft'} 
+                            disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Rejected' || reportStatus === 'Draft'} 
                             className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-sm hover:shadow-lg hover:shadow-emerald-600/30 hover:-translate-y-0.5 flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} Approve
                         </button>
                         
+                        {/* UPDATE: Added "reportStatus === 'Approved'" to disable condition */}
                         <button 
                             onClick={() => onSaveClick('Rejected')} 
-                            disabled={loading || isSaving || reportStatus === 'Rejected' || reportStatus === 'Draft'} 
+                            disabled={loading || isSaving || reportStatus === 'Rejected' || reportStatus === 'Approved' || reportStatus === 'Draft'} 
                             className="bg-white border border-gray-200 text-rose-600 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-rose-50 hover:border-rose-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <XCircle size={16}/>} Reject
