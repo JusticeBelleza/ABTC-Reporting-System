@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import RegisterUserForm from '../auth/RegisterUserForm'; 
 import ProfileModal from './ProfileModal';
+import ModalPortal from './ModalPortal';
 
 export default function UserManagementModal({ onClose, facilities, client }) {
   const [activeTab, setActiveTab] = useState('list'); 
@@ -57,6 +58,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
       
       {/* Delete Confirmation Sub-Modal */}
       {userToDelete && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                  <div className="flex flex-col items-center text-center">
@@ -78,6 +80,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                  </div>
             </div>
         </div>
+      </ModalPortal>
       )}
 
       {/* Main Modal Container - Reduced to max-w-4xl for a tighter look */}

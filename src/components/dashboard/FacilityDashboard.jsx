@@ -5,6 +5,7 @@ import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
+import ModalPortal from '../modals/ModalPortal';
 // ADDED getComputations HERE:
 import { downloadPDF, hasData, hasCohortData, getComputations } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
@@ -712,6 +713,7 @@ export default function FacilityDashboard({
 
         {/* --- EXPORT PDF CONFIRMATION MODAL --- */}
         {showExportModal && (
+            <ModalPortal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="flex flex-col items-center text-center">
@@ -733,10 +735,12 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
 
         {/* --- DRAFT CONFIRMATION MODAL --- */}
         {showDraftModal && (
+            <ModalPortal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="flex flex-col items-center text-center">
@@ -758,10 +762,12 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
 
         {/* --- APPROVE CONFIRMATION MODAL --- */}
         {showApproveModal && (
+            <ModalPortal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="flex flex-col items-center text-center">
@@ -783,10 +789,12 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
 
         {/* --- SUBMIT CONFIRMATION MODAL --- */}
         {showSubmitModal && (
+            <ModalPortal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="flex flex-col items-center text-center">
@@ -810,10 +818,12 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
 
         {/* --- REJECT MODAL --- */}
         {showRejectModal && (
+            <ModalPortal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200">
                     <div className="flex justify-between items-center mb-5">
@@ -836,10 +846,12 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
 
         {/* --- DELETE REPORT MODAL --- */}
         {showDeleteReportModal && (
+            <ModalPortal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="flex flex-col items-center text-center">
@@ -861,10 +873,12 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
 
         {/* --- DELETE ROW MODAL --- */}
         {deleteRowConfirmation.isOpen && (
+            <ModalPortal>
              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="flex flex-col items-center text-center">
@@ -886,6 +900,7 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
     </div>
   );

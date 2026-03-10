@@ -7,6 +7,9 @@ import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
+// 1. Correctly import the ModalPortal
+import ModalPortal from '../modals/ModalPortal';
+
 export default function AdminDashboard({ 
   onViewConsolidated, 
   onSelectFacility, 
@@ -236,173 +239,179 @@ export default function AdminDashboard({
         
         {/* --- MONTHLY STATUS DETAILS MODAL --- */}
         {statusModal.isOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
-                    <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0
-                                ${statusModal.status === 'Approved' ? 'bg-emerald-100 text-emerald-600' : 
-                                  statusModal.status === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
-                                {statusModal.status === 'Approved' ? <CheckCircle size={20} strokeWidth={2.5}/> : 
-                                 statusModal.status === 'Pending' ? <Clock size={20} strokeWidth={2.5}/> : <XCircle size={20} strokeWidth={2.5}/>}
+            <ModalPortal>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
+                        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0
+                                    ${statusModal.status === 'Approved' ? 'bg-emerald-100 text-emerald-600' : 
+                                      statusModal.status === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
+                                    {statusModal.status === 'Approved' ? <CheckCircle size={20} strokeWidth={2.5}/> : 
+                                     statusModal.status === 'Pending' ? <Clock size={20} strokeWidth={2.5}/> : <XCircle size={20} strokeWidth={2.5}/>}
+                                </div>
+                                <div className="overflow-hidden">
+                                    <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
+                                        {statusModal.reportType === 'cohort' ? 'Cohort' : 'Form 1'} - {statusModal.status}
+                                    </h3>
+                                    <p className="text-xs font-medium text-slate-500">{month} {year}</p>
+                                </div>
                             </div>
-                            <div className="overflow-hidden">
-                                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
-                                    {statusModal.reportType === 'cohort' ? 'Cohort' : 'Form 1'} - {statusModal.status}
-                                </h3>
-                                <p className="text-xs font-medium text-slate-500">{month} {year}</p>
-                            </div>
+                            <button onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
+                                <X size={20} />
+                            </button>
                         </div>
-                        <button onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
-                            <X size={20} />
-                        </button>
-                    </div>
-                    
-                    <div className="overflow-hidden flex flex-col flex-1">
-                        {modalFacilities.length === 0 ? (
-                            <div className="p-8 text-center flex flex-col items-center justify-center">
-                                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                                    <Archive size={20} className="text-slate-400" />
-                                </div>
-                                <p className="text-sm font-semibold text-slate-600">No {statusModal.status.toLowerCase()} reports</p>
-                                <p className="text-xs text-slate-400 mt-1">There are no facilities currently in this status.</p>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col h-full">
-                                <div className="flex flex-col gap-1 p-4 flex-1 overflow-y-auto custom-scrollbar">
-                                    {paginatedModalFacilities.map(f => (
-                                        <div key={f} onClick={() => { setStatusModal({ isOpen: false, status: null, reportType: 'main' }); onSelectFacility(f); }} className="group px-4 py-3.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all">
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <div className="p-2 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition-colors">
-                                                    <Building2 size={16} />
-                                                </div>
-                                                <span className="font-bold text-sm text-slate-800 truncate group-hover:text-black transition-colors">{f}</span>
-                                            </div>
-                                            <ChevronRight size={16} className="text-slate-300 group-hover:text-yellow-500 transition-colors shrink-0" />
-                                        </div>
-                                    ))}
-                                </div>
-                                {totalModalPages > 1 && (
-                                    <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-t border-slate-100">
-                                        <button onClick={() => setModalPage(p => Math.max(1, p - 1))} disabled={modalPage === 1} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Previous</button>
-                                        <span className="text-xs font-medium text-slate-500">Page {modalPage} of {totalModalPages}</span>
-                                        <button onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))} disabled={modalPage === totalModalPages} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Next</button>
+                        
+                        <div className="overflow-hidden flex flex-col flex-1">
+                            {modalFacilities.length === 0 ? (
+                                <div className="p-8 text-center flex flex-col items-center justify-center">
+                                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                                        <Archive size={20} className="text-slate-400" />
                                     </div>
-                                )}
-                            </div>
-                        )}
+                                    <p className="text-sm font-semibold text-slate-600">No {statusModal.status.toLowerCase()} reports</p>
+                                    <p className="text-xs text-slate-400 mt-1">There are no facilities currently in this status.</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col h-full">
+                                    <div className="flex flex-col gap-1 p-4 flex-1 overflow-y-auto custom-scrollbar">
+                                        {paginatedModalFacilities.map(f => (
+                                            <div key={f} onClick={() => { setStatusModal({ isOpen: false, status: null, reportType: 'main' }); onSelectFacility(f); }} className="group px-4 py-3.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all">
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="p-2 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition-colors">
+                                                        <Building2 size={16} />
+                                                    </div>
+                                                    <span className="font-bold text-sm text-slate-800 truncate group-hover:text-black transition-colors">{f}</span>
+                                                </div>
+                                                <ChevronRight size={16} className="text-slate-300 group-hover:text-yellow-500 transition-colors shrink-0" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {totalModalPages > 1 && (
+                                        <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-t border-slate-100">
+                                            <button onClick={() => setModalPage(p => Math.max(1, p - 1))} disabled={modalPage === 1} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Previous</button>
+                                            <span className="text-xs font-medium text-slate-500">Page {modalPage} of {totalModalPages}</span>
+                                            <button onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))} disabled={modalPage === totalModalPages} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Next</button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            </ModalPortal>
         )}
 
         {/* --- LEADERBOARD MATRIX MODAL --- */}
         {leaderboardModal.isOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
-                    <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="w-10 h-10 rounded-full flex shrink-0 items-center justify-center bg-slate-900 text-yellow-400 shadow-sm">
-                                <Layers size={20} strokeWidth={2.5}/> 
-                            </div>
-                            <div className="overflow-hidden">
-                                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
-                                    Compliance Leaderboard
-                                </h3>
-                                <p className="text-xs font-medium text-slate-500 truncate capitalize">
-                                    {leaderboardModal.filter} Compliance • {periodType === 'Annual' ? `Annual ${year}` : `${formatQuarterName(quarter)} ${year}`}
-                                </p>
-                            </div>
-                        </div>
-                        <button onClick={() => setLeaderboardModal({ isOpen: false, filter: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
-                            <X size={20} />
-                        </button>
-                    </div>
-                    
-                    <div className="overflow-y-auto p-3 sm:p-4 custom-scrollbar flex-1 bg-slate-100/50">
-                        {getFilteredMatrix().length === 0 ? (
-                            <div className="p-8 text-center flex flex-col items-center justify-center">
-                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-200">
-                                    <Archive size={20} className="text-slate-400" />
+            <ModalPortal>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
+                        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="w-10 h-10 rounded-full flex shrink-0 items-center justify-center bg-slate-900 text-yellow-400 shadow-sm">
+                                    <Layers size={20} strokeWidth={2.5}/> 
                                 </div>
-                                <p className="text-sm font-semibold text-slate-600">No facilities found</p>
-                                <p className="text-xs text-slate-400 mt-1">There are no facilities matching this compliance filter.</p>
+                                <div className="overflow-hidden">
+                                    <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
+                                        Compliance Leaderboard
+                                    </h3>
+                                    <p className="text-xs font-medium text-slate-500 truncate capitalize">
+                                        {leaderboardModal.filter} Compliance • {periodType === 'Annual' ? `Annual ${year}` : `${formatQuarterName(quarter)} ${year}`}
+                                    </p>
+                                </div>
                             </div>
-                        ) : (
-                            <div className="flex flex-col gap-2.5">
-                                {getFilteredMatrix().map(item => (
-                                    <div key={item.facility} className="p-3.5 sm:p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                <Building2 size={16} className="text-slate-400 shrink-0" />
-                                                <span className="font-bold text-sm sm:text-base text-slate-800 truncate">{item.facility}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 shrink-0 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
-                                                <span className="text-xs font-bold text-slate-600">{item.approvedCount} / {targetMonths.length}</span>
-                                                <span className={`text-xs font-black px-1.5 py-0.5 rounded ${item.complianceRate === 100 ? 'bg-emerald-100 text-emerald-700' : item.complianceRate > 0 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
-                                                    {item.complianceRate}%
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {item.months.map(m => {
-                                                const isApproved = m.status === 'Approved';
-                                                const isPending = m.status === 'Pending';
-                                                const isRejected = m.status === 'Rejected';
-                                                
-                                                return (
-                                                    <div 
-                                                        key={m.month} 
-                                                        title={`${m.month}: ${m.status}`}
-                                                        className={`flex items-center justify-center px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md border ${
-                                                            isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
-                                                            isPending ? 'bg-amber-50 border-amber-200 text-amber-700' : 
-                                                            isRejected ? 'bg-rose-50 border-rose-200 text-rose-700' : 
-                                                            'bg-slate-100 border-slate-200 text-slate-400'
-                                                        }`}
-                                                    >
-                                                        {m.month.substring(0, 3).toUpperCase()}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                            <button onClick={() => setLeaderboardModal({ isOpen: false, filter: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="overflow-y-auto p-3 sm:p-4 custom-scrollbar flex-1 bg-slate-100/50">
+                            {getFilteredMatrix().length === 0 ? (
+                                <div className="p-8 text-center flex flex-col items-center justify-center">
+                                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-200">
+                                        <Archive size={20} className="text-slate-400" />
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                    <p className="text-sm font-semibold text-slate-600">No facilities found</p>
+                                    <p className="text-xs text-slate-400 mt-1">There are no facilities matching this compliance filter.</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2.5">
+                                    {getFilteredMatrix().map(item => (
+                                        <div key={item.facility} className="p-3.5 sm:p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                    <Building2 size={16} className="text-slate-400 shrink-0" />
+                                                    <span className="font-bold text-sm sm:text-base text-slate-800 truncate">{item.facility}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+                                                    <span className="text-xs font-bold text-slate-600">{item.approvedCount} / {targetMonths.length}</span>
+                                                    <span className={`text-xs font-black px-1.5 py-0.5 rounded ${item.complianceRate === 100 ? 'bg-emerald-100 text-emerald-700' : item.complianceRate > 0 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                        {item.complianceRate}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {item.months.map(m => {
+                                                    const isApproved = m.status === 'Approved';
+                                                    const isPending = m.status === 'Pending';
+                                                    const isRejected = m.status === 'Rejected';
+                                                    
+                                                    return (
+                                                        <div 
+                                                            key={m.month} 
+                                                            title={`${m.month}: ${m.status}`}
+                                                            className={`flex items-center justify-center px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md border ${
+                                                                isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
+                                                                isPending ? 'bg-amber-50 border-amber-200 text-amber-700' : 
+                                                                isRejected ? 'bg-rose-50 border-rose-200 text-rose-700' : 
+                                                                'bg-slate-100 border-slate-200 text-slate-400'
+                                                            }`}
+                                                        >
+                                                            {m.month.substring(0, 3).toUpperCase()}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            </ModalPortal>
         )}
 
         {/* --- CONFIRMATION MODAL (Delete/Restore) --- */}
         {confirmModal.isOpen && (
-            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden scale-100 animate-in zoom-in-95 duration-200 border border-slate-100">
-                    <div className="flex flex-col items-center text-center">
-                        <div className={`p-4 rounded-full mb-5 shadow-inner ${confirmModal.action === 'delete' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
-                            {confirmModal.action === 'delete' ? <Trash2 size={28} strokeWidth={2.5} /> : <AlertTriangle size={28} strokeWidth={2.5} />}
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900 mb-2 capitalize tracking-tight">
-                            {confirmModal.action} Facility?
-                        </h3>
-                        <p className="text-xs sm:text-sm text-slate-500 mb-6 leading-relaxed">
-                            Are you sure you want to <strong>{confirmModal.action}</strong> the facility <span className="text-slate-900 font-medium">"{confirmModal.facility}"</span>?
-                            {confirmModal.action === 'archive' && " It will be hidden from the main dashboard."}
-                            {confirmModal.action === 'delete' && " This action cannot be undone."}
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setConfirmModal({ isOpen: false, action: null, facility: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition-all duration-200 border border-slate-200 order-2 sm:order-1">
-                                Cancel
-                            </button>
-                            <button onClick={handleConfirmAction} className={`flex-1 py-3 sm:py-2.5 text-black rounded-xl text-sm font-bold active:scale-95 transition-all duration-200 shadow-sm order-1 sm:order-2 ${confirmModal.action === 'delete' ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-yellow-400 hover:bg-yellow-500'}`}>
-                                Confirm
-                            </button>
+            <ModalPortal>
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden scale-100 animate-in zoom-in-95 duration-200 border border-slate-100">
+                        <div className="flex flex-col items-center text-center">
+                            <div className={`p-4 rounded-full mb-5 shadow-inner ${confirmModal.action === 'delete' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                                {confirmModal.action === 'delete' ? <Trash2 size={28} strokeWidth={2.5} /> : <AlertTriangle size={28} strokeWidth={2.5} />}
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2 capitalize tracking-tight">
+                                {confirmModal.action} Facility?
+                            </h3>
+                            <p className="text-xs sm:text-sm text-slate-500 mb-6 leading-relaxed">
+                                Are you sure you want to <strong>{confirmModal.action}</strong> the facility <span className="text-slate-900 font-medium">"{confirmModal.facility}"</span>?
+                                {confirmModal.action === 'archive' && " It will be hidden from the main dashboard."}
+                                {confirmModal.action === 'delete' && " This action cannot be undone."}
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-3 w-full">
+                                <button onClick={() => setConfirmModal({ isOpen: false, action: null, facility: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition-all duration-200 border border-slate-200 order-2 sm:order-1">
+                                    Cancel
+                                </button>
+                                <button onClick={handleConfirmAction} className={`flex-1 py-3 sm:py-2.5 text-black rounded-xl text-sm font-bold active:scale-95 transition-all duration-200 shadow-sm order-1 sm:order-2 ${confirmModal.action === 'delete' ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-yellow-400 hover:bg-yellow-500'}`}>
+                                    Confirm
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </ModalPortal>
         )}
 
         {/* --- COMMAND CENTER HEADER --- */}

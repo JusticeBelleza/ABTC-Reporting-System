@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserCog, X, Building2, Mail, Eye, EyeOff, Loader2, User, Briefcase, Phone, KeyRound, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import ModalPortal from './ModalPortal';
 
 // --- ULTRA-COMPACT 12PX FLOATING LABEL INPUT ---
 const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, disabled = false, rightElement, hasError, required }) => (
@@ -276,6 +277,7 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
 
       {/* --- CONFIRMATION MODAL --- */}
       {showConfirmModal && (
+        <ModalPortal>
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                   <div className="flex flex-col items-center text-center">
@@ -307,6 +309,7 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
                   </div>
               </div>
           </div>
+        </ModalPortal>
       )}
     </>
   );

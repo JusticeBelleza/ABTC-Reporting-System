@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, PlusCircle, Building2, MapPin, Building, Activity, X } from 'lucide-react';
 import { MUNICIPALITIES, MUNICIPALITIES_DATA } from '../../lib/constants';
 import { toast } from 'sonner';
+import ModalPortal from '../modals/ModalPortal';
 
 // --- FLOATING TEXT INPUT ---
 const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, disabled = false, required, placeholder = " " }) => (
@@ -280,6 +281,7 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
 
       {/* --- CONFIRMATION MODAL --- */}
       {showConfirmModal && (
+        <ModalPortal>
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                   <div className="flex flex-col items-center text-center">
@@ -309,6 +311,7 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
                   </div>
               </div>
           </div>
+        </ModalPortal>
       )}
     </div>
   );

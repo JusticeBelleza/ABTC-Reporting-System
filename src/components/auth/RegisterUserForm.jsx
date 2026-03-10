@@ -3,6 +3,7 @@ import { Mail, Building2, KeyRound, Loader2, UserPlus, CheckCircle, AlertCircle,
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import ModalPortal from '../modals/ModalPortal';
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
@@ -311,6 +312,7 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
 
       {/* --- CONFIRMATION MODAL --- */}
       {showConfirmModal && (
+        <ModalPortal>
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                   <div className="flex flex-col items-center text-center">
@@ -340,6 +342,7 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
                   </div>
               </div>
           </div>
+        </ModalPortal>
       )}
     </>
   );

@@ -1,8 +1,10 @@
 import React from 'react';
 import { Scroll, CheckCircle, Ban, ShieldAlert, AlertOctagon, XCircle, Gavel, ZapOff, Globe, Scale } from 'lucide-react';
+import ModalPortal from './ModalPortal';
 
 export default function TermsModal({ onClose }) {
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
         
@@ -154,5 +156,6 @@ export default function TermsModal({ onClose }) {
 
       </div>
     </div>
+    </ModalPortal>
   );
 }

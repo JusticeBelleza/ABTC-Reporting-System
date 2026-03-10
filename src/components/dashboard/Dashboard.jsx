@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { supabase, adminHelperClient } from '../../lib/supabase';
 import { MONTHS } from '../../lib/constants';
 import { useApp } from '../../context/AppContext';
-
+import ModalPortal from '../modals/ModalPortal';
 import AdminDashboard from './AdminDashboard';
 import FacilityDashboard from './FacilityDashboard';
 import NotificationBell from './NotificationBell';
@@ -198,6 +198,7 @@ function DashboardContent() {
         
         {/* Delete Facility Confirmation */}
         {facilityToDelete && (
+          <ModalPortal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 border border-slate-200">
                     <div className="flex flex-col items-center text-center">
@@ -216,10 +217,12 @@ function DashboardContent() {
                     </div>
                 </div>
             </div>
+          </ModalPortal>
         )}
 
         {/* Logout Confirmation */}
         {showLogoutModal && (
+          <ModalPortal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="flex flex-col items-center text-center">
@@ -233,6 +236,7 @@ function DashboardContent() {
                     </div>
                 </div>
             </div>
+          </ModalPortal>
         )}
         
         {showPrivacyPolicy && <PrivacyModal onClose={() => setShowPrivacyPolicy(false)} />}
