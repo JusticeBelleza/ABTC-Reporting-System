@@ -58,27 +58,25 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 relative flex items-center justify-center p-4 sm:p-8 font-sans selection:bg-emerald-100 selection:text-emerald-900 overflow-hidden">
+    <div className="min-h-screen bg-slate-50 relative flex items-center justify-center p-4 sm:p-8 font-sans selection:bg-yellow-200 selection:text-black overflow-hidden">
       
-      {/* The Structured Geometric Background 
-        This creates the deep emerald angled banner at the top of the screen.
-      */}
-      <div className="absolute top-0 left-0 w-full h-[50vh] bg-emerald-700 [clip-path:polygon(0_0,100%_0,100%_75%,0_100%)] z-0"></div>
+      {/* The Structured Geometric Background - Deep Slate */}
+      <div className="absolute top-0 left-0 w-full h-[50vh] bg-slate-900 [clip-path:polygon(0_0,100%_0,100%_75%,0_100%)] z-0"></div>
 
-      {/* Main Login Card - Note the added z-10 so it sits on top of the background */}
+      {/* Main Login Card */}
       <div className="w-full max-w-md bg-white rounded-xl shadow-2xl border border-slate-100 p-8 sm:p-10 relative z-10 animate-in fade-in zoom-in-95 duration-500">
         
         {/* Header Section */}
         <div className="mb-8 text-center">
-          {/* Custom Dog Icon */}
-          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-emerald-50 mb-4 shadow-sm border border-emerald-100/50">
+          {/* PHO Logo Image */}
+          <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-white mb-4 shadow-sm border border-slate-100">
             <img 
               src="/images/pho-logo.png" 
-              alt="ABTC Logo" 
-              className="w-14 h-14 object-contain drop-shadow-sm"
+              alt="PHO Logo" 
+              className="w-16 h-16 object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">ABTC Reporting System</h1>
+          <h1 className="text-2xl font-bold text-black tracking-tight">ABTC Reporting System</h1>
           <p className="text-sm text-slate-500 mt-2 font-medium">
             {isResetMode ? "Reset your password" : "Securely sign in to your account"}
           </p>
@@ -109,14 +107,14 @@ export default function Login() {
                 type="email" 
                 id="email"
                 required 
-                className="peer block w-full px-3.5 pb-2.5 pt-6 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium text-slate-900 shadow-sm appearance-none" 
+                className="peer block w-full px-3.5 pb-2.5 pt-6 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all font-medium text-black shadow-sm appearance-none" 
                 placeholder=" " 
                 value={email} 
                 onChange={e => setEmail(e.target.value)} 
               />
               <label 
                 htmlFor="email" 
-                className="absolute text-slate-500 duration-300 transform -translate-y-3 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-emerald-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-3 cursor-text"
+                className="absolute duration-300 transform -translate-y-3 scale-75 top-4 z-10 origin-[0] start-3.5 text-black peer-focus:text-black peer-placeholder-shown:text-slate-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-3 cursor-text font-medium"
               >
                 Email Address
               </label>
@@ -128,7 +126,7 @@ export default function Login() {
                  <button 
                     type="button" 
                     onClick={() => { setIsResetMode(true); setError(''); setResetMessage(''); }} 
-                    className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wider"
+                    className="text-[11px] font-bold text-slate-500 hover:text-black transition-colors uppercase tracking-wider"
                  >
                     Forgot Password?
                  </button>
@@ -138,21 +136,21 @@ export default function Login() {
                   type={showPassword ? "text" : "password"} 
                   id="password"
                   required 
-                  className="peer block w-full px-3.5 pb-2.5 pt-6 pr-12 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium text-slate-900 shadow-sm appearance-none" 
+                  className="peer block w-full px-3.5 pb-2.5 pt-6 pr-12 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all font-medium text-black shadow-sm appearance-none" 
                   placeholder=" " 
                   value={password} 
                   onChange={e => setPassword(e.target.value)} 
                 />
                 <label 
                   htmlFor="password" 
-                  className="absolute text-slate-500 duration-300 transform -translate-y-3 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-emerald-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-3 cursor-text"
+                  className="absolute duration-300 transform -translate-y-3 scale-75 top-4 z-10 origin-[0] start-3.5 text-black peer-focus:text-black peer-placeholder-shown:text-slate-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-3 cursor-text font-medium"
                 >
                   Password
                 </label>
                 <button 
                   type="button" 
                   onClick={() => setShowPassword(!showPassword)} 
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-black transition-colors p-1"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -167,10 +165,11 @@ export default function Login() {
               />
             </div>
 
+            {/* Bright Yellow Button */}
             <button 
                 type="submit" 
                 disabled={loading} 
-                className="w-full bg-emerald-600 text-white p-3.5 rounded-lg hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] transition-all text-sm font-semibold flex items-center justify-center gap-2"
+                className="w-full bg-yellow-400 text-black p-3.5 rounded-lg hover:bg-yellow-500 hover:shadow-lg hover:shadow-yellow-400/20 active:scale-[0.98] transition-all text-sm font-bold flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 size={18} className="animate-spin"/> : 'Sign In'}
             </button>
@@ -191,14 +190,14 @@ export default function Login() {
                   type="email" 
                   id="reset-email"
                   required 
-                  className="peer block w-full px-3.5 pb-2.5 pt-6 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium text-slate-900 shadow-sm appearance-none" 
+                  className="peer block w-full px-3.5 pb-2.5 pt-6 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all font-medium text-black shadow-sm appearance-none" 
                   placeholder=" "
                   value={email} 
                   onChange={e => setEmail(e.target.value)} 
               />
                <label 
                 htmlFor="reset-email" 
-                className="absolute text-slate-500 duration-300 transform -translate-y-3 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-emerald-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-3 cursor-text"
+                className="absolute duration-300 transform -translate-y-3 scale-75 top-4 z-10 origin-[0] start-3.5 text-black peer-focus:text-black peer-placeholder-shown:text-slate-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-3 cursor-text font-medium"
               >
                 Account Email
               </label>
@@ -212,10 +211,11 @@ export default function Login() {
               />
             </div>
             
+            {/* Bright Yellow Button */}
             <button 
                 type="submit" 
                 disabled={loading} 
-                className="w-full bg-emerald-600 text-white p-3.5 rounded-lg hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 active:scale-[0.98] transition-all text-sm font-semibold flex items-center justify-center gap-2"
+                className="w-full bg-yellow-400 text-black p-3.5 rounded-lg hover:bg-yellow-500 hover:shadow-lg hover:shadow-yellow-400/20 active:scale-[0.98] transition-all text-sm font-bold flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 size={18} className="animate-spin"/> : 'Send Reset Link'}
             </button>
@@ -224,7 +224,7 @@ export default function Login() {
               <button 
                   type="button" 
                   onClick={() => { setIsResetMode(false); setError(''); setResetMessage(''); }} 
-                  className="text-xs font-bold text-slate-500 hover:text-slate-900 uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 mx-auto p-2 rounded-lg hover:bg-slate-50"
+                  className="text-xs font-bold text-slate-500 hover:text-black uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 mx-auto p-2 rounded-lg hover:bg-slate-50"
               >
                   <ArrowLeft size={14} strokeWidth={2.5}/> Back to Login
               </button>

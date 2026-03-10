@@ -11,19 +11,83 @@ export default function CohortReportTable({
   onChange, onDeleteRow, cohortTotals
 }) {
 
-  // --- NEW: Access facility details to determine the column header ---
   const { facilityDetails } = useApp();
   const facilityType = facilityDetails?.[activeFacilityName]?.type || 'RHU';
   const locationHeader = isConsolidated ? 'Municipality' : (facilityType === 'RHU' ? 'Barangay/Municipality' : 'Municipality');
 
-  // Helper functions to generate modern input classes based on read-only state
-  const getInputWebClasses = (isReadOnly) => isReadOnly
-    ? "outline-none bg-transparent w-full h-full"
-    : "outline-none transition-all hover:bg-gray-100 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full h-full py-1 min-h-[28px]";
+  const getInputWebClasses = (isReadOnly, isTotalRow) => isReadOnly
+    ? `outline-none bg-transparent w-full h-full text-center text-sm font-semibold ${isTotalRow ? 'text-slate-900' : 'text-slate-700'}`
+    : "outline-none transition-all hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full h-full py-1.5 min-h-[32px] text-center text-[13px] font-bold text-blue-900";
 
-  const getTextWebClasses = (isReadOnly) => isReadOnly
-    ? "outline-none bg-transparent w-full"
-    : "outline-none transition-all hover:bg-gray-100 focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full py-1 px-1";
+  const getTextWebClasses = (isReadOnly, isTotalRow) => isReadOnly
+    ? `outline-none bg-transparent w-full px-2 text-sm font-semibold ${isTotalRow ? 'text-slate-900' : 'text-slate-700'}`
+    : "outline-none transition-all hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full py-1 px-2 text-sm font-medium text-blue-900";
+
+  // --- IMPROVED GRID KEYBOARD NAVIGATION ---
+  const handleGridKeyDown = (e) => {
+    const { key } = e;
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(key)) return;
+
+    const isTextElement = e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type === 'text');
+
+    if (isTextElement && (key === 'ArrowLeft' || key === 'ArrowRight')) {
+        const { selectionStart, selectionEnd, value } = e.target;
+        
+        if (selectionStart !== selectionEnd) return;
+        if (key === 'ArrowLeft' && selectionStart > 0) return;
+        if (key === 'ArrowRight' && selectionEnd < value.length) return;
+    }
+
+    e.preventDefault();
+    
+    const currentInput = e.target;
+    const currentTd = currentInput.closest('td');
+    const currentRow = currentTd.closest('tr');
+    const tbody = currentRow.closest('tbody');
+    
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    const rowIndex = allRows.indexOf(currentRow);
+    const allCellsInRow = Array.from(currentRow.children);
+    const cellIndex = allCellsInRow.indexOf(currentTd);
+
+    const findEditableInput = (rIdx, cIdx, direction) => {
+        if (rIdx < 0 || rIdx >= allRows.length) return null;
+        const row = allRows[rIdx];
+        const cells = Array.from(row.children);
+        
+        if (cIdx < 0) {
+            if (direction === 'left' && rIdx > 0) return findEditableInput(rIdx - 1, allRows[rIdx - 1].children.length - 1, direction);
+            return null;
+        }
+        if (cIdx >= cells.length) {
+            if (direction === 'right' && rIdx < allRows.length - 1) return findEditableInput(rIdx + 1, 0, direction);
+            return null;
+        }
+
+        const cell = cells[cIdx];
+        const input = cell.querySelector('input:not([readonly]):not([disabled]), textarea:not([readonly]):not([disabled])');
+        
+        if (input) return input;
+
+        if (direction === 'right') return findEditableInput(rIdx, cIdx + 1, direction);
+        if (direction === 'left') return findEditableInput(rIdx, cIdx - 1, direction);
+        if (direction === 'up') return findEditableInput(rIdx - 1, cIdx, direction);
+        if (direction === 'down') return findEditableInput(rIdx + 1, cIdx, direction);
+        return null;
+    };
+
+    let targetInput = null;
+
+    if (key === 'ArrowRight') targetInput = findEditableInput(rowIndex, cellIndex + 1, 'right');
+    else if (key === 'ArrowLeft') targetInput = findEditableInput(rowIndex, cellIndex - 1, 'left');
+    else if (key === 'ArrowDown' || key === 'Enter') targetInput = findEditableInput(rowIndex + 1, cellIndex, 'down');
+    else if (key === 'ArrowUp') targetInput = findEditableInput(rowIndex - 1, cellIndex, 'up');
+
+    if (targetInput) {
+        targetInput.focus();
+        if (targetInput.select) targetInput.select();
+    }
+  };
 
   const renderTable = (category) => {
     const isCat2 = category === 'cat2';
@@ -34,29 +98,25 @@ export default function CohortReportTable({
 
     return (
       <div className={`cohort-table-hidden ${subTab === category ? 'block' : 'hidden'} mb-8`}>
-        {/* Table Title Bar */}
         <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #94A3B8', borderBottom: 'none', borderTopLeftRadius: '0.5rem', borderTopRightRadius: '0.5rem', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>
             {isCat2 ? 'CATEGORY II - EXPOSURES' : 'CATEGORY III - EXPOSURES'}
         </div>
         
-        {/* Scrollable Responsive Wrapper */}
-        <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-b-lg bg-white relative">
-          <table className="w-full border-collapse [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
-            {/* Sticky Header */}
+        <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-b-lg bg-white relative custom-scrollbar">
+          <table className="w-full border-collapse tabular-nums [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
             <thead className="sticky top-0 z-20 shadow-sm bg-white">
               <tr style={PDF_STYLES.subHeader}>
-                {/* DYNAMIC HEADER */}
                 <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'center', width: '200px', minWidth: '200px'}}>
                   {locationHeader}
                 </th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width: '100px'}}>Registered Exposures</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width: '100px'}}>Patients w/ RIG</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Complete</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Incomplete</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Booster</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: None</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold'}}>Outcome: Died</th>
-                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width:'150px', minWidth: '150px'}}>Remarks</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width: '100px', textAlign:'center'}}>Registered Exposures</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width: '100px', textAlign:'center'}}>Patients w/ RIG</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'center'}}>Outcome: Complete</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'center'}}>Outcome: Incomplete</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'center'}}>Outcome: Booster</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'center'}}>Outcome: None</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', textAlign:'center'}}>Outcome: Died</th>
+                <th style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', color: '#1E293B', fontWeight: 'bold', width:'150px', minWidth: '150px', textAlign:'center'}}>Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -64,7 +124,9 @@ export default function CohortReportTable({
                 const isEmpty = !hasCohortData(data[key], category);
                 const hideClass = isEmpty ? 'pdf-hide-empty' : '';
                 const row = data[key] || INITIAL_COHORT_ROW;
-                const isRowReadOnly = userRole === 'admin' || key === currentHostMunicipality;
+                const isHost = key === currentHostMunicipality;
+                const isRowReadOnly = userRole === 'admin' || isHost;
+                const isTotalRow = isHost && isRowReadOnly;
                 
                 const isOtherRow = currentHostMunicipality !== null && visibleList.includes(key);
 
@@ -100,13 +162,13 @@ export default function CohortReportTable({
                 }
 
                 const prefix = isCat2 ? 'cat2' : 'cat3';
+                const rowStyle = isTotalRow ? { ...PDF_STYLES.hostRow, backgroundColor: '#cbd5e1' } : (isHost ? PDF_STYLES.hostRow : PDF_STYLES.rowEven);
                 
                 return (
-                  <tr key={key} className={`${hideClass} hover:bg-blue-50/50 transition-colors group`} style={PDF_STYLES.rowEven}>
-                    {/* Municipality cell */}
-                    <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'left', color: '#1E293B', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal', paddingLeft: MUNICIPALITIES.includes(key) ? '0.75rem' : '1.5rem'}}>
+                  <tr key={key} className={`${hideClass} ${isTotalRow ? '' : 'hover:bg-blue-50/50'} transition-colors group`} style={rowStyle}>
+                    <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', textAlign:'left', color: '#1E293B', fontWeight: MUNICIPALITIES.includes(key) ? 'bold' : 'normal', paddingLeft: MUNICIPALITIES.includes(key) ? '0.75rem' : '1.5rem'}}>
                       <div className="flex justify-between items-center group/row">
-                        <span>{key}</span>
+                        <span>{key} {isHost && <span style={{fontSize:'10px', color:'#1E293B', fontWeight:'normal'}}>(Total)</span>}</span>
                         {isOtherRow && !isRowReadOnly && (
                           <button onClick={() => onDeleteRow(key)} className="text-gray-400 hover:text-red-600 transition px-2 no-print"><XCircle size={14} /></button>
                         )}
@@ -120,8 +182,9 @@ export default function CohortReportTable({
                           min="0" 
                           value={row[f]} 
                           onChange={e => onChange(key, f, e.target.value)} 
+                          onKeyDown={handleGridKeyDown}
                           style={PDF_STYLES.input} 
-                          className={getInputWebClasses(isRowReadOnly)}
+                          className={getInputWebClasses(isRowReadOnly, isTotalRow)}
                         />
                       </td>
                     ))}
@@ -131,18 +194,18 @@ export default function CohortReportTable({
                         type="text" 
                         value={row[`${prefix}_remarks`]} 
                         onChange={e => onChange(key, `${prefix}_remarks`, e.target.value)} 
+                        onKeyDown={handleGridKeyDown}
                         style={PDF_STYLES.inputText} 
-                        className={getTextWebClasses(isRowReadOnly)}
+                        className={getTextWebClasses(isRowReadOnly, isTotalRow)}
                       />
                     </td>
                   </tr>
                 );
               })}
-              {/* TOTAL ROW */}
               <tr style={{ backgroundColor: '#E2E8F0', fontWeight:'bold', fontSize:'11px', color: '#1E293B' }}>
                 <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'left', paddingLeft:'0.75rem'}}>TOTAL</td>
                 {[`${isCat2?'cat2':'cat3'}_registered`, `${isCat2?'cat2':'cat3'}_rig`, `${isCat2?'cat2':'cat3'}_complete`, `${isCat2?'cat2':'cat3'}_incomplete`, `${isCat2?'cat2':'cat3'}_booster`, `${isCat2?'cat2':'cat3'}_none`, `${isCat2?'cat2':'cat3'}_died`].map(k => (
-                   <td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0'}}>{cohortTotals[k]}</td>
+                   <td key={k} className="text-center font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0'}}>{cohortTotals[k]}</td>
                 ))}
                 <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0'}}></td>
               </tr>
