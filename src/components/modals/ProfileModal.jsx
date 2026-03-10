@@ -3,10 +3,48 @@ import { UserCog, X, Building, MessageSquare, Lock, Eye, EyeOff, Loader2 } from 
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
+// --- CUSTOM FLOATING LABEL INPUT COMPONENT ---
+const FloatingInput = ({ id, label, type = "text", value, onChange, disabled = false, rightElement, hasError }) => (
+    <div className={`relative w-full shadow-sm rounded-xl border transition-all duration-300 overflow-hidden group ${
+        disabled 
+            ? 'bg-gray-50 border-gray-200' 
+            : hasError 
+                ? 'bg-red-50/30 border-red-300 focus-within:border-red-400 focus-within:ring-1 focus-within:ring-red-400'
+                : 'bg-white border-gray-200 hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 focus-within:shadow-md'
+    }`}>
+        <input
+            type={type}
+            id={id}
+            disabled={disabled}
+            className={`block w-full px-4 pt-6 pb-2 text-sm font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 peer ${
+                disabled ? 'text-gray-500 cursor-not-allowed' : 'text-zinc-900'
+            } ${rightElement ? 'pr-10' : ''}`}
+            placeholder=" " // Required for peer-placeholder-shown CSS logic
+            value={value || ''}
+            onChange={onChange}
+        />
+        <label
+            htmlFor={id}
+            className={`absolute text-[11px] duration-300 transform -translate-y-1.5 top-3 z-10 origin-[0] left-4 
+                peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-1.5 peer-placeholder-shown:text-sm
+                peer-focus:scale-95 peer-focus:-translate-y-1.5 pointer-events-none font-bold tracking-wide transition-all ${
+                disabled ? 'text-gray-400' : hasError ? 'text-red-500' : 'text-gray-500 group-focus-within:text-blue-600'
+            }`}
+        >
+            {label}
+        </label>
+        {rightElement && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20">
+                {rightElement}
+            </div>
+        )}
+    </div>
+);
+
 export default function ProfileModal({ userId, onClose, isSelf = false }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false); // NEW STATE FOR MODAL
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [profile, setProfile] = useState({ full_name: '', designation: '', contact_number: '', email: '', facility_name: '' });
   
   const [newPassword, setNewPassword] = useState('');
@@ -37,11 +75,9 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
   const strengthColors = ['bg-gray-200', 'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-emerald-500', 'bg-emerald-600'];
   const strengthLabels = ['None', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
 
-  // Handle Initial Submit (Validation + Open Modal)
   const handlePreSubmit = (e) => {
     e.preventDefault();
     
-    // Validate passwords before opening the modal
     if (isSelf && newPassword) {
       if (newPassword !== confirmPassword) {
         toast.error("Passwords do not match");
@@ -56,7 +92,6 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
     setShowConfirmModal(true);
   };
 
-  // Handle Final Submit after Confirmation
   const confirmSave = async () => {
     setShowConfirmModal(false);
     setSaving(true);
@@ -123,42 +158,29 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
                   </div>
               </div>
 
-              {/* Form Inputs */}
+              {/* Form Inputs utilizing the new FloatingInput */}
               <div className="space-y-4">
-                  <div>
-                      <label htmlFor="fullNameInput" className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Full Name</label>
-                      <input 
-                          id="fullNameInput"
-                          type="text" 
-                          className="w-full bg-white border border-gray-200 px-4 py-3 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-zinc-900 placeholder:text-gray-400 shadow-sm" 
-                          value={profile.full_name || ''} 
-                          onChange={e => setProfile({...profile, full_name: e.target.value})} 
-                          placeholder="e.g. Juan Dela Cruz" 
-                      />
-                  </div>
+                  <FloatingInput 
+                      id="fullNameInput" 
+                      label="Full Name" 
+                      value={profile.full_name || ''} 
+                      onChange={e => setProfile({...profile, full_name: e.target.value})} 
+                  />
+                  
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="designationInput" className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Designation</label>
-                        <input 
-                            id="designationInput"
-                            type="text" 
-                            className="w-full bg-white border border-gray-200 px-4 py-3 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-zinc-900 placeholder:text-gray-400 shadow-sm" 
-                            value={profile.designation || ''} 
-                            onChange={e => setProfile({...profile, designation: e.target.value})} 
-                            placeholder="e.g. Nurse II" 
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="contactInput" className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Contact No.</label>
-                        <input 
-                            id="contactInput"
-                            type="text" 
-                            className="w-full bg-white border border-gray-200 px-4 py-3 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-zinc-900 placeholder:text-gray-400 shadow-sm" 
-                            value={profile.contact_number || ''} 
-                            onChange={e => setProfile({...profile, contact_number: e.target.value})} 
-                            placeholder="0917..." 
-                        />
-                    </div>
+                      <FloatingInput 
+                          id="designationInput" 
+                          label="Designation" 
+                          value={profile.designation || ''} 
+                          onChange={e => setProfile({...profile, designation: e.target.value})} 
+                      />
+                      <FloatingInput 
+                          id="contactInput" 
+                          label="Contact No." 
+                          type="tel"
+                          value={profile.contact_number || ''} 
+                          onChange={e => setProfile({...profile, contact_number: e.target.value})} 
+                      />
                   </div>
               </div>
               
@@ -166,26 +188,22 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
                   <div className="pt-6 mt-6 border-t border-gray-100">
                   <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-4 ml-1 flex items-center gap-2">Security Settings</h3>
                   <div className="space-y-4">
-                      <div>
-                          <label htmlFor="newPasswordInput" className="block text-sm font-medium text-gray-700 mb-1.5 ml-1">New Password</label>
-                          <div className="relative">
-                              <input 
-                                  id="newPasswordInput"
-                                  type={showPassword ? "text" : "password"} 
-                                  className="w-full bg-gray-50 border border-gray-200 px-4 py-3 rounded-xl text-sm focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all pr-10 text-zinc-900 placeholder:text-gray-400 shadow-sm" 
-                                  value={newPassword} 
-                                  onChange={e => setNewPassword(e.target.value)} 
-                                  placeholder="Leave blank to keep current" 
-                              />
+                      <FloatingInput 
+                          id="newPasswordInput" 
+                          label="New Password (Optional)" 
+                          type={showPassword ? "text" : "password"}
+                          value={newPassword} 
+                          onChange={e => setNewPassword(e.target.value)} 
+                          rightElement={
                               <button 
                                   type="button" 
                                   onClick={() => setShowPassword(!showPassword)} 
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                               >
                                   {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
                               </button>
-                          </div>
-                      </div>
+                          }
+                      />
                       
                       {newPassword && (
                           <div className="animate-in fade-in slide-in-from-top-1">
@@ -201,22 +219,19 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
                       )}
 
                       {newPassword && (
-                      <div className="animate-in fade-in slide-in-from-top-1">
-                          <label htmlFor="confirmPasswordInput" className="block text-sm font-medium text-gray-700 mb-1.5 ml-1">Confirm Password</label>
-                          <div className="relative">
-                          <input 
-                              id="confirmPasswordInput"
-                              type={showPassword ? "text" : "password"} 
-                              className={`w-full bg-gray-50 border px-4 py-3 rounded-xl text-sm outline-none transition-all pr-10 shadow-sm text-zinc-900 placeholder:text-gray-400 ${confirmPassword && newPassword !== confirmPassword ? 'border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100 bg-red-50/30' : 'border-gray-200 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'}`}
-                              value={confirmPassword} 
-                              onChange={e => setConfirmPassword(e.target.value)} 
-                              placeholder="Retype new password" 
-                          />
+                          <div className="animate-in fade-in slide-in-from-top-1">
+                              <FloatingInput 
+                                  id="confirmPasswordInput" 
+                                  label="Confirm Password" 
+                                  type={showPassword ? "text" : "password"}
+                                  value={confirmPassword} 
+                                  onChange={e => setConfirmPassword(e.target.value)} 
+                                  hasError={confirmPassword && newPassword !== confirmPassword}
+                              />
+                              {confirmPassword && newPassword !== confirmPassword && (
+                                  <p className="text-[11px] text-red-500 mt-2 font-medium ml-1">Passwords do not match</p>
+                              )}
                           </div>
-                          {confirmPassword && newPassword !== confirmPassword && (
-                              <p className="text-[11px] text-red-500 mt-2 font-medium ml-1">Passwords do not match</p>
-                          )}
-                      </div>
                       )}
                   </div>
                   </div>

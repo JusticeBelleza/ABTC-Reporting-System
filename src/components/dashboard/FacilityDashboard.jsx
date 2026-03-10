@@ -87,7 +87,6 @@ export default function FacilityDashboard({
     fetchYearlyStats();
   }, [activeFacilityName, year, isConsolidatedView, reportStatus]);
 
-  // --- TARGET MONTHS EVALUATION ---
   const getTargetMonths = () => {
       if (periodType === 'Monthly') return [month];
       if (periodType === 'Quarterly') {
@@ -98,7 +97,6 @@ export default function FacilityDashboard({
   };
   const targetMonths = getTargetMonths();
 
-  // --- 1. SINGLE FACILITY OVERVIEW CALCULATIONS ---
   const uniqueMainMonths = {};
   yearlyStats.main.forEach(r => { if (!uniqueMainMonths[r.month] || r.status === 'Approved') uniqueMainMonths[r.month] = r.status; });
   const mainStats = { approved: 0, pending: 0, rejected: 0, submitted: 0 };
@@ -129,7 +127,6 @@ export default function FacilityDashboard({
       return monthsInStatus.sort((a, b) => MONTHS.indexOf(a) - MONTHS.indexOf(b));
   };
 
-  // --- 2. CONSOLIDATED COMPLIANCE MATRIX CALCULATIONS ---
   const buildMatrix = (reportType) => {
       const dedupedStats = {};
       yearlyStats[reportType].forEach(r => {
@@ -182,13 +179,12 @@ export default function FacilityDashboard({
       return matrix; 
   };
 
-  // Dynamic Labels
   const getLabels = () => {
       if (isConsolidatedView) {
           if (periodType === 'Monthly') return ['Facilities Approved', 'Facilities Pending', 'Not Submitted', 'Provincial Compliance'];
           return ['Fully Compliant', 'Partially Compliant', 'Zero Submissions', 'Average Compliance'];
       } else {
-          if (periodType === 'Monthly') return ['Approved', 'Pending', 'Rejected', null]; // null hides the 4th card
+          if (periodType === 'Monthly') return ['Approved', 'Pending', 'Rejected', null]; 
           if (periodType === 'Quarterly') return ['Months Approved', 'Months Pending', 'Months Rejected', 'Quarterly Completion'];
           return ['Months Approved', 'Months Pending', 'Months Rejected', 'Annual Completion'];
       }
@@ -283,7 +279,7 @@ export default function FacilityDashboard({
                                 <p className="text-xs font-medium text-slate-500 truncate">{activeFacilityName} • {year}</p>
                             </div>
                         </div>
-                        <button onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors shrink-0">
+                        <button onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                             <X size={20} />
                         </button>
                     </div>
@@ -299,7 +295,7 @@ export default function FacilityDashboard({
                         ) : (
                             <div className="flex flex-col gap-1 p-2">
                                 {getMonthsByStatus(statusModal.status, statusModal.reportType).map(m => (
-                                    <div key={m} onClick={() => { setStatusModal({ isOpen: false, status: null, reportType: 'main' }); setMonth(m); setPeriodType('Monthly'); }} className="group px-4 py-3 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 transition-all">
+                                    <div key={m} onClick={() => { setStatusModal({ isOpen: false, status: null, reportType: 'main' }); setMonth(m); setPeriodType('Monthly'); }} className="group px-4 py-3 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all">
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="font-bold text-sm text-slate-800 truncate group-hover:text-black transition-colors">{m} {year}</span>
                                             <span className="text-xs font-medium text-slate-500 truncate mt-0.5">Click to jump to this month's report</span>
@@ -331,7 +327,7 @@ export default function FacilityDashboard({
                                 </p>
                             </div>
                         </div>
-                        <button onClick={() => setConsolidatedModal({ isOpen: false, filter: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors shrink-0">
+                        <button onClick={() => setConsolidatedModal({ isOpen: false, filter: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                             <X size={20} />
                         </button>
                     </div>
@@ -392,7 +388,7 @@ export default function FacilityDashboard({
             
             <div className="flex items-start gap-3 sm:gap-4 relative z-10 w-full xl:w-auto">
                 {user.role === 'admin' && (
-                    <button onClick={onBack} className="mt-1 p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:bg-slate-700 hover:text-white hover:border-slate-600 hover:shadow-md transition-all duration-300 shrink-0">
+                    <button onClick={onBack} className="mt-1 p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:bg-slate-700 hover:text-white hover:border-slate-600 hover:shadow-md active:scale-90 transition-all duration-200 shrink-0">
                         <ArrowLeft size={20}/>
                     </button>
                 )}
@@ -415,8 +411,8 @@ export default function FacilityDashboard({
             
             <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 relative z-10 w-full xl:w-auto">
                 <div className="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700 flex items-center shadow-inner w-full sm:w-auto">
-                    <button onClick={() => setActiveTab('main')} className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${activeTab==='main'?'bg-slate-700 text-white shadow-sm border border-slate-600':'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}>Form 1</button>
-                    <button onClick={() => setActiveTab('cohort')} className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${activeTab==='cohort'?'bg-slate-700 text-white shadow-sm border border-slate-600':'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}>Cohort</button>
+                    <button onClick={() => setActiveTab('main')} className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-1.5 text-xs sm:text-sm font-semibold rounded-lg active:scale-95 transition-all duration-200 ${activeTab==='main'?'bg-slate-700 text-white shadow-sm border border-slate-600':'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}>Form 1</button>
+                    <button onClick={() => setActiveTab('cohort')} className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-1.5 text-xs sm:text-sm font-semibold rounded-lg active:scale-95 transition-all duration-200 ${activeTab==='cohort'?'bg-slate-700 text-white shadow-sm border border-slate-600':'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}>Cohort</button>
                 </div>
                 
                 <div className="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700 flex flex-wrap items-center justify-between sm:justify-start gap-1 shadow-inner w-full sm:w-auto">
@@ -452,7 +448,7 @@ export default function FacilityDashboard({
                 </div>
 
                 <div className="flex w-full sm:w-auto gap-2">
-                    <button disabled={isDownloadingPdf || (!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved')} onClick={() => setShowExportModal(true)} title={(!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved') ? "Only Approved reports can be exported to PDF." : "Export PDF"} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 hover:text-white hover:border-slate-500">
+                    <button disabled={isDownloadingPdf || (!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved')} onClick={() => setShowExportModal(true)} title={(!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved') ? "Only Approved reports can be exported to PDF." : "Export PDF"} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 hover:text-white hover:border-slate-500">
                         {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
                         <span className="hidden sm:inline">Export PDF</span><span className="sm:hidden">Export</span>
                     </button>
@@ -460,22 +456,22 @@ export default function FacilityDashboard({
                         <div className="flex flex-1 sm:flex-none items-center gap-2 sm:gap-3 sm:pl-3 sm:border-l sm:border-slate-700">
                         {user.role === 'admin' ? (
                             <>
-                            <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:shadow-none">
+                            <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:shadow-none">
                                 {isSaving ? <Loader2 size={14} className="animate-spin"/> : <CheckCircle size={14}/>} Approve
                             </button>
-                            <button onClick={() => onSaveClick('Rejected')} disabled={loading || isSaving || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-rose-400 px-3 sm:px-4 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-rose-600 hover:text-white flex items-center gap-1.5 transition-all disabled:opacity-50">
+                            <button onClick={() => onSaveClick('Rejected')} disabled={loading || isSaving || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-rose-400 px-3 sm:px-4 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-rose-600 hover:text-white flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50">
                                 {isSaving ? <Loader2 size={14} className="animate-spin"/> : <XCircle size={14}/>} Reject
                             </button>
-                            <button onClick={() => setShowDeleteReportModal(true)} disabled={loading || isSaving || reportStatus === 'Draft'} className="bg-slate-800 border border-slate-700 text-red-400 p-3 sm:p-2 rounded-xl hover:bg-red-600 hover:text-white flex items-center justify-center transition-all disabled:opacity-50 shrink-0">
+                            <button onClick={() => setShowDeleteReportModal(true)} disabled={loading || isSaving || reportStatus === 'Draft'} className="bg-slate-800 border border-slate-700 text-red-400 p-3 sm:p-2 rounded-xl hover:bg-red-600 hover:text-white flex items-center justify-center active:scale-90 transition-all duration-200 disabled:opacity-50 shrink-0">
                                 <Trash2 size={16} />
                             </button>
                             </>
                         ) : (
                             <>
-                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white flex items-center gap-1.5 transition-all disabled:opacity-50">
+                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50">
                                 {isSaving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} <span className="hidden sm:inline">Save Draft</span><span className="sm:hidden">Draft</span>
                             </button>
-                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:shadow-none">
+                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:shadow-none">
                                 {isSaving ? <Loader2 size={14} className="animate-spin"/> : null} Submit <span className="hidden sm:inline">Report</span>
                             </button>
                             </>
@@ -494,15 +490,15 @@ export default function FacilityDashboard({
                     {isConsolidatedView ? `Form 1 Provincial Compliance (${getCurrentPeriodText()})` : `Form 1 Overview (${currentDisplayPeriod} ${year})`}
                 </h3>
                 <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 ${periodType === 'Monthly' && !isConsolidatedView ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'full', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300 transition-all duration-300 cursor-pointer group">
+                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'full', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
                         <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><CheckCircle size={20} strokeWidth={2.5} /></div>
                         <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblApproved}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.full : mainStats.approved}</p></div>
                     </div>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'partial', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Pending', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-amber-300 transition-all duration-300 cursor-pointer group">
+                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'partial', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Pending', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-amber-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
                         <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Clock size={20} strokeWidth={2.5} /></div>
                         <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblPending}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.partial : mainStats.pending}</p></div>
                     </div>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'zero', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-300 transition-all duration-300 cursor-pointer group">
+                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'zero', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
                         <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors"><XCircle size={20} strokeWidth={2.5} /></div>
                         <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblRejected}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.zero : mainStats.rejected}</p></div>
                     </div>
@@ -541,7 +537,7 @@ export default function FacilityDashboard({
                                         className={`flex-1 flex items-center justify-center px-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg border transition-all duration-300 ${
                                             isFutureMonth 
                                                 ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-60' 
-                                                : `cursor-pointer hover:-translate-y-0.5 ${
+                                                : `cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
                                                     isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 
                                                     isPending ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' : 
                                                     isRejected ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' : 
@@ -567,15 +563,15 @@ export default function FacilityDashboard({
                     {isConsolidatedView ? `Cohort Provincial Compliance (${getCurrentPeriodText()})` : `Cohort Overview (${currentDisplayPeriod} ${year})`}
                 </h3>
                 <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 ${periodType === 'Monthly' && !isConsolidatedView ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'full', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Approved', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300 transition-all duration-300 cursor-pointer group">
+                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'full', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Approved', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
                         <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><CheckCircle size={20} strokeWidth={2.5} /></div>
                         <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblApproved}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? cohortAgg.full : cohortStats.approved}</p></div>
                     </div>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'partial', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Pending', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-amber-300 transition-all duration-300 cursor-pointer group">
+                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'partial', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Pending', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-amber-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
                         <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Clock size={20} strokeWidth={2.5} /></div>
                         <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblPending}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? cohortAgg.partial : cohortStats.pending}</p></div>
                     </div>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'zero', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-300 transition-all duration-300 cursor-pointer group">
+                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'zero', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
                         <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors"><XCircle size={20} strokeWidth={2.5} /></div>
                         <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblRejected}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? cohortAgg.zero : cohortStats.rejected}</p></div>
                     </div>
@@ -614,7 +610,7 @@ export default function FacilityDashboard({
                                         className={`flex-1 flex items-center justify-center px-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg border transition-all duration-300 ${
                                             isFutureMonth 
                                                 ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-60' 
-                                                : `cursor-pointer hover:-translate-y-0.5 ${
+                                                : `cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
                                                     isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 
                                                     isPending ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' : 
                                                     isRejected ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' : 
@@ -635,7 +631,7 @@ export default function FacilityDashboard({
             )}
         </div>
 
-        {/* Main Table Container (Scrollable horizontally) */}
+        {/* Main Table Container */}
         <div className="bg-white rounded-2xl print:rounded-none print:shadow-none print:border-none relative w-full overflow-x-auto" style={{...PDF_STYLES.container}}>
             
             {showZeroBanner && (
@@ -663,10 +659,10 @@ export default function FacilityDashboard({
                     </div>
                     
                     <div className="flex flex-wrap gap-4 sm:gap-6 mb-4 sm:mb-6 border-b border-gray-200 no-print px-4 sm:px-6">
-                        <button onClick={() => setCohortSubTab('cat2')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 transition-all duration-200 ${cohortSubTab==='cat2' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
+                        <button onClick={() => setCohortSubTab('cat2')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 active:opacity-70 transition-all duration-200 ${cohortSubTab==='cat2' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
                             Category II Exposures
                         </button>
-                        <button onClick={() => setCohortSubTab('cat3')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 transition-all duration-200 ${cohortSubTab==='cat3' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
+                        <button onClick={() => setCohortSubTab('cat3')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 active:opacity-70 transition-all duration-200 ${cohortSubTab==='cat3' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
                             Category III Exposures
                         </button>
                     </div>
@@ -695,10 +691,10 @@ export default function FacilityDashboard({
                             Are you sure you want to download the <strong>{activeTab === 'main' ? 'Form 1' : 'Cohort'}</strong> report as a PDF document?
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setShowExportModal(false)} disabled={isDownloadingPdf} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors order-2 sm:order-1">
+                            <button onClick={() => setShowExportModal(false)} disabled={isDownloadingPdf} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
                                 Cancel
                             </button>
-                            <button onClick={confirmExportPdf} disabled={isDownloadingPdf} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-900 text-yellow-400 rounded-xl text-sm font-bold hover:bg-slate-800 shadow-sm transition-all flex justify-center items-center gap-2 order-1 sm:order-2">
+                            <button onClick={confirmExportPdf} disabled={isDownloadingPdf} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-900 text-yellow-400 rounded-xl text-sm font-bold hover:bg-slate-800 shadow-sm active:scale-95 transition-all duration-200 flex justify-center items-center gap-2 order-1 sm:order-2">
                                 {isDownloadingPdf && <Loader2 size={16} className="animate-spin"/>} Export
                             </button>
                         </div>
@@ -720,10 +716,10 @@ export default function FacilityDashboard({
                             Are you sure you want to save your current progress as a draft? You can return to edit it later before submitting.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setShowDraftModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors order-2 sm:order-1">
+                            <button onClick={() => setShowDraftModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
                                 Cancel
                             </button>
-                            <button onClick={confirmSaveDraft} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 shadow-sm transition-all flex justify-center items-center gap-2 order-1 sm:order-2">
+                            <button onClick={confirmSaveDraft} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 shadow-sm active:scale-95 transition-all duration-200 flex justify-center items-center gap-2 order-1 sm:order-2">
                                 {isSaving && <Loader2 size={16} className="animate-spin"/>} Save Draft
                             </button>
                         </div>
@@ -745,10 +741,10 @@ export default function FacilityDashboard({
                             Are you sure you want to approve this report? Once approved, it will be included in the consolidated reporting.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setShowApproveModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors order-2 sm:order-1">
+                            <button onClick={() => setShowApproveModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
                                 Cancel
                             </button>
-                            <button onClick={confirmApprove} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-yellow-400 text-black rounded-xl text-sm font-bold hover:bg-yellow-500 shadow-sm transition-all flex justify-center items-center gap-2 order-1 sm:order-2">
+                            <button onClick={confirmApprove} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-yellow-400 text-black rounded-xl text-sm font-bold hover:bg-yellow-500 shadow-sm active:scale-95 transition-all duration-200 flex justify-center items-center gap-2 order-1 sm:order-2">
                                 {isSaving && <Loader2 size={16} className="animate-spin"/>} Approve
                             </button>
                         </div>
@@ -772,10 +768,10 @@ export default function FacilityDashboard({
                             {isZeroSubmit ? "You are about to submit a completely blank form. Are you sure you want to submit a ZERO CASE report?" : "Please verify that all data entries are correct before confirming submission."}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setShowSubmitModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors order-2 sm:order-1">
+                            <button onClick={() => setShowSubmitModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
                                 Cancel
                             </button>
-                            <button onClick={confirmSubmit} disabled={isSaving} className={`flex-1 py-3 sm:py-2.5 px-4 text-black rounded-xl text-sm font-bold shadow-sm transition-all flex justify-center items-center gap-2 order-1 sm:order-2 ${isZeroSubmit ? 'bg-amber-400 hover:bg-amber-500' : 'bg-yellow-400 hover:bg-yellow-500'}`}>
+                            <button onClick={confirmSubmit} disabled={isSaving} className={`flex-1 py-3 sm:py-2.5 px-4 text-black rounded-xl text-sm font-bold shadow-sm active:scale-95 transition-all duration-200 flex justify-center items-center gap-2 order-1 sm:order-2 ${isZeroSubmit ? 'bg-amber-400 hover:bg-amber-500' : 'bg-yellow-400 hover:bg-yellow-500'}`}>
                                 {isSaving && <Loader2 size={16} className="animate-spin"/>} Confirm
                             </button>
                         </div>
@@ -792,17 +788,17 @@ export default function FacilityDashboard({
                         <h2 className="text-lg sm:text-xl font-bold text-rose-600 flex items-center gap-2 tracking-tight">
                             <MessageSquare size={22} strokeWidth={2.5}/> Reject Report
                         </h2>
-                        <button onClick={() => setShowRejectModal(false)} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1 rounded-lg transition-colors">
+                        <button onClick={() => setShowRejectModal(false)} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1 active:scale-90 rounded-lg transition-all">
                             <X size={20}/>
                         </button>
                     </div>
                     <p className="text-slate-500 text-xs sm:text-sm mb-4 font-medium">Please provide a reason for rejecting this report. This will be visible to the facility user.</p>
                     <textarea className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all shadow-inner" rows={4} value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} autoFocus placeholder="e.g. Incomplete data, please review the totals..."></textarea>
                     <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 w-full">
-                        <button onClick={() => setShowRejectModal(false)} className="w-full sm:w-auto px-5 py-3 sm:py-2.5 text-slate-700 hover:bg-slate-100 rounded-xl text-sm font-semibold transition-colors order-2 sm:order-1">
+                        <button onClick={() => setShowRejectModal(false)} className="w-full sm:w-auto px-5 py-3 sm:py-2.5 text-slate-700 hover:bg-slate-100 rounded-xl text-sm font-semibold active:scale-95 transition-all duration-200 order-2 sm:order-1">
                             Cancel
                         </button>
-                        <button onClick={confirmRejection} disabled={isSaving} className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-rose-600 text-white hover:bg-rose-700 shadow-sm rounded-xl text-sm font-semibold transition-all flex justify-center items-center gap-2 order-1 sm:order-2">
+                        <button onClick={confirmRejection} disabled={isSaving} className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-rose-600 text-white hover:bg-rose-700 shadow-sm rounded-xl text-sm font-semibold active:scale-95 transition-all duration-200 flex justify-center items-center gap-2 order-1 sm:order-2">
                             {isSaving && <Loader2 size={16} className="animate-spin"/>} Confirm Rejection
                         </button>
                     </div>
@@ -823,10 +819,10 @@ export default function FacilityDashboard({
                             Are you sure you want to delete the <strong>{activeTab === 'main' ? 'Form 1' : 'Cohort'}</strong> report? This action cannot be undone and all data will be lost.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setShowDeleteReportModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors order-2 sm:order-1">
+                            <button onClick={() => setShowDeleteReportModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
                                 Cancel
                             </button>
-                            <button onClick={handleDeleteReportClick} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 shadow-sm transition-all flex justify-center items-center gap-2 order-1 sm:order-2">
+                            <button onClick={handleDeleteReportClick} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 shadow-sm active:scale-95 transition-all duration-200 flex justify-center items-center gap-2 order-1 sm:order-2">
                                 {isSaving && <Loader2 size={16} className="animate-spin"/>} Delete
                             </button>
                         </div>
@@ -848,10 +844,10 @@ export default function FacilityDashboard({
                             Are you sure you want to remove <strong>{deleteRowConfirmation.rowKey}</strong>? Any data entered in this row will be lost immediately.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setDeleteRowConfirmation({ isOpen: false, rowKey: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors order-2 sm:order-1">
+                            <button onClick={() => setDeleteRowConfirmation({ isOpen: false, rowKey: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
                                 Cancel
                             </button>
-                            <button onClick={confirmDeleteRow} className="flex-1 py-3 sm:py-2.5 px-4 bg-amber-500 text-black rounded-xl text-sm font-bold hover:bg-amber-600 shadow-sm transition-all order-1 sm:order-2">
+                            <button onClick={confirmDeleteRow} className="flex-1 py-3 sm:py-2.5 px-4 bg-amber-500 text-black rounded-xl text-sm font-bold hover:bg-amber-600 shadow-sm active:scale-95 transition-all duration-200 order-1 sm:order-2">
                                 Remove
                             </button>
                         </div>

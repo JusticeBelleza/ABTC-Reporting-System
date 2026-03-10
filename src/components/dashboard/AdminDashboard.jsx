@@ -36,7 +36,6 @@ export default function AdminDashboard({
   const [cardPage, setCardPage] = useState(1);
   const CARDS_PER_PAGE = 6;
 
-  // Current Date logic for disabling future months
   const currentDate = new Date();
   const currentRealYear = currentDate.getFullYear();
   const currentRealMonthIdx = currentDate.getMonth();
@@ -214,6 +213,24 @@ export default function AdminDashboard({
 
   const currentDisplayPeriod = periodType === 'Monthly' ? month : periodType === 'Quarterly' ? formatQuarterName(quarter) : 'Annual';
 
+  const renderFractionBadge = (facilityName, matrix) => {
+      const facData = matrix.find(m => m.facility === facilityName);
+      if (!facData) return <span className="bg-slate-100 text-slate-400 px-2 py-0.5 rounded font-bold text-[10px]">0 / {targetMonths.length}</span>;
+      
+      const isFull = facData.isFully;
+      const isZero = facData.isZero;
+      
+      return (
+          <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+              isFull ? 'bg-emerald-100 text-emerald-700' : 
+              isZero ? 'bg-rose-100 text-rose-700' : 
+              'bg-amber-100 text-amber-700'
+          }`}>
+              {facData.approvedCount} / {targetMonths.length}
+          </span>
+      );
+  };
+
   return (
     <div className="max-w-7xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500 relative pb-24 sm:pb-12 w-full px-2 sm:px-4">
         
@@ -233,10 +250,10 @@ export default function AdminDashboard({
                                 <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
                                     {statusModal.reportType === 'cohort' ? 'Cohort' : 'Form 1'} - {statusModal.status}
                                 </h3>
-                                <p className="text-xs font-medium text-slate-500 truncate">{month} {year}</p>
+                                <p className="text-xs font-medium text-slate-500">{month} {year}</p>
                             </div>
                         </div>
-                        <button onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors shrink-0">
+                        <button onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                             <X size={20} />
                         </button>
                     </div>
@@ -254,7 +271,7 @@ export default function AdminDashboard({
                             <div className="flex flex-col h-full">
                                 <div className="flex flex-col gap-1 p-4 flex-1 overflow-y-auto custom-scrollbar">
                                     {paginatedModalFacilities.map(f => (
-                                        <div key={f} onClick={() => { setStatusModal({ isOpen: false, status: null, reportType: 'main' }); onSelectFacility(f); }} className="group px-4 py-3.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 transition-all">
+                                        <div key={f} onClick={() => { setStatusModal({ isOpen: false, status: null, reportType: 'main' }); onSelectFacility(f); }} className="group px-4 py-3.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all">
                                             <div className="flex items-center gap-3 overflow-hidden">
                                                 <div className="p-2 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition-colors">
                                                     <Building2 size={16} />
@@ -267,9 +284,9 @@ export default function AdminDashboard({
                                 </div>
                                 {totalModalPages > 1 && (
                                     <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-t border-slate-100">
-                                        <button onClick={() => setModalPage(p => Math.max(1, p - 1))} disabled={modalPage === 1} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50 transition-colors shadow-sm">Previous</button>
+                                        <button onClick={() => setModalPage(p => Math.max(1, p - 1))} disabled={modalPage === 1} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Previous</button>
                                         <span className="text-xs font-medium text-slate-500">Page {modalPage} of {totalModalPages}</span>
-                                        <button onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))} disabled={modalPage === totalModalPages} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50 transition-colors shadow-sm">Next</button>
+                                        <button onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))} disabled={modalPage === totalModalPages} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Next</button>
                                     </div>
                                 )}
                             </div>
@@ -279,9 +296,9 @@ export default function AdminDashboard({
             </div>
         )}
 
-        {/* --- LEADERBOARD MATRIX MODAL (Quarterly/Annual) --- */}
+        {/* --- LEADERBOARD MATRIX MODAL --- */}
         {leaderboardModal.isOpen && (
-            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                     <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <div className="flex items-center gap-3 overflow-hidden">
@@ -297,7 +314,7 @@ export default function AdminDashboard({
                                 </p>
                             </div>
                         </div>
-                        <button onClick={() => setLeaderboardModal({ isOpen: false, filter: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors shrink-0">
+                        <button onClick={() => setLeaderboardModal({ isOpen: false, filter: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                             <X size={20} />
                         </button>
                     </div>
@@ -376,10 +393,10 @@ export default function AdminDashboard({
                             {confirmModal.action === 'delete' && " This action cannot be undone."}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setConfirmModal({ isOpen: false, action: null, facility: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-100 hover:text-slate-900 transition-colors border border-slate-200 order-2 sm:order-1">
+                            <button onClick={() => setConfirmModal({ isOpen: false, action: null, facility: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition-all duration-200 border border-slate-200 order-2 sm:order-1">
                                 Cancel
                             </button>
-                            <button onClick={handleConfirmAction} className={`flex-1 py-3 sm:py-2.5 text-black rounded-xl text-sm font-bold transition-all shadow-sm order-1 sm:order-2 ${confirmModal.action === 'delete' ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-yellow-400 hover:bg-yellow-500'}`}>
+                            <button onClick={handleConfirmAction} className={`flex-1 py-3 sm:py-2.5 text-black rounded-xl text-sm font-bold active:scale-95 transition-all duration-200 shadow-sm order-1 sm:order-2 ${confirmModal.action === 'delete' ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-yellow-400 hover:bg-yellow-500'}`}>
                                 Confirm
                             </button>
                         </div>
@@ -389,79 +406,77 @@ export default function AdminDashboard({
         )}
 
         {/* --- COMMAND CENTER HEADER --- */}
-        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden">
-          <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
-          
-          <div className="relative z-10 w-full xl:w-auto">
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Admin Dashboard</h2>
-            <p className="text-slate-400 text-xs sm:text-sm mt-1.5 font-medium">Manage and monitor facility submissions province-wide</p>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3 relative z-10 w-full xl:w-auto">
-            <button onClick={() => setShowArchived(!showArchived)} className={`flex-1 sm:flex-none px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-300 ${showArchived ? 'bg-slate-700 text-white shadow-inner' : 'bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white'}`}>
-                {showArchived ? <RefreshCcw size={16} /> : <Archive size={16} />}
-                <span className="truncate">{showArchived ? 'View Active' : 'View Archived'}</span>
-            </button>
-            <button onClick={onAddFacility} className="flex-1 sm:flex-none bg-slate-800/80 border border-slate-700 text-slate-300 px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2">
-                <Plus size={16} /> <span className="truncate">Add Facility</span>
-            </button>
-            <button onClick={onManageUsers} className="flex-1 sm:flex-none bg-slate-800/80 border border-slate-700 text-slate-300 px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2">
-                <Users size={16} /> <span className="truncate">Manage Users</span>
-            </button>
-            <button onClick={onViewConsolidated} className="flex-1 sm:flex-none bg-yellow-400 text-black px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.3)] hover:bg-yellow-500 transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2">
-                <Layers size={16} /> <span className="truncate">Consolidated</span>
-            </button>
-          </div>
-        </div>
-
-        {/* --- FILTERS & NOTICES --- */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8 items-start md:items-center">
-          <div className="bg-white p-1.5 rounded-xl border border-slate-200 flex flex-wrap items-center gap-1 w-full sm:w-fit shadow-sm">
-            <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="flex-1 sm:flex-none bg-slate-100 text-xs sm:text-sm font-bold text-slate-800 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer rounded-lg border-none focus:ring-2 focus:ring-slate-900/10 transition-all">
-              <option value="Monthly">Monthly</option>
-              <option value="Quarterly">Quarterly</option>
-              <option value="Annual">Annual</option>
-            </select>
+        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print">
+            <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
             
-            {periodType === 'Monthly' && (
-              <select value={month} onChange={e => setMonth(e.target.value)} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
-                {availableMonths.map(m => {
-                    const mIdx = MONTHS.indexOf(m);
-                    const isFuture = year > currentRealYear || (year === currentRealYear && mIdx > currentRealMonthIdx);
-                    return <option key={m} value={m} disabled={isFuture}>{m}</option>;
-                })}
-              </select>
-            )}
-            
-            {periodType === 'Quarterly' && (
-              <select value={quarter} onChange={e => setQuarter(e.target.value)} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
-                {QUARTERS.map((q, idx) => {
-                    const isFuture = year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3));
-                    return <option key={q} value={q} disabled={isFuture}>{formatQuarterName(q)}</option>;
-                })}
-              </select>
-            )}
-            
-            <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block"></div>
-
-            <select value={year} onChange={e => setYear(Number(e.target.value))} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          
-          {showArchived && (
-            <div className="flex items-center gap-2 text-slate-700 bg-slate-200/50 px-4 py-2.5 rounded-xl border border-slate-300 shadow-sm w-full sm:w-fit animate-in fade-in slide-in-from-left-2">
-              <Archive size={16} className="text-slate-600 shrink-0" />
-              <span className="text-xs sm:text-sm font-semibold">Viewing Archived Facilities. Restore to enable reporting.</span>
+            <div className="relative z-10 w-full xl:w-auto">
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Admin Dashboard</h2>
+                <p className="text-slate-400 text-xs sm:text-sm mt-1.5 font-medium">Manage and monitor facility submissions province-wide</p>
             </div>
-          )}
+            
+            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3 relative z-10 w-full xl:w-auto">
+                <button onClick={() => setShowArchived(!showArchived)} className={`flex-1 sm:flex-none px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95 transition-all duration-200 ${showArchived ? 'bg-slate-700 text-white shadow-inner' : 'bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white'}`}>
+                    {showArchived ? <RefreshCcw size={16} /> : <Archive size={16} />}
+                    <span className="truncate">{showArchived ? 'View Active' : 'View Archived'}</span>
+                </button>
+                <button onClick={onAddFacility} className="flex-1 sm:flex-none bg-slate-800/80 border border-slate-700 text-slate-300 px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white active:scale-95 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2">
+                    <Plus size={16} /> <span className="truncate">Add Facility</span>
+                </button>
+                <button onClick={onManageUsers} className="flex-1 sm:flex-none bg-slate-800/80 border border-slate-700 text-slate-300 px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white active:scale-95 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2">
+                    <Users size={16} /> <span className="truncate">Manage Users</span>
+                </button>
+                <button onClick={onViewConsolidated} className="flex-1 sm:flex-none bg-yellow-400 text-black px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.3)] hover:bg-yellow-500 active:scale-95 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2">
+                    <Layers size={16} /> <span className="truncate">Consolidated</span>
+                </button>
+            </div>
         </div>
 
-        {/* --- DYNAMIC KPI CARDS --- */}
+        {/* --- FILTERS --- */}
+        <div className="flex flex-col md:flex-row gap-4 mb-8 items-start md:items-center">
+            <div className="bg-white p-1.5 rounded-xl border border-slate-200 flex flex-wrap items-center gap-1 w-full sm:w-fit shadow-sm">
+                <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="flex-1 sm:flex-none bg-slate-100 text-xs sm:text-sm font-bold text-slate-800 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer rounded-lg border-none focus:ring-2 focus:ring-slate-900/10 transition-all">
+                    <option value="Monthly">Monthly</option>
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Annual">Annual</option>
+                </select>
+                
+                {periodType === 'Monthly' && (
+                    <select value={month} onChange={e => setMonth(e.target.value)} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
+                        {availableMonths.map(m => {
+                            const mIdx = MONTHS.indexOf(m);
+                            const isFuture = year > currentRealYear || (year === currentRealYear && mIdx > currentRealMonthIdx);
+                            return <option key={m} value={m} disabled={isFuture}>{m}</option>;
+                        })}
+                    </select>
+                )}
+                
+                {periodType === 'Quarterly' && (
+                    <select value={quarter} onChange={e => setQuarter(e.target.value)} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
+                        {QUARTERS.map((q, idx) => {
+                            const isFuture = year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3));
+                            return <option key={q} value={q} disabled={isFuture}>{formatQuarterName(q)}</option>;
+                        })}
+                    </select>
+                )}
+                
+                <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block"></div>
+
+                <select value={year} onChange={e => setYear(Number(e.target.value))} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
+                    {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+            </div>
+            
+            {showArchived && (
+                <div className="flex items-center gap-2 text-slate-700 bg-slate-200/50 px-4 py-2.5 rounded-xl border border-slate-300 shadow-sm w-full sm:w-fit animate-in fade-in slide-in-from-left-2">
+                    <Archive size={16} className="text-slate-600 shrink-0" />
+                    <span className="text-xs sm:text-sm font-semibold">Viewing Archived Facilities. Restore to enable reporting.</span>
+                </div>
+            )}
+        </div>
+
+        {/* --- KPI CARDS --- */}
         {!showArchived && (
           <div className="space-y-6 mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
-            
-            {/* Dynamic Form 1 Section */}
             <div>
               <h3 className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">
                  Form 1 Overview ({currentDisplayPeriod} {year})
@@ -469,7 +484,7 @@ export default function AdminDashboard({
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {periodType === 'Monthly' ? (
                       <>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                                 <CheckCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -478,7 +493,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainStats.approved}</p>
                             </div>
                         </div>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                                 <Clock size={20} strokeWidth={2.5} />
                             </div>
@@ -487,7 +502,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainStats.pending}</p>
                             </div>
                         </div>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">
                                 <XCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -508,7 +523,7 @@ export default function AdminDashboard({
                       </>
                   ) : (
                       <>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'full', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'full', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                                 <CheckCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -517,7 +532,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainAgg.full}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'partial', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'partial', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                                 <Clock size={20} strokeWidth={2.5} />
                             </div>
@@ -526,7 +541,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainAgg.partial}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'zero', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'zero', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">
                                 <XCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -535,7 +550,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainAgg.zero}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'all', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'all', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all">
                                 <TrendingUp size={20} strokeWidth={2.5} />
                             </div>
@@ -549,7 +564,6 @@ export default function AdminDashboard({
               </div>
             </div>
 
-            {/* Dynamic Cohort Section */}
             <div>
               <h3 className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">
                  Cohort Report Overview ({currentDisplayPeriod} {year})
@@ -557,7 +571,7 @@ export default function AdminDashboard({
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {periodType === 'Monthly' ? (
                       <>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                                 <CheckCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -566,7 +580,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortStats.approved}</p>
                             </div>
                         </div>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                                 <Clock size={20} strokeWidth={2.5} />
                             </div>
@@ -575,7 +589,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortStats.pending}</p>
                             </div>
                         </div>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">
                                 <XCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -596,7 +610,7 @@ export default function AdminDashboard({
                       </>
                   ) : (
                       <>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'full', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'full', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                                 <CheckCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -605,7 +619,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortAgg.full}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'partial', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'partial', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                                 <Clock size={20} strokeWidth={2.5} />
                             </div>
@@ -614,7 +628,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortAgg.partial}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'zero', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'zero', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">
                                 <XCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -623,7 +637,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortAgg.zero}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'all', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'all', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all">
                                 <TrendingUp size={20} strokeWidth={2.5} />
                             </div>
@@ -636,31 +650,55 @@ export default function AdminDashboard({
                   )}
               </div>
             </div>
-
-        </div>
+          </div>
         )}
 
         {/* Facility Cards Grid with Pagination */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {paginatedCards.map(f => {
-            const { main, cohort, lastUpdated } = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
-            const meta = facilityMeta.find(m => m.name === f);
-            const type = meta?.type || (f.includes("Hospital") || f === 'APH' ? 'Hospital' : (f.includes("Clinic") || f === 'AMDC' ? 'Clinic' : 'RHU'));
-            const ownership = meta?.ownership || ((f === 'APH' || type === 'RHU') ? 'Government' : 'Private');
+          {paginatedCards.map((f) => {
+            const statusObj = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
+            const main = statusObj.main;
+            const cohort = statusObj.cohort;
+            const lastUpdated = statusObj.lastUpdated;
+
+            const meta = facilityMeta.find((m) => m.name === f);
+            
+            let type = meta?.type;
+            if (!type) {
+              if (f.includes('Hospital') || f === 'APH') type = 'Hospital';
+              else if (f.includes('Clinic') || f === 'AMDC') type = 'Clinic';
+              else type = 'RHU';
+            }
+
+            let ownership = meta?.ownership;
+            if (!ownership) {
+              if (f === 'APH' || type === 'RHU') ownership = 'Government';
+              else ownership = 'Private';
+            }
+
             const isArchived = meta?.status === 'Archived';
             const facilityStatusLabel = isArchived ? 'Disabled' : 'Active';
             const ownerName = facilityOwners[f];
 
             return (
-              <div key={f} onClick={() => !showArchived && onSelectFacility(f)} className={`group relative p-5 sm:p-6 rounded-2xl border transition-all duration-300 flex flex-col h-full cursor-pointer overflow-hidden ${showArchived ? 'bg-slate-100 border-slate-200 opacity-80' : 'bg-white border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-slate-900/30'}`}>
+              <div key={f} onClick={() => !showArchived && onSelectFacility(f)} className={`group relative p-5 sm:p-6 rounded-2xl border transition-all duration-300 flex flex-col h-full cursor-pointer overflow-hidden ${showArchived ? 'bg-slate-100 border-slate-200 opacity-80' : 'bg-white border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] hover:border-slate-900/30'}`}>
                 <div className="flex justify-between items-start mb-4 sm:mb-5">
                   <div className={`p-2.5 sm:p-3 rounded-xl transition-all duration-300 ${showArchived ? 'bg-slate-200 text-slate-400' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-900 group-hover:text-yellow-400 group-hover:shadow-md'}`}>
                     {type === 'Hospital' ? <Hospital size={24} strokeWidth={2}/> : (type === 'Clinic' ? <Stethoscope size={24} strokeWidth={2}/> : <Building2 size={24} strokeWidth={2}/>)}
                   </div>
                   <div className="flex flex-col gap-1 sm:gap-1.5 items-end">
-                    <div className="flex items-center gap-1.5 sm:gap-2"><span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Status</span><StatusBadge status={facilityStatusLabel} /></div>
-                    <div className="flex items-center gap-1.5 sm:gap-2"><span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Form 1</span>{periodType === 'Monthly' && <StatusBadge status={main} />}</div>
-                    <div className="flex items-center gap-1.5 sm:gap-2"><span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cohort</span>{periodType === 'Monthly' && <StatusBadge status={cohort} />}</div>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Status</span>
+                        <StatusBadge status={facilityStatusLabel} />
+                    </div>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Form 1</span>
+                        {periodType === 'Monthly' ? <StatusBadge status={main} /> : renderFractionBadge(f, mainMatrix)}
+                    </div>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cohort</span>
+                        {periodType === 'Monthly' ? <StatusBadge status={cohort} /> : renderFractionBadge(f, cohortMatrix)}
+                    </div>
                   </div>
                 </div>
                 
@@ -684,10 +722,10 @@ export default function AdminDashboard({
                     {showArchived ? 'Archived Facility' : 'Open Report →'}
                   </span>
                   <div className="flex gap-1.5">
-                    <button onClick={(e) => requestAction(e, f, showArchived ? 'restore' : 'archive')} className={`transition p-1.5 sm:p-2 rounded-lg border border-transparent ${showArchived ? 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200'}`} title={showArchived ? "Restore" : "Archive"}>
+                    <button onClick={(e) => requestAction(e, f, showArchived ? 'restore' : 'archive')} className={`transition-all duration-200 active:scale-90 p-1.5 sm:p-2 rounded-lg border border-transparent ${showArchived ? 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200'}`} title={showArchived ? "Restore" : "Archive"}>
                         {showArchived ? <RefreshCcw size={14} /> : <Archive size={14} />}
                     </button>
-                    <button onClick={(e) => requestAction(e, f, 'delete')} className="text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition p-1.5 sm:p-2 rounded-lg border border-transparent" title="Delete">
+                    <button onClick={(e) => requestAction(e, f, 'delete')} className="text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all duration-200 active:scale-90 p-1.5 sm:p-2 rounded-lg border border-transparent" title="Delete">
                         <Trash2 size={14} />
                     </button>
                   </div>
@@ -716,13 +754,13 @@ export default function AdminDashboard({
           {/* Cards Pagination */}
           {totalCardPages > 1 && (
              <div className="col-span-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white rounded-2xl border border-slate-200 shadow-sm mt-2">
-                 <button onClick={() => setCardPage(p => Math.max(1, p - 1))} disabled={cardPage === 1} className="text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center gap-1.5 sm:gap-2">
+                 <button onClick={() => setCardPage(p => Math.max(1, p - 1))} disabled={cardPage === 1} className="text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-100 hover:text-slate-900 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm flex items-center gap-1.5 sm:gap-2">
                      <ChevronLeft size={16} strokeWidth={2.5} /> <span className="hidden sm:inline">Previous</span>
                  </button>
                  <span className="text-xs sm:text-sm font-medium text-slate-500">
                      Page <strong className="text-slate-900">{cardPage}</strong> of <strong className="text-slate-900">{totalCardPages}</strong>
                  </span>
-                 <button onClick={() => setCardPage(p => Math.min(totalCardPages, p + 1))} disabled={cardPage === totalCardPages} className="text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center gap-1.5 sm:gap-2">
+                 <button onClick={() => setCardPage(p => Math.min(totalCardPages, p + 1))} disabled={cardPage === totalCardPages} className="text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-100 hover:text-slate-900 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm flex items-center gap-1.5 sm:gap-2">
                      <span className="hidden sm:inline">Next</span> <ChevronRight size={16} strokeWidth={2.5} />
                  </button>
              </div>

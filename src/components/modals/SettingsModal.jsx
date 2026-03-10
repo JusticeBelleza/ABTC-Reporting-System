@@ -1,13 +1,50 @@
 import React, { useState } from 'react';
-import { Settings, X, ImageIcon, Plus, Loader2 } from 'lucide-react';
+import { Settings, X, ImageIcon, Plus, Loader2, User, Briefcase, Bookmark, CheckCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+
+// --- ULTRA-COMPACT 12PX FLOATING LABEL INPUT ---
+const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, disabled = false, required }) => (
+    <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${
+        disabled 
+            ? 'bg-slate-50 border-slate-200' 
+            : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md'
+    }`}>
+        {Icon && (
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icon size={14} className={`transition-colors duration-300 ${disabled ? 'text-slate-400' : 'text-slate-400 group-focus-within:text-slate-900 group-focus-within:scale-110'}`} />
+            </div>
+        )}
+        <input
+            type={type}
+            id={id}
+            required={required}
+            disabled={disabled}
+            className={`block w-full ${Icon ? 'pl-8' : 'pl-3'} pr-3 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 peer ${
+                disabled ? 'text-slate-500 cursor-not-allowed' : 'text-slate-900'
+            }`}
+            placeholder=" " 
+            value={value || ''}
+            onChange={onChange}
+        />
+        <label
+            htmlFor={id}
+            className={`absolute text-[9px] duration-300 transform -translate-y-1 top-2 z-10 origin-[0] ${Icon ? 'left-8' : 'left-3'} 
+                peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-xs
+                peer-focus:scale-100 peer-focus:-translate-y-1 pointer-events-none font-bold tracking-wide transition-all ${
+                disabled ? 'text-slate-400' : 'text-slate-500 group-focus-within:text-slate-900'
+            }`}
+        >
+            {label} {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+    </div>
+);
 
 export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onSaveProfile, isAdmin }) {
   const [logoForm, setLogoForm] = useState(globalSettings || { logo_base64: '' });
   const [signatories, setSignatories] = useState(userProfile?.signatories || []);
   const [loading, setLoading] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false); // NEW STATE FOR MODAL
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [activeTab, setActiveTab] = useState(isAdmin ? 'logo' : 'signatories');
 
   const handleLogoChange = (e) => {
@@ -24,13 +61,11 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
   const removeSignatory = (index) => setSignatories(signatories.filter((_, i) => i !== index));
   const updateSignatory = (index, field, value) => { const n = [...signatories]; n[index][field] = value; setSignatories(n); };
 
-  // Trigger Confirmation Modal
   const handlePreSubmit = (e) => {
     e.preventDefault();
     setShowConfirmModal(true);
   };
 
-  // Actual Save Logic
   const confirmSave = async () => {
     setShowConfirmModal(false);
     setLoading(true);
@@ -40,13 +75,13 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
         if(existing) await supabase.from('settings').update({ logo_base64: logoForm.logo_base64 }).eq('id', existing.id);
         else await supabase.from('settings').insert({ logo_base64: logoForm.logo_base64 });
         onSaveGlobal(logoForm);
-        toast.success("Saved");
+        toast.success("System settings saved successfully.");
       }
       if (activeTab === 'signatories') {
         const { error } = await supabase.from('profiles').update({ signatories: signatories, facility_logo: userProfile.facility_logo }).eq('id', userProfile.id);
         if(error) throw error;
         onSaveProfile({ ...userProfile, signatories });
-        toast.success("Saved");
+        toast.success("Signatories saved successfully.");
       }
       onClose();
     } catch(err) { toast.error(err.message); }
@@ -55,50 +90,54 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
 
   return (
     <>
-      <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        <div className="bg-white border border-gray-100 shadow-2xl rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
           
-          {/* Header */}
-          <div className="flex justify-between items-center p-6 border-b border-gray-100">
-            <h2 className="text-2xl font-bold text-zinc-900 flex items-center gap-3 tracking-tight">
-              <Settings className="text-zinc-700" size={24}/> System Settings
-            </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-xl transition-colors">
-              <X size={20} strokeWidth={2}/>
+          <div className="bg-slate-900 px-6 sm:px-8 py-5 border-b border-slate-800 flex justify-between items-center relative overflow-hidden shrink-0">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-slate-800 rounded-full opacity-50 blur-2xl pointer-events-none"></div>
+            <div className="flex items-center gap-3 relative z-10">
+                <div className="p-2.5 bg-slate-800/80 rounded-xl text-yellow-400 shadow-inner border border-slate-700">
+                    <Settings size={22} strokeWidth={2.5} />
+                </div>
+                <div>
+                    <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">System Settings</h2>
+                    <p className="text-[11px] sm:text-xs font-medium text-slate-400 mt-0.5">Manage logos and PDF signatories</p>
+                </div>
+            </div>
+            <button onClick={onClose} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-all active:scale-90 border border-slate-700 shadow-sm relative z-10">
+              <X size={18} strokeWidth={2.5}/>
             </button>
           </div>
           
-          {/* Tabs */}
-          <div className="flex px-6 pt-2 border-b border-gray-100 gap-6">
+          <div className="flex px-6 sm:px-8 pt-4 border-b border-slate-100 gap-8 bg-slate-50 shrink-0">
             {isAdmin && (
               <button 
                   onClick={() => setActiveTab('logo')} 
-                  className={`pb-3 text-sm font-bold transition-all duration-200 border-b-2 ${activeTab==='logo' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                  className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] active:opacity-70 ${activeTab==='logo' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
               >
                   Global Logo
               </button>
             )}
             <button 
                 onClick={() => setActiveTab('signatories')} 
-                className={`pb-3 text-sm font-bold transition-all duration-200 border-b-2 ${activeTab==='signatories' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] active:opacity-70 ${activeTab==='signatories' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
             >
                 Facility Logo & Signatories
             </button>
           </div>
 
-          {/* Form Content */}
-          <form onSubmit={handlePreSubmit} className="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+          <form onSubmit={handlePreSubmit} className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar bg-white">
              
              {activeTab === 'logo' && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                <label className="block text-sm font-semibold text-gray-700">Provincial / Global Header Logo</label>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-6 p-6 border border-gray-200 rounded-2xl bg-gray-50/50 shadow-sm">
-                   <div className="bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
-                       {logoForm.logo_base64 ? <img src={logoForm.logo_base64} alt="Logo" className="h-20 w-20 object-contain rounded-lg" /> : <div className="h-20 w-20 bg-gray-50 rounded-lg flex items-center justify-center text-gray-300"><ImageIcon size={32}/></div>}
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 max-w-xl">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Provincial / Global Header Logo</h4>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-5 p-5 border border-slate-200 rounded-xl bg-slate-50/50 shadow-sm">
+                   <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-sm shrink-0">
+                       {logoForm.logo_base64 ? <img src={logoForm.logo_base64} alt="Logo" className="h-16 w-16 object-contain rounded-md" /> : <div className="h-16 w-16 bg-slate-50 rounded-md flex items-center justify-center text-slate-300"><ImageIcon size={28}/></div>}
                    </div>
                    <div className="flex-1 space-y-2">
-                       <p className="text-sm text-gray-500">Upload a logo to display on all consolidated reports.</p>
-                       <input type="file" accept="image/*" onChange={handleLogoChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors cursor-pointer" />
+                       <p className="text-xs text-slate-500 font-medium">Upload a logo to display on all consolidated administrative reports.</p>
+                       <input type="file" accept="image/*" onChange={handleLogoChange} className="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-yellow-400 hover:file:bg-slate-800 active:file:scale-95 file:transition-all cursor-pointer" />
                    </div>
                 </div>
               </div>
@@ -106,75 +145,79 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
 
             {activeTab === 'signatories' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
-                <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-gray-700">Facility Logo</label>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 p-6 border border-gray-200 rounded-2xl bg-gray-50/50 shadow-sm">
-                    <div className="bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
-                        {userProfile?.facility_logo ? <img src={userProfile.facility_logo} alt="Facility Logo" className="h-20 w-20 object-contain rounded-lg" /> : <div className="h-20 w-20 bg-gray-50 rounded-lg flex items-center justify-center text-gray-300"><ImageIcon size={32}/></div>}
+                <div className="space-y-4 max-w-xl">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Facility Header Logo</h4>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-5 p-5 border border-slate-200 rounded-xl bg-slate-50/50 shadow-sm">
+                    <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-sm shrink-0">
+                        {userProfile?.facility_logo ? <img src={userProfile.facility_logo} alt="Facility Logo" className="h-16 w-16 object-contain rounded-md" /> : <div className="h-16 w-16 bg-slate-50 rounded-md flex items-center justify-center text-slate-300"><ImageIcon size={28}/></div>}
                     </div>
                     <div className="flex-1 space-y-2">
-                       <p className="text-sm text-gray-500">Upload your specific facility logo for your reports.</p>
-                       <input type="file" accept="image/*" onChange={handleFacilityLogoChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors cursor-pointer" />
+                       <p className="text-xs text-slate-500 font-medium">Upload your specific facility logo to appear on your PDF exports.</p>
+                       <input type="file" accept="image/*" onChange={handleFacilityLogoChange} className="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-yellow-400 hover:file:bg-slate-800 active:file:scale-95 file:transition-all cursor-pointer" />
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                      <h3 className="font-bold text-gray-900 tracking-tight">Report Signatories</h3>
-                      {/* UPDATED ADD SIGNATORY BUTTON HOVER */}
+                  <div className="flex justify-between items-end border-b border-slate-100 pb-3">
+                      <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Report Signatories</h4>
+                        <p className="text-[10px] text-slate-500 mt-1 font-medium">These names will appear at the bottom of your exported PDF reports.</p>
+                      </div>
                       <button 
                           type="button" 
                           onClick={addSignatory} 
-                          className="text-xs bg-zinc-900 text-white px-3 py-1.5 rounded-lg font-semibold shadow-sm hover:bg-blue-600 hover:shadow-md hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-1"
+                          className="text-xs bg-slate-900 text-yellow-400 px-3 py-2 rounded-lg font-bold shadow-sm hover:bg-slate-800 hover:shadow-md hover:-translate-y-0.5 active:scale-95 active:translate-y-0 transition-all duration-300 flex items-center gap-1.5 shrink-0"
                       >
-                          <Plus size={14}/> Add Signatory
+                          <Plus size={14} strokeWidth={2.5}/> <span className="hidden sm:inline">Add Signatory</span><span className="sm:hidden">Add</span>
                       </button>
                   </div>
                   
                   <div className="space-y-4 pt-2">
                     {signatories.map((sig, idx) => (
-                      <div key={idx} className="flex gap-4 items-start p-5 border border-gray-200 rounded-2xl bg-white shadow-sm hover:border-gray-300 transition-colors group relative">
-                        <div className="flex-1 space-y-4">
-                          <input 
-                              type="text" 
-                              placeholder="Label (e.g. Prepared By)" 
-                              value={sig.label || ''} 
+                      <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start p-4 border border-slate-200 rounded-xl bg-slate-50/30 shadow-sm relative group">
+                        
+                        <div className="flex-1 w-full space-y-3">
+                          <FloatingInput 
+                              id={`label-${idx}`} 
+                              label="Signatory Label (e.g. Prepared By, Approved By)" 
+                              icon={Bookmark} 
+                              value={sig.label} 
                               onChange={e=>updateSignatory(idx, 'label', e.target.value)} 
-                              className="w-full text-xs font-bold uppercase tracking-wider text-gray-900 bg-gray-50 border border-transparent px-4 py-2.5 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none placeholder:text-gray-400 transition-all"
                           />
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <input 
-                                type="text" 
-                                placeholder="Full Name" 
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FloatingInput 
+                                id={`name-${idx}`} 
+                                label="Full Name" 
+                                icon={User} 
                                 value={sig.name} 
                                 onChange={e=>updateSignatory(idx, 'name', e.target.value)} 
-                                className="w-full text-sm border border-gray-200 px-4 py-2.5 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none placeholder:text-gray-400 bg-white shadow-sm transition-all"
                             />
-                            <input 
-                                type="text" 
-                                placeholder="Title / Position" 
+                            <FloatingInput 
+                                id={`title-${idx}`} 
+                                label="Title / Position" 
+                                icon={Briefcase} 
                                 value={sig.title} 
                                 onChange={e=>updateSignatory(idx, 'title', e.target.value)} 
-                                className="w-full text-sm border border-gray-200 px-4 py-2.5 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none placeholder:text-gray-400 bg-white shadow-sm transition-all"
                             />
                           </div>
                         </div>
-                        {/* UPDATED REMOVE (X) BUTTON HOVER */}
+
                         <button 
                             type="button" 
                             onClick={() => removeSignatory(idx)} 
-                            className="text-gray-300 hover:bg-red-50 hover:text-red-600 hover:-translate-y-0.5 transition-all duration-300 p-2 rounded-xl mt-6"
+                            className="text-slate-400 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 hover:-translate-y-0.5 active:scale-95 active:translate-y-0 shadow-sm transition-all duration-300 p-2 rounded-lg sm:mt-1 self-end sm:self-auto w-full sm:w-auto flex justify-center items-center gap-2"
                             title="Remove Signatory"
                         >
-                            <X size={18} strokeWidth={2}/>
+                            <X size={16} strokeWidth={2.5}/> <span className="sm:hidden text-[10px] font-bold uppercase tracking-wider">Remove</span>
                         </button>
                       </div>
                     ))}
+                    
                     {signatories.length === 0 && (
-                        <div className="text-center py-8 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl">
-                            <p className="text-sm font-medium text-gray-500">No signatories added yet.</p>
-                            <p className="text-xs text-gray-400 mt-1">Add signatories to have them appear at the bottom of exported PDFs.</p>
+                        <div className="text-center py-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl">
+                            <p className="text-xs font-bold text-slate-600 mb-1">No signatories added yet.</p>
+                            <p className="text-[11px] text-slate-400 font-medium">Click "Add Signatory" to create signature lines for your PDF exports.</p>
                         </div>
                     )}
                   </div>
@@ -182,13 +225,14 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
               </div>
             )}
 
-            <div className="pt-6 border-t border-gray-100 flex justify-end">
+            <div className="pt-6 border-t border-slate-100 flex justify-end mt-2">
                 <button 
                     type="submit" 
                     disabled={loading} 
-                    className="bg-zinc-900 text-white px-8 py-3 rounded-xl text-sm font-semibold hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:bg-zinc-900 disabled:hover:shadow-none"
+                    className="w-full sm:w-auto bg-slate-900 text-yellow-400 px-6 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                    {loading && <Loader2 size={16} className="animate-spin"/>} Save Settings
+                    {loading ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} 
+                    {loading ? 'Saving...' : 'Save Settings'}
                 </button>
             </div>
           </form>
@@ -197,22 +241,22 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
 
       {/* --- CONFIRMATION MODAL --- */}
       {showConfirmModal && (
-          <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                   <div className="flex flex-col items-center text-center">
-                      <div className="bg-blue-50 p-4 rounded-full mb-5 text-blue-600 shadow-inner">
+                      <div className="bg-slate-100 p-4 rounded-full mb-5 text-slate-800 shadow-inner">
                           <Settings size={28} strokeWidth={2.5} />
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 tracking-tight">Save Settings?</h3>
-                      <p className="text-sm text-gray-500 mt-2 mb-6 leading-relaxed">
+                      <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Save Settings?</h3>
+                      <p className="text-sm text-slate-500 mt-2 mb-6 leading-relaxed">
                           Are you sure you want to save these changes to your system settings?
                       </p>
-                      <div className="flex gap-3 w-full">
+                      <div className="flex flex-col sm:flex-row gap-3 w-full">
                           <button 
                               type="button"
                               onClick={() => setShowConfirmModal(false)} 
                               disabled={loading}
-                              className="flex-1 py-2.5 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                              className="flex-1 py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1"
                           >
                               Cancel
                           </button>
@@ -220,7 +264,7 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
                               type="button"
                               onClick={confirmSave} 
                               disabled={loading}
-                              className="flex-1 py-2.5 px-4 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 hover:shadow-blue-600/20 shadow-sm transition-all flex justify-center items-center gap-2"
+                              className="flex-1 py-2.5 px-4 bg-slate-900 text-yellow-400 rounded-lg text-sm font-bold hover:bg-slate-800 shadow-sm active:scale-95 transition-all duration-200 flex justify-center items-center gap-2 order-1 sm:order-2"
                           >
                               {loading && <Loader2 size={16} className="animate-spin"/>} Confirm
                           </button>
