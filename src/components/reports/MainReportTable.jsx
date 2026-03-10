@@ -17,9 +17,16 @@ export default function MainReportTable({
   const facilityType = facilityDetails?.[activeFacilityName]?.type || 'RHU';
   const locationHeader = isConsolidated ? 'Municipality' : (facilityType === 'RHU' ? 'Barangay/Municipality' : 'Municipality');
 
+  // Validation Checks for Grand Totals
+  const isGrandSexAgeMismatch = grandTotals.sexTotal !== grandTotals.ageTotal;
+  const isGrandWashedError = Number(grandTotals.washed || 0) > grandTotals.animalTotal;
+
+  // Styles for Errors
+  const errorStyle = { backgroundColor: '#fee2e2', color: '#dc2626' }; // Red background, Red text
+  const normalStyle = { backgroundColor: '#E2E8F0', color: '#1E293B' };
+
   return (
     <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-lg bg-white relative custom-scrollbar">
-      {/* ADDED tabular-nums to enforce perfect vertical alignment of numbers */}
       <table className="w-full border-collapse tabular-nums [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
         <thead className="sticky top-0 z-20 shadow-sm bg-gray-100">
           {/* --- ROW 1 --- */}
@@ -151,9 +158,13 @@ export default function MainReportTable({
           <tr style={{ backgroundColor: '#E2E8F0', fontWeight:'bold', fontSize:'11px', color: '#1E293B' }}>
             <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'left', paddingLeft:'0.75rem'}}>{isConsolidated ? "PROVINCIAL TOTAL" : "GRAND TOTAL"}</td>
             {['male','female'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals[k]}</td>)}
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals.sexTotal}</td>
+            
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'center', ...(isGrandSexAgeMismatch ? errorStyle : normalStyle)}}>{grandTotals.sexTotal}</td>
+            
             {['ageLt15','ageGt15'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals[k]}</td>)}
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals.ageTotal}</td>
+            
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'center', ...(isGrandSexAgeMismatch ? errorStyle : normalStyle)}}>{grandTotals.ageTotal}</td>
+            
             {['cat1','cat2','cat3'].map(k=><td key={k} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals[k]}</td>)}
             <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals.cat23}</td>
             <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals.catTotal}</td>
@@ -166,8 +177,8 @@ export default function MainReportTable({
             </td>
 
             <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals.animalTotal}</td>
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals.washed}</td>
-            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0', textAlign:'center'}}>{grandTotals.percent}</td>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'center', ...(isGrandWashedError ? errorStyle : normalStyle)}}>{grandTotals.washed}</td>
+            <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'center', ...(isGrandWashedError ? errorStyle : normalStyle)}}>{grandTotals.percent}</td>
             <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: '#E2E8F0'}}></td>
           </tr>
         </tbody>

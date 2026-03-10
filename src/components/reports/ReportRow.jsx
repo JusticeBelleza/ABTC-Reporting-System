@@ -115,22 +115,42 @@ const ReportRow = React.memo(({
     }
   };
 
-  const getInputStyle = (isLocked = false) => ({
+  const getInputStyle = (isLocked = false, hasError = false) => ({
     ...PDF_STYLES.input,
     cursor: isLocked || isRowReadOnly ? 'default' : 'text',
+    backgroundColor: hasError ? '#fee2e2' : 'transparent', // Red bg for error
+    color: hasError ? '#dc2626' : (isRowReadOnly && isTotalRow ? '#0f172a' : '#1e3a8a') // Red text for error
   });
 
-  const inputWebClasses = isRowReadOnly 
-    ? `outline-none bg-transparent w-full h-full text-center text-sm font-semibold ${isTotalRow ? 'text-slate-900' : 'text-slate-700'}` 
-    : "outline-none transition-all hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full h-full py-1.5 min-h-[32px] text-center text-[13px] font-bold text-blue-900";
+  const getCellWebClasses = (isInput, hasError = false) => {
+      let baseClasses = isInput
+          ? "outline-none transition-all rounded-sm w-full h-full py-1.5 min-h-[32px] text-center text-[13px] font-bold "
+          : "outline-none transition-all rounded-sm w-full py-1 text-sm font-medium ";
+          
+      if (isRowReadOnly) {
+          return `${baseClasses} bg-transparent ${isTotalRow ? 'text-slate-900' : 'text-slate-700'}`;
+      }
+      
+      if (hasError) {
+          return `${baseClasses} bg-red-50 text-red-600 focus:ring-2 focus:ring-inset focus:ring-red-500`;
+      }
+      
+      return `${baseClasses} text-blue-900 hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500`;
+  };
 
-  const textareaWebClasses = isRowReadOnly
-    ? `outline-none bg-transparent w-full text-sm font-semibold ${isTotalRow ? 'text-slate-900' : 'text-slate-700'}`
-    : "outline-none transition-all hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full py-1 text-sm font-medium text-blue-900";
+  // --- VALIDATION LOGIC FOR STYLING ---
+  const isSexAgeMismatch = c.sexTotal !== c.ageTotal && (c.sexTotal > 0 || c.ageTotal > 0);
+  const isWashedError = Number(row.washed || 0) > c.animalTotal && c.animalTotal > 0;
+  
+  // Cell background colors for errors
+  const errorBgColor = '#fee2e2';
+  const errorTextColor = '#dc2626';
+  const defaultCellBg = isTotalRow ? '#cbd5e1' : '#E2E8F0';
+  const defaultTextColor = '#1E293B';
 
   return (
     <tr style={rowStyle} className={`${className || ''} ${isTotalRow ? '' : 'hover:bg-blue-50/50'} transition-colors group`}>
-      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', textAlign:'left', whiteSpace:'nowrap', color: '#1E293B', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
+      <td style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: defaultCellBg, textAlign:'left', whiteSpace:'nowrap', color: '#1E293B', paddingLeft: MUNICIPALITIES.includes(rowKey) ? '0.75rem' : '1.5rem', fontWeight: MUNICIPALITIES.includes(rowKey) ? 'bold' : 'normal'}}>
         <div className="flex justify-between items-center group/row">
             <span>{rowKey} {isHost && <span style={{fontSize:'10px', color:'#1E293B', fontWeight:'normal'}}>(Total)</span>}</span>
             {isOtherRow && !isRowReadOnly && (
@@ -151,11 +171,13 @@ const ReportRow = React.memo(({
             onChange={e=>handleChange(f, e.target.value)}
             onKeyDown={handleGridKeyDown} 
             style={getInputStyle()} 
-            className={inputWebClasses}
+            className={getCellWebClasses(true)}
           />
         </td>
       ))}
-      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', color: '#1E293B'}}>{c.sexTotal}</td>
+      <td className="text-center text-sm font-bold transition-colors" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isSexAgeMismatch ? errorBgColor : defaultCellBg, color: isSexAgeMismatch ? errorTextColor : defaultTextColor}}>
+          {c.sexTotal}
+      </td>
       
       {['ageLt15','ageGt15'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
@@ -167,11 +189,13 @@ const ReportRow = React.memo(({
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
-            className={inputWebClasses}
+            className={getCellWebClasses(true)}
           />
         </td>
       ))}
-      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', color: c.sexMismatch ? '#ef4444' : '#1E293B'}}>{c.ageTotal}</td>
+      <td className="text-center text-sm font-bold transition-colors" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isSexAgeMismatch ? errorBgColor : defaultCellBg, color: isSexAgeMismatch ? errorTextColor : defaultTextColor}}>
+          {c.ageTotal}
+      </td>
       
       {['cat1','cat2','cat3'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
@@ -183,12 +207,12 @@ const ReportRow = React.memo(({
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
-            className={inputWebClasses}
+            className={getCellWebClasses(true)}
           />
         </td>
       ))}
-      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', color:'#1E293B'}}>{c.cat23}</td>
-      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', color:'#1E293B'}}>{c.catTotal}</td>
+      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: defaultCellBg, color: defaultTextColor}}>{c.cat23}</td>
+      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: defaultCellBg, color: defaultTextColor}}>{c.catTotal}</td>
       
       {['totalPatients','abCount'].map(f => (
         <td key={f} style={{...PDF_STYLES.border, padding:0}}>
@@ -200,7 +224,7 @@ const ReportRow = React.memo(({
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
-            className={inputWebClasses}
+            className={getCellWebClasses(true)}
           />
         </td>
       ))}
@@ -215,7 +239,7 @@ const ReportRow = React.memo(({
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
-            className={inputWebClasses}
+            className={getCellWebClasses(true)}
           />
         </td>
       ))}
@@ -230,12 +254,12 @@ const ReportRow = React.memo(({
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
-            className={inputWebClasses}
+            className={getCellWebClasses(true)}
           />
         </td>
       ))}
       
-      <td style={{...PDF_STYLES.border, padding:0, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0'}}>
+      <td style={{...PDF_STYLES.border, padding:0, backgroundColor: defaultCellBg}}>
         <input 
           readOnly={true} 
           type="number" 
@@ -243,8 +267,8 @@ const ReportRow = React.memo(({
           tabIndex={-1} 
           style={{
             ...getInputStyle(true), 
-            backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', 
-            color: '#1E293B',
+            backgroundColor: defaultCellBg, 
+            color: defaultTextColor,
             fontWeight: 'normal',
             pointerEvents: 'none'
           }} 
@@ -271,13 +295,16 @@ const ReportRow = React.memo(({
             padding: '4px',
             cursor: isRowReadOnly ? 'default' : 'text',
             fontWeight: 'normal',
-            color: '#1E293B'
+            color: defaultTextColor
           }} 
           rows={1}
-          className={textareaWebClasses}
+          className={getCellWebClasses(false)}
         />
       </td>
-      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', color: '#1E293B'}}>{c.animalTotal}</td>
+      
+      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: defaultCellBg, color: defaultTextColor}}>
+          {c.animalTotal}
+      </td>
       
       <td style={{...PDF_STYLES.border, padding:0}}>
         <input 
@@ -287,11 +314,14 @@ const ReportRow = React.memo(({
           value={row.washed} 
           onChange={e=>handleChange('washed', e.target.value)} 
           onKeyDown={handleGridKeyDown}
-          style={getInputStyle()} 
-          className={inputWebClasses}
+          style={getInputStyle(false, isWashedError)} 
+          className={getCellWebClasses(true, isWashedError)}
         />
       </td>
-      <td className="text-center text-[11px] font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isTotalRow ? '#cbd5e1' : '#E2E8F0', color:'#1E293B'}}>{c.percent}</td>
+      
+      <td className="text-center text-[11px] font-bold transition-colors" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isWashedError ? errorBgColor : defaultCellBg, color: isWashedError ? errorTextColor : defaultTextColor}}>
+          {c.percent}
+      </td>
       
       <td style={{...PDF_STYLES.border, padding:0}}>
         <textarea 
@@ -309,10 +339,10 @@ const ReportRow = React.memo(({
             padding: '4px',
             cursor: isRowReadOnly ? 'default' : 'text',
             fontWeight: 'normal',
-            color: '#1E293B'
+            color: defaultTextColor
           }} 
           rows={2}
-          className={textareaWebClasses}
+          className={getCellWebClasses(false)}
         />
       </td>
     </tr>

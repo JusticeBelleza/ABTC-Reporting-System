@@ -5,7 +5,8 @@ import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
-import { downloadPDF, hasData, hasCohortData } from '../../lib/utils';
+// ADDED getComputations HERE:
+import { downloadPDF, hasData, hasCohortData, getComputations } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import MainReportTable from '../reports/MainReportTable';
 import CohortReportTable from '../reports/CohortReportTable';
@@ -200,7 +201,38 @@ export default function FacilityDashboard({
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
-    if (status === 'Pending') { setIsZeroSubmit(isZeroReportActiveTab); setShowSubmitModal(true); return; }
+    
+    // --- NEW VALIDATION CHECK ON SUBMIT ---
+    if (status === 'Pending') { 
+        let hasForm1Errors = false;
+
+        // Loop through all data to find any mismatches
+        for (const key of Object.keys(data)) {
+            if (key === "Others:") continue;
+            const row = data[key];
+            if (!hasData(row)) continue;
+            
+            const c = getComputations(row);
+            const isSexAgeMismatch = c.sexTotal !== c.ageTotal;
+            const isWashedError = Number(row.washed || 0) > c.animalTotal;
+
+            if (isSexAgeMismatch || isWashedError) {
+                hasForm1Errors = true;
+                break;
+            }
+        }
+        
+        // If there are errors, BLOCK submission
+        if (hasForm1Errors) {
+            toast.error("Validation Error: Please fix the red highlighted cells in Form 1. Sex and Age totals must match, and Washed cannot exceed Animal Total.");
+            setActiveTab('main'); // Switch them to Form 1 so they can see the red highlights
+            return;
+        }
+
+        setIsZeroSubmit(isZeroReportActiveTab); 
+        setShowSubmitModal(true); 
+        return; 
+    }
     await handleSave(status); 
   };
 
