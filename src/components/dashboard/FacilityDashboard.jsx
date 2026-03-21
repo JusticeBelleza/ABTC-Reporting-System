@@ -345,7 +345,7 @@ export default function FacilityDashboard({
 
         {consolidatedModal.isOpen && (
             <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
+                <div className="bg-white rounded-none shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                     <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className="w-10 h-10 rounded-full flex shrink-0 items-center justify-center bg-slate-900 text-yellow-400 shadow-sm">
@@ -665,7 +665,7 @@ export default function FacilityDashboard({
         </div>
 
         {/* Main Table Container */}
-        <div className="bg-white rounded-2xl print:rounded-none print:shadow-none print:border-none relative w-full overflow-x-auto" style={{...PDF_STYLES.container}}>
+        <div className="bg-white rounded-none print:rounded-none print:shadow-none print:border-none relative w-full overflow-x-auto" style={{...PDF_STYLES.container}}>
             
             {showZeroBanner && (
                 <div className="bg-rose-50 text-rose-700 text-xs sm:text-sm font-bold py-2 sm:py-3 flex items-center justify-center gap-2 border-b border-rose-200 rounded-t-2xl no-print tracking-widest shadow-inner">

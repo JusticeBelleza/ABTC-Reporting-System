@@ -26,7 +26,7 @@ export default function MainReportTable({
   const normalStyle = { backgroundColor: '#E2E8F0', color: '#1E293B' };
 
   return (
-    <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-lg bg-white relative custom-scrollbar">
+    <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-none bg-white relative custom-scrollbar">
       <table className="w-full border-collapse tabular-nums [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
         <thead className="sticky top-0 z-20 shadow-sm bg-gray-100">
           {/* --- ROW 1 --- */}

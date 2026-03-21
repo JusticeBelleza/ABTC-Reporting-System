@@ -98,11 +98,13 @@ export default function CohortReportTable({
 
     return (
       <div className={`cohort-table-hidden ${subTab === category ? 'block' : 'hidden'} mb-8`}>
-        <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #94A3B8', borderBottom: 'none', borderTopLeftRadius: '0.5rem', borderTopRightRadius: '0.5rem', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>
+        {/* Removed borderTopLeftRadius and borderTopRightRadius from the header to keep it fully square */}
+        <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #94A3B8', borderBottom: 'none', borderRadius: '0', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>
             {isCat2 ? 'CATEGORY II - EXPOSURES' : 'CATEGORY III - EXPOSURES'}
         </div>
         
-        <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-b-lg bg-white relative custom-scrollbar">
+        {/* Fixed rounded-n to rounded-none here! */}
+        <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-none bg-white relative custom-scrollbar">
           <table className="w-full border-collapse tabular-nums [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
             <thead className="sticky top-0 z-20 shadow-sm bg-white">
               <tr style={PDF_STYLES.subHeader}>

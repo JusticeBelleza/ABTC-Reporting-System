@@ -13,12 +13,14 @@
     "@hcaptcha/react-hcaptcha": "^2.0.2",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/postcss": "^4.1.18",
+    "html-to-image": "^1.11.13",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.563.0",
     "prop-types": "^15.8.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "recharts": "^3.8.0",
     "sonner": "^2.0.7"
   },
   "devDependencies": {
