@@ -6,7 +6,7 @@ import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
 import ModalPortal from '../modals/ModalPortal';
-import { downloadPDF, hasData, hasCohortData } from '../../lib/utils';
+import { downloadPDF, hasData, hasCohortData, mapRowToDb, mapCohortRowToDb, toInt } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import MainReportTable from '../reports/MainReportTable';
 import CohortReportTable from '../reports/CohortReportTable';
@@ -60,7 +60,7 @@ export default function FacilityDashboard({
     visibleOtherMunicipalities, setVisibleOtherMunicipalities,
     visibleCat2, setVisibleCat2,
     visibleCat3, setVisibleCat3,
-    handleChange, handleSave, confirmDeleteReport, handleDeleteRow
+    fetchData, handleChange, handleSave, confirmDeleteReport, handleDeleteRow
   } = useReportData({
     user, facilities, facilityBarangays, year, month, quarter, periodType, activeTab, cohortSubTab, adminViewMode, selectedFacility
   });
@@ -68,18 +68,59 @@ export default function FacilityDashboard({
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
-  // --- SMART OFFLINE LISTENER ---
+  // --- NEW: SILENT BACKGROUND SYNC API ---
   useEffect(() => {
-    const checkOfflineDraft = () => {
-        const draft = localStorage.getItem('abtc_offline_draft');
-        if (draft && navigator.onLine) {
-            toast.info("🌐 Internet Restored! You have an unsynced offline draft. Please click 'Save Draft' to upload it to the server.", { duration: 10000 });
+    const checkOfflineDraft = async () => {
+        const draftJson = localStorage.getItem('abtc_offline_draft');
+        if (draftJson && navigator.onLine) {
+            try {
+                const draft = JSON.parse(draftJson);
+                toast.loading("🌐 Internet Restored! Auto-syncing offline data...", { id: 'offline-sync' });
+
+                let payload = [];
+                if (draft.activeTab === 'main') {
+                    payload = Object.entries(draft.data).map(([m, row]) => {
+                        if (!hasData(row)) return null; 
+                        const dbRow = mapRowToDb(row);
+                        delete dbRow.reported_by;
+                        dbRow.others_count = row.othersCount === '' ? null : toInt(row.othersCount);  
+                        if (row.othersSpec) dbRow.others_spec = row.othersSpec;
+                        return { ...dbRow, municipality: m, status: 'Draft', remarks: row.remarks };
+                    }).filter(x => x !== null);
+                } else {
+                    payload = Object.entries(draft.data).map(([m, row]) => {
+                         const dbCohortRow = mapCohortRowToDb(row);
+                         delete dbCohortRow.reported_by;
+                         return { ...dbCohortRow, municipality: m, status: 'Draft' };
+                    }).filter(x => x !== null);
+                }
+
+                // Push physical payload directly to database
+                const { error } = await supabase.rpc('save_report_atomic', { 
+                    p_year: String(draft.year), 
+                    p_month: String(draft.month), 
+                    p_facility: draft.facility, 
+                    p_type: draft.activeTab, 
+                    p_data: payload 
+                });
+
+                if (error) throw error;
+
+                localStorage.removeItem('abtc_offline_draft');
+                toast.success("Offline data automatically synced to the server!", { id: 'offline-sync' });
+                
+                // Refresh the React State from the now-updated database
+                fetchData();
+            } catch (err) {
+                toast.error("Auto-sync failed. Please save manually.", { id: 'offline-sync' });
+            }
         }
     };
+    
     window.addEventListener('online', checkOfflineDraft);
     checkOfflineDraft(); 
     return () => window.removeEventListener('online', checkOfflineDraft);
-  }, []);
+  }, [fetchData]);
 
   useEffect(() => {
     const fetchYearlyStats = async () => {
@@ -87,19 +128,57 @@ export default function FacilityDashboard({
         try {
             let mainQuery = supabase.from('abtc_reports').select('facility, month, status').eq('year', year);
             let cohortQuery = supabase.from('abtc_cohort_reports').select('facility, month, status').eq('year', year);
-            
             if (!isConsolidatedView) {
                 if (!activeFacilityName) return;
                 mainQuery = mainQuery.eq('facility', activeFacilityName);
                 cohortQuery = cohortQuery.eq('facility', activeFacilityName);
             }
-            
             const [{ data: mainData }, { data: cohortData }] = await Promise.all([mainQuery, cohortQuery]);
             setYearlyStats({ main: mainData || [], cohort: cohortData || [] });
         } catch (error) { console.error("Error fetching yearly stats:", error); }
     };
     fetchYearlyStats();
   }, [activeFacilityName, year, isConsolidatedView, reportStatus]);
+
+  const getMonthsByStatus = (statusType, reportType) => {
+      const uniqueObj = {};
+      yearlyStats[reportType].forEach(r => { if (!uniqueObj[r.month] || r.status === 'Approved') uniqueObj[r.month] = r.status; });
+      return Object.entries(uniqueObj).filter(([m, status]) => status === statusType).map(([m]) => m).sort((a, b) => MONTHS.indexOf(a) - MONTHS.indexOf(b));
+  };
+
+  const isZeroReportActiveTab = activeTab === 'main' 
+    ? currentRows.length > 0 && currentRows.every(key => key === "Others:" || !hasData(data[key]))
+    : Object.keys(cohortData).length > 0 && Object.keys(cohortData).every(key => key === "Others:" || (!hasCohortData(cohortData[key], 'cat2') && !hasCohortData(cohortData[key], 'cat3')));
+  
+  const showZeroBanner = isZeroReportActiveTab && reportStatus !== 'Draft' && !loading;
+
+  const buildMatrix = (reportType) => {
+      const dedupedStats = {};
+      yearlyStats[reportType].forEach(r => {
+          const key = `${r.facility}_${r.month}`;
+          if (!dedupedStats[key] || r.status === 'Approved') dedupedStats[key] = r;
+      });
+      const flatStats = Object.values(dedupedStats);
+
+      return facilities.map(f => {
+          const facStats = flatStats.filter(r => r.facility === f);
+          const targetMonths = getTargetMonths();
+          const mData = targetMonths.map(m => {
+              const rec = facStats.find(r => r.month === m);
+              return { month: m, status: rec ? rec.status : 'Not Submitted' };
+          });
+          const approvedCount = mData.filter(d => d.status === 'Approved').length;
+          const submittedCount = mData.filter(d => d.status !== 'Not Submitted' && d.status !== 'Draft').length;
+          
+          return {
+              facility: f, months: mData, approvedCount,
+              complianceRate: Math.round((approvedCount / targetMonths.length) * 100),
+              isFully: approvedCount === targetMonths.length,
+              isZero: submittedCount === 0,
+              isPartial: approvedCount < targetMonths.length && submittedCount > 0
+          };
+      }).sort((a, b) => b.complianceRate - a.complianceRate || a.facility.localeCompare(b.facility));
+  };
 
   const getTargetMonths = () => {
       if (periodType === 'Monthly') return [month];
@@ -134,39 +213,6 @@ export default function FacilityDashboard({
       if (status && status !== 'Draft' && status !== 'View Only') cohortStats.submitted++;
   });
   const cohortReportingRate = Math.round((cohortStats.submitted / targetMonths.length) * 100) || 0;
-
-  const getMonthsByStatus = (statusType, reportType) => {
-      const uniqueObj = reportType === 'main' ? uniqueMainMonths : uniqueCohortMonths;
-      const monthsInStatus = Object.entries(uniqueObj).filter(([m, status]) => status === statusType).map(([m]) => m);
-      return monthsInStatus.sort((a, b) => MONTHS.indexOf(a) - MONTHS.indexOf(b));
-  };
-
-  const buildMatrix = (reportType) => {
-      const dedupedStats = {};
-      yearlyStats[reportType].forEach(r => {
-          const key = `${r.facility}_${r.month}`;
-          if (!dedupedStats[key] || r.status === 'Approved') dedupedStats[key] = r;
-      });
-      const flatStats = Object.values(dedupedStats);
-
-      return facilities.map(f => {
-          const facStats = flatStats.filter(r => r.facility === f);
-          const mData = targetMonths.map(m => {
-              const rec = facStats.find(r => r.month === m);
-              return { month: m, status: rec ? rec.status : 'Not Submitted' };
-          });
-          const approvedCount = mData.filter(d => d.status === 'Approved').length;
-          const submittedCount = mData.filter(d => d.status !== 'Not Submitted' && d.status !== 'Draft').length;
-          
-          return {
-              facility: f, months: mData, approvedCount,
-              complianceRate: Math.round((approvedCount / targetMonths.length) * 100),
-              isFully: approvedCount === targetMonths.length,
-              isZero: submittedCount === 0,
-              isPartial: approvedCount < targetMonths.length && submittedCount > 0
-          };
-      }).sort((a, b) => b.complianceRate - a.complianceRate || a.facility.localeCompare(b.facility));
-  };
 
   const mainMatrix = isConsolidatedView ? buildMatrix('main') : [];
   const cohortMatrix = isConsolidatedView ? buildMatrix('cohort') : [];
@@ -205,18 +251,11 @@ export default function FacilityDashboard({
   };
   const [lblApproved, lblPending, lblRejected, lblCompletion] = getLabels();
 
-  const isZeroReportActiveTab = activeTab === 'main' 
-    ? currentRows.length > 0 && currentRows.every(key => key === "Others:" || !hasData(data[key]))
-    : Object.keys(cohortData).length > 0 && Object.keys(cohortData).every(key => key === "Others:" || (!hasCohortData(cohortData[key], 'cat2') && !hasCohortData(cohortData[key], 'cat3')));
-  const showZeroBanner = isZeroReportActiveTab && reportStatus !== 'Draft' && !loading;
-
   // --- SUBMISSION GUARDRAIL & OFFLINE BLOCKER ---
   const onSaveClick = async (status) => {
-    
-    // 1. STRICT OFFLINE CHECK
     if (!navigator.onLine) {
         if (status === 'Draft') {
-            setShowDraftModal(true);
+            setShowDraftModal(true); 
             return;
         } else {
             toast.error("📴 No Internet Connection! You cannot submit or approve reports while offline. Please use 'Save Draft' to save your work locally.", { duration: 5000 });
@@ -224,77 +263,80 @@ export default function FacilityDashboard({
         }
     }
 
-    // 2. NORMAL FLOW (ONLINE)
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
     
     if (status === 'Pending' && activeTab === 'main') { 
         let hasForm1Errors = false;
-
         for (const key of Object.keys(data)) {
             if (key === "Others:") continue;
             const row = data[key];
             if (!hasData(row)) continue;
-            
             const sexSum = (Number(row.male) || 0) + (Number(row.female) || 0);
             const ageSum = (Number(row.ageLt15) || 0) + (Number(row.ageGt15) || 0);
             const cat23Sum = (Number(row.cat2) || 0) + (Number(row.cat3) || 0);
             const animalSum = (Number(row.dog) || 0) + (Number(row.cat) || 0) + (Number(row.othersCount) || 0);
             const washedCount = Number(row.washed) || 0;
-
             const hasAnyData = sexSum > 0 || ageSum > 0 || (Number(row.cat1)||0) > 0 || cat23Sum > 0 || animalSum > 0;
-            
-            if (hasAnyData) {
-                // Category 1 is ignored. Rule: Sex = Age AND Cat2+Cat3 = Animals AND washed <= animalSum
-                if (sexSum !== ageSum || cat23Sum !== animalSum || washedCount > animalSum) {
-                    hasForm1Errors = true;
-                    break;
-                }
+            if (hasAnyData && (sexSum !== ageSum || cat23Sum !== animalSum || washedCount > animalSum)) {
+                hasForm1Errors = true;
+                break;
             }
         }
-        
         if (hasForm1Errors) {
-            toast.error(
-                "DATA MISMATCH: Submission Blocked. Please check the RED highlighted cells to ensure your totals balance properly.", 
-                { duration: 6000, position: 'top-center' }
-            );
-            setActiveTab('main'); // Switch to main tab so they see the errors
+            toast.error("DATA MISMATCH: Please check the RED highlighted cells to ensure your totals balance properly.", { duration: 6000 });
+            setActiveTab('main'); 
             return;
         }
-
         setIsZeroSubmit(isZeroReportActiveTab); 
         setShowSubmitModal(true); 
         return; 
     }
     
     await handleSave(status); 
+    localStorage.removeItem('abtc_offline_draft'); 
   };
 
-  const confirmApprove = async () => { setShowApproveModal(false); await handleSave('Approved'); };
-  const confirmRejection = async () => { if (!rejectionReason.trim()) { toast.error("Reason required"); return; } setShowRejectModal(false); await handleSave('Rejected', rejectionReason); };
-  const confirmSubmit = async () => { setShowSubmitModal(false); await handleSave('Pending'); };
-  const handleDeleteReportClick = async () => { setShowDeleteReportModal(false); await confirmDeleteReport(); };
-  
-  // --- OFFLINE SAVE DRAFT ---
+  const confirmApprove = async () => { 
+    setShowApproveModal(false); 
+    await handleSave('Approved'); 
+    localStorage.removeItem('abtc_offline_draft'); 
+  };
+
+  const confirmRejection = async () => { 
+    if (!rejectionReason.trim()) { toast.error("Reason required"); return; } 
+    setShowRejectModal(false); 
+    await handleSave('Rejected', rejectionReason); 
+    localStorage.removeItem('abtc_offline_draft'); 
+  };
+
+  const confirmSubmit = async () => { 
+    setShowSubmitModal(false); 
+    await handleSave('Pending'); 
+    localStorage.removeItem('abtc_offline_draft'); 
+  };
+
   const confirmSaveDraft = async () => { 
     setShowDraftModal(false); 
-    
     if (!navigator.onLine) {
         const offlinePayload = {
-            facility: activeFacilityName,
-            year, month, quarter, periodType,
-            data: activeTab === 'main' ? data : cohortData,
-            activeTab,
+            facility: activeFacilityName, year, month, quarter, periodType,
+            data: activeTab === 'main' ? data : cohortData, activeTab,
             timestamp: new Date().toISOString()
         };
         localStorage.setItem('abtc_offline_draft', JSON.stringify(offlinePayload));
-        toast.warning("📴 You are offline! Draft saved locally to your device. It will remain here until you reconnect.", { duration: 6000 });
+        toast.warning("📴 Offline! Draft saved locally. It will automatically sync when internet is restored.", { duration: 8000 });
         return;
     }
-
     await handleSave('Draft'); 
-    localStorage.removeItem('abtc_offline_draft'); // Clean up any old offline drafts once successful
+    localStorage.removeItem('abtc_offline_draft'); 
+  };
+
+  const handleDeleteReportClick = async () => { 
+    setShowDeleteReportModal(false); 
+    await confirmDeleteReport(); 
+    localStorage.removeItem('abtc_offline_draft');
   };
 
   const confirmDeleteRow = () => {
@@ -305,16 +347,11 @@ export default function FacilityDashboard({
     }
   };
 
-  const getCurrentPeriodText = () => {
-    if (periodType === 'Annual') return `Annual ${year}`;
-    if (periodType === 'Quarterly') return `${formatQuarterName(quarter)} ${year}`;
-    return `${month} ${year}`;
-  };
-
+  const getCurrentPeriodText = () => periodType === 'Annual' ? `Annual ${year}` : periodType === 'Quarterly' ? `${formatQuarterName(quarter)} ${year}` : `${month} ${year}`;
   const getPreviousPeriodText = () => {
     if (periodType === 'Annual') return `Annual ${year - 1}`;
-    if (periodType === 'Quarterly') { const idx = QUARTERS.indexOf(quarter); if (idx === 0) return `4th Quarter ${year - 1}`; return `${formatQuarterName(QUARTERS[idx - 1])} ${year}`; }
-    const idx = MONTHS.indexOf(month); if (idx === 0) return `December ${year - 1}`; return `${MONTHS[idx - 1]} ${year}`;
+    if (periodType === 'Quarterly') { const idx = QUARTERS.indexOf(quarter); return idx === 0 ? `4th Quarter ${year - 1}` : `${formatQuarterName(QUARTERS[idx - 1])} ${year}`; }
+    const idx = MONTHS.indexOf(month); return idx === 0 ? `December ${year - 1}` : `${MONTHS[idx - 1]} ${year}`;
   };
 
   const confirmExportPdf = async () => {

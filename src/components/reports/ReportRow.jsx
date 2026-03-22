@@ -2,7 +2,7 @@ import React, { useRef, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
 import { XCircle } from 'lucide-react';
 import { PDF_STYLES, MUNICIPALITIES } from '../../lib/constants';
-import { parseAnimalCountFromText } from '../../lib/utils';
+import { parseAnimalCountFromText, autoCorrectAnimalSpelling } from '../../lib/utils'; 
 
 const ReportRow = React.memo(({ 
   rowKey, 
@@ -34,13 +34,27 @@ const ReportRow = React.memo(({
     onChange(rowKey, field, value);
   };
 
+  // --- NEW: INSTANT SMARTPHONE-STYLE AUTOCORRECT ---
   const handleSpecifyChange = (e) => {
-    const newText = e.target.value;
+    let newText = e.target.value;
+    
+    // The moment they type a space, comma, or enter, auto-correct the previous word instantly!
+    if (/[\s,;]$/.test(newText)) {
+        newText = autoCorrectAnimalSpelling(newText);
+    }
+    
     onChange(rowKey, 'othersSpec', newText);
     
     if (!isRowReadOnly) {
        const autoCount = parseAnimalCountFromText(newText);
        onChange(rowKey, 'othersCount', autoCount === 0 ? '' : autoCount.toString());
+    }
+  };
+
+  const handleSpecifyBlur = (e) => {
+    const correctedText = autoCorrectAnimalSpelling(e.target.value);
+    if (correctedText !== e.target.value && !isRowReadOnly) {
+        onChange(rowKey, 'othersSpec', correctedText);
     }
   };
 
@@ -142,14 +156,9 @@ const ReportRow = React.memo(({
 
   const hasAnyData = sexSum > 0 || ageSum > 0 || c.catTotal > 0 || animalSum > 0;
   
-  // 1. Sex must equal Age
   const isSexAgeMismatch = hasAnyData && (sexSum !== ageSum);
-  // 2. Cat2 + Cat3 must equal Total Animals (Cat 1 is ignored here)
   const isAnimalMismatch = hasAnyData && (cat23Sum !== animalSum);
-  
   const isWashedError = hasAnyData && (washedCount > animalSum);
-  
-  // If either of the golden rules fail, highlight the row totals
   const isGoldenError = isSexAgeMismatch || isAnimalMismatch;
   
   const errorBgColor = '#fee2e2';
@@ -291,7 +300,9 @@ const ReportRow = React.memo(({
           readOnly={isRowReadOnly} 
           value={row.othersSpec ?? ''} 
           onChange={handleSpecifyChange} 
+          onBlur={handleSpecifyBlur} 
           onKeyDown={handleGridKeyDown}
+          spellCheck={false} // <-- Removes the slow, native browser red line
           placeholder={isRowReadOnly ? "" : "e.g. 1 Monkey"}
           style={{
             ...PDF_STYLES.inputText, 
