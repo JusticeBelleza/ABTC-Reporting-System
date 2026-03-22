@@ -10,8 +10,6 @@ import { downloadPDF, hasData, hasCohortData, mapRowToDb, mapCohortRowToDb, toIn
 import { supabase } from '../../lib/supabase';
 import MainReportTable from '../reports/MainReportTable';
 import CohortReportTable from '../reports/CohortReportTable';
-
-// --- NEW: IMPORT INDEXED-DB WRAPPER ---
 import { saveOfflineDraft, getOfflineDraft, clearOfflineDraft } from '../../lib/offlineDB';
 
 export default function FacilityDashboard({
@@ -22,7 +20,7 @@ export default function FacilityDashboard({
   availableYears, availableMonths,
   adminViewMode, selectedFacility, onBack,
   setReportToDelete,
-  currentRealYear, currentRealMonthIdx // <--- NEW: Using strict Server Time
+  currentRealYear, currentRealMonthIdx 
 }) {
   const { user, facilities, facilityBarangays, facilityDetails, globalSettings, userProfile } = useApp();
   const [activeTab, setActiveTab] = useState('main'); 
@@ -68,10 +66,10 @@ export default function FacilityDashboard({
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
-  // --- NEW: ADVANCED INDEXED-DB BACKGROUND AUTO-SYNC ---
+  // --- ADVANCED INDEXED-DB BACKGROUND AUTO-SYNC ---
   useEffect(() => {
     const checkOfflineDraft = async () => {
-        const draft = await getOfflineDraft(); // Read from IndexedDB
+        const draft = await getOfflineDraft(); 
         if (draft && navigator.onLine) {
             try {
                 toast.loading("🌐 Internet Restored! Auto-syncing offline data...", { id: 'offline-sync' });
@@ -104,9 +102,9 @@ export default function FacilityDashboard({
 
                 if (error) throw error;
 
-                await clearOfflineDraft(); // Clean up IndexedDB
+                await clearOfflineDraft(); 
                 toast.success("Offline data automatically synced to the server!", { id: 'offline-sync' });
-                fetchData(); // Refresh UI
+                fetchData(); 
             } catch (err) {
                 toast.error("Auto-sync failed. Please save manually.", { id: 'offline-sync' });
             }
@@ -263,28 +261,32 @@ export default function FacilityDashboard({
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
     
-    if (status === 'Pending' && activeTab === 'main') { 
-        let hasForm1Errors = false;
-        for (const key of Object.keys(data)) {
-            if (key === "Others:") continue;
-            const row = data[key];
-            if (!hasData(row)) continue;
-            const sexSum = (Number(row.male) || 0) + (Number(row.female) || 0);
-            const ageSum = (Number(row.ageLt15) || 0) + (Number(row.ageGt15) || 0);
-            const cat23Sum = (Number(row.cat2) || 0) + (Number(row.cat3) || 0);
-            const animalSum = (Number(row.dog) || 0) + (Number(row.cat) || 0) + (Number(row.othersCount) || 0);
-            const washedCount = Number(row.washed) || 0;
-            const hasAnyData = sexSum > 0 || ageSum > 0 || (Number(row.cat1)||0) > 0 || cat23Sum > 0 || animalSum > 0;
-            if (hasAnyData && (sexSum !== ageSum || cat23Sum !== animalSum || washedCount > animalSum)) {
-                hasForm1Errors = true;
-                break;
+    // --- FIXED: COHORT MODAL NOW TRIGGERS PROPERLY ---
+    if (status === 'Pending') { 
+        if (activeTab === 'main') {
+            let hasForm1Errors = false;
+            for (const key of Object.keys(data)) {
+                if (key === "Others:") continue;
+                const row = data[key];
+                if (!hasData(row)) continue;
+                const sexSum = (Number(row.male) || 0) + (Number(row.female) || 0);
+                const ageSum = (Number(row.ageLt15) || 0) + (Number(row.ageGt15) || 0);
+                const cat23Sum = (Number(row.cat2) || 0) + (Number(row.cat3) || 0);
+                const animalSum = (Number(row.dog) || 0) + (Number(row.cat) || 0) + (Number(row.othersCount) || 0);
+                const washedCount = Number(row.washed) || 0;
+                const hasAnyData = sexSum > 0 || ageSum > 0 || (Number(row.cat1)||0) > 0 || cat23Sum > 0 || animalSum > 0;
+                if (hasAnyData && (sexSum !== ageSum || cat23Sum !== animalSum || washedCount > animalSum)) {
+                    hasForm1Errors = true;
+                    break;
+                }
+            }
+            if (hasForm1Errors) {
+                toast.error("DATA MISMATCH: Please check the RED highlighted cells to ensure your totals balance properly.", { duration: 6000 });
+                setActiveTab('main'); 
+                return;
             }
         }
-        if (hasForm1Errors) {
-            toast.error("DATA MISMATCH: Please check the RED highlighted cells to ensure your totals balance properly.", { duration: 6000 });
-            setActiveTab('main'); 
-            return;
-        }
+        
         setIsZeroSubmit(isZeroReportActiveTab); 
         setShowSubmitModal(true); 
         return; 
@@ -294,7 +296,6 @@ export default function FacilityDashboard({
     await clearOfflineDraft(); 
   };
 
-  // --- CONFIRMATION ACTIONS (WITH INDEXED-DB CLEANUP) ---
   const confirmApprove = async () => { 
     setShowApproveModal(false); 
     await handleSave('Approved'); 
