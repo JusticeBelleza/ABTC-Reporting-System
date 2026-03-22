@@ -37,9 +37,13 @@ export default defineConfig({
       },
       // --- FIX: TURN THIS OFF FOR LOCAL DEVELOPMENT ---
       devOptions: {
-        enabled: false, // Changed this to false!
+        enabled: false, 
         type: 'module',
       }
     })
   ],
+  // --- ADDED: Fix for Web Worker build formatting ---
+  worker: {
+    format: 'es'
+  }
 })
