@@ -1,7 +1,15 @@
 import { toast } from 'sonner';
 import { INITIAL_ROW_STATE, INITIAL_COHORT_ROW } from './constants';
 
-export const toInt = (val) => val === '' ? 0 : Number(val);
+export const toInt = (val) => {
+  // If the value is missing, empty, or undefined, safely return 0
+  if (!val) return 0;
+  
+  const parsed = Number(val);
+  // If the conversion results in NaN, safely return 0
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
 export const toDbInt = (val) => val === '' ? null : Number(val);
 
 export const mapDbToRow = (r) => ({ 
@@ -67,17 +75,18 @@ export const getQuarterMonths = (q) => { if (q === "1st Quarter") return ["Janua
 export const hasData = (row) => {
   if (!row) return false;
   const keys = ['male','female','ageLt15','ageGt15','cat1','cat2','cat3','totalPatients','abCount','hrCount','pvrv','pcecv','hrig','erig','dog','cat','othersCount','washed'];
-  return keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '') || (row.othersSpec && row.othersSpec.trim() !== '');
+  // The !! operator ensures this returns a strict true/false boolean
+  return !!(keys.some(k => Number(row[k]) > 0) || (row.remarks && row.remarks.trim() !== '') || (row.othersSpec && row.othersSpec.trim() !== ''));
 };
 
 export const hasCohortData = (row, category) => {
   if(!row) return false;
   if (category === 'cat2') {
     const keys = ['cat2_registered', 'cat2_rig', 'cat2_complete', 'cat2_incomplete', 'cat2_booster', 'cat2_none', 'cat2_died'];
-    return keys.some(k => Number(row[k]) > 0) || (row.cat2_remarks && row.cat2_remarks.trim() !== '');
+    return !!(keys.some(k => Number(row[k]) > 0) || (row.cat2_remarks && row.cat2_remarks.trim() !== ''));
   } else if (category === 'cat3') {
     const keys = ['cat3_registered', 'cat3_rig', 'cat3_complete', 'cat3_incomplete', 'cat3_booster', 'cat3_none', 'cat3_died'];
-    return keys.some(k => Number(row[k]) > 0) || (row.cat3_remarks && row.cat3_remarks.trim() !== '');
+    return !!(keys.some(k => Number(row[k]) > 0) || (row.cat3_remarks && row.cat3_remarks.trim() !== ''));
   }
   return false;
 };

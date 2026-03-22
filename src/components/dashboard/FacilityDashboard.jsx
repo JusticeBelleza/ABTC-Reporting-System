@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2, TrendingUp, ChevronRight, Clock, Archive, Building2, Layers } from 'lucide-react';
+import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2, TrendingUp, ChevronRight, Clock, Archive, Building2, Layers, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
@@ -40,6 +40,22 @@ export default function FacilityDashboard({
   const [statusModal, setStatusModal] = useState({ isOpen: false, status: null, reportType: 'main' });
   const [consolidatedModal, setConsolidatedModal] = useState({ isOpen: false, filter: null, reportType: 'main' });
   const [yearlyStats, setYearlyStats] = useState({ main: [], cohort: [] });
+
+  // --- REAL-TIME OFFLINE DETECTION ---
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const formatQuarterName = (q) => {
       if (!q) return '';
@@ -608,6 +624,21 @@ export default function FacilityDashboard({
                 </div>
             </div>
         </div>
+
+        {/* --- OFFLINE WARNING BANNER --- */}
+        {isOffline && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 sm:px-5 sm:py-4 rounded-xl mb-6 flex items-start sm:items-center gap-3 sm:gap-4 shadow-sm animate-in slide-in-from-top-4 no-print">
+                <div className="bg-amber-200/50 p-2 rounded-full shrink-0 mt-0.5 sm:mt-0">
+                    <WifiOff size={20} className="text-amber-700" strokeWidth={2.5} />
+                </div>
+                <div className="flex-1">
+                    <p className="text-sm font-extrabold tracking-tight">You are currently offline.</p>
+                    <p className="text-xs sm:text-sm font-medium text-amber-800/80 mt-0.5">
+                        Don't panic! You can continue filling out the report. Click <strong className="text-amber-900">Save Draft</strong> below to securely store your work locally. It will auto-sync when your connection returns.
+                    </p>
+                </div>
+            </div>
+        )}
 
         {/* --- DYNAMIC KPI CARDS & YEARLY TRACKER --- */}
         <div className="space-y-6 mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500 no-print">
