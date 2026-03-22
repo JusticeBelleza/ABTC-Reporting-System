@@ -68,6 +68,19 @@ export default function FacilityDashboard({
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
+  // --- SMART OFFLINE LISTENER ---
+  useEffect(() => {
+    const checkOfflineDraft = () => {
+        const draft = localStorage.getItem('abtc_offline_draft');
+        if (draft && navigator.onLine) {
+            toast.info("🌐 Internet Restored! You have an unsynced offline draft. Please click 'Save Draft' to upload it to the server.", { duration: 10000 });
+        }
+    };
+    window.addEventListener('online', checkOfflineDraft);
+    checkOfflineDraft(); 
+    return () => window.removeEventListener('online', checkOfflineDraft);
+  }, []);
+
   useEffect(() => {
     const fetchYearlyStats = async () => {
         if (!year) return;
@@ -197,8 +210,21 @@ export default function FacilityDashboard({
     : Object.keys(cohortData).length > 0 && Object.keys(cohortData).every(key => key === "Others:" || (!hasCohortData(cohortData[key], 'cat2') && !hasCohortData(cohortData[key], 'cat3')));
   const showZeroBanner = isZeroReportActiveTab && reportStatus !== 'Draft' && !loading;
 
-  // --- SUBMISSION GUARDRAIL ---
+  // --- SUBMISSION GUARDRAIL & OFFLINE BLOCKER ---
   const onSaveClick = async (status) => {
+    
+    // 1. STRICT OFFLINE CHECK
+    if (!navigator.onLine) {
+        if (status === 'Draft') {
+            setShowDraftModal(true);
+            return;
+        } else {
+            toast.error("📴 No Internet Connection! You cannot submit or approve reports while offline. Please use 'Save Draft' to save your work locally.", { duration: 5000 });
+            return;
+        }
+    }
+
+    // 2. NORMAL FLOW (ONLINE)
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
@@ -248,8 +274,29 @@ export default function FacilityDashboard({
   const confirmApprove = async () => { setShowApproveModal(false); await handleSave('Approved'); };
   const confirmRejection = async () => { if (!rejectionReason.trim()) { toast.error("Reason required"); return; } setShowRejectModal(false); await handleSave('Rejected', rejectionReason); };
   const confirmSubmit = async () => { setShowSubmitModal(false); await handleSave('Pending'); };
-  const confirmSaveDraft = async () => { setShowDraftModal(false); await handleSave('Draft'); };
   const handleDeleteReportClick = async () => { setShowDeleteReportModal(false); await confirmDeleteReport(); };
+  
+  // --- OFFLINE SAVE DRAFT ---
+  const confirmSaveDraft = async () => { 
+    setShowDraftModal(false); 
+    
+    if (!navigator.onLine) {
+        const offlinePayload = {
+            facility: activeFacilityName,
+            year, month, quarter, periodType,
+            data: activeTab === 'main' ? data : cohortData,
+            activeTab,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('abtc_offline_draft', JSON.stringify(offlinePayload));
+        toast.warning("📴 You are offline! Draft saved locally to your device. It will remain here until you reconnect.", { duration: 6000 });
+        return;
+    }
+
+    await handleSave('Draft'); 
+    localStorage.removeItem('abtc_offline_draft'); // Clean up any old offline drafts once successful
+  };
+
   const confirmDeleteRow = () => {
     if (deleteRowConfirmation.rowKey) {
         handleDeleteRow(deleteRowConfirmation.rowKey);
