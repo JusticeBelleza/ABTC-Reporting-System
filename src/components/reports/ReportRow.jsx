@@ -54,13 +54,8 @@ const ReportRow = React.memo(({
     if (isTextElement && (key === 'ArrowLeft' || key === 'ArrowRight')) {
         const { selectionStart, selectionEnd, value } = e.target;
         
-        // If text is highlighted, let default behavior happen
         if (selectionStart !== selectionEnd) return;
-        
-        // If pressing Left and not at the very beginning, just move cursor within text
         if (key === 'ArrowLeft' && selectionStart > 0) return;
-        
-        // If pressing Right and not at the very end, just move cursor within text
         if (key === 'ArrowRight' && selectionEnd < value.length) return;
     }
 
@@ -118,8 +113,8 @@ const ReportRow = React.memo(({
   const getInputStyle = (isLocked = false, hasError = false) => ({
     ...PDF_STYLES.input,
     cursor: isLocked || isRowReadOnly ? 'default' : 'text',
-    backgroundColor: hasError ? '#fee2e2' : 'transparent', // Red bg for error
-    color: hasError ? '#dc2626' : (isRowReadOnly && isTotalRow ? '#0f172a' : '#1e3a8a') // Red text for error
+    backgroundColor: hasError ? '#fee2e2' : 'transparent',
+    color: hasError ? '#dc2626' : (isRowReadOnly && isTotalRow ? '#0f172a' : '#1e3a8a')
   });
 
   const getCellWebClasses = (isInput, hasError = false) => {
@@ -139,10 +134,24 @@ const ReportRow = React.memo(({
   };
 
   // --- VALIDATION LOGIC FOR STYLING ---
-  const isSexAgeMismatch = c.sexTotal !== c.ageTotal && (c.sexTotal > 0 || c.ageTotal > 0);
-  const isWashedError = Number(row.washed || 0) > c.animalTotal && c.animalTotal > 0;
+  const sexSum = c.sexTotal;
+  const ageSum = c.ageTotal;
+  const cat23Sum = c.cat23;
+  const animalSum = c.animalTotal;
+  const washedCount = Number(row.washed) || 0;
+
+  const hasAnyData = sexSum > 0 || ageSum > 0 || c.catTotal > 0 || animalSum > 0;
   
-  // Cell background colors for errors
+  // 1. Sex must equal Age
+  const isSexAgeMismatch = hasAnyData && (sexSum !== ageSum);
+  // 2. Cat2 + Cat3 must equal Total Animals (Cat 1 is ignored here)
+  const isAnimalMismatch = hasAnyData && (cat23Sum !== animalSum);
+  
+  const isWashedError = hasAnyData && (washedCount > animalSum);
+  
+  // If either of the golden rules fail, highlight the row totals
+  const isGoldenError = isSexAgeMismatch || isAnimalMismatch;
+  
   const errorBgColor = '#fee2e2';
   const errorTextColor = '#dc2626';
   const defaultCellBg = isTotalRow ? '#cbd5e1' : '#E2E8F0';
@@ -167,7 +176,7 @@ const ReportRow = React.memo(({
             readOnly={isRowReadOnly} 
             type="number" 
             min="0" 
-            value={row[f]} 
+            value={row[f] ?? ''} 
             onChange={e=>handleChange(f, e.target.value)}
             onKeyDown={handleGridKeyDown} 
             style={getInputStyle()} 
@@ -175,7 +184,7 @@ const ReportRow = React.memo(({
           />
         </td>
       ))}
-      <td className="text-center text-sm font-bold transition-colors" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isSexAgeMismatch ? errorBgColor : defaultCellBg, color: isSexAgeMismatch ? errorTextColor : defaultTextColor}}>
+      <td className="text-center text-sm font-bold transition-colors" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isGoldenError ? errorBgColor : defaultCellBg, color: isGoldenError ? errorTextColor : defaultTextColor}}>
           {c.sexTotal}
       </td>
       
@@ -185,7 +194,7 @@ const ReportRow = React.memo(({
             readOnly={isRowReadOnly} 
             type="number" 
             min="0" 
-            value={row[f]} 
+            value={row[f] ?? ''} 
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
@@ -193,7 +202,7 @@ const ReportRow = React.memo(({
           />
         </td>
       ))}
-      <td className="text-center text-sm font-bold transition-colors" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isSexAgeMismatch ? errorBgColor : defaultCellBg, color: isSexAgeMismatch ? errorTextColor : defaultTextColor}}>
+      <td className="text-center text-sm font-bold transition-colors" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isGoldenError ? errorBgColor : defaultCellBg, color: isGoldenError ? errorTextColor : defaultTextColor}}>
           {c.ageTotal}
       </td>
       
@@ -203,7 +212,7 @@ const ReportRow = React.memo(({
             readOnly={isRowReadOnly} 
             type="number" 
             min="0" 
-            value={row[f]} 
+            value={row[f] ?? ''} 
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
@@ -220,7 +229,7 @@ const ReportRow = React.memo(({
             readOnly={isRowReadOnly} 
             type="number" 
             min="0" 
-            value={row[f]} 
+            value={row[f] ?? ''} 
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
@@ -235,7 +244,7 @@ const ReportRow = React.memo(({
             readOnly={isRowReadOnly} 
             type="number" 
             min="0" 
-            value={row[f]} 
+            value={row[f] ?? ''} 
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
@@ -250,7 +259,7 @@ const ReportRow = React.memo(({
             readOnly={isRowReadOnly} 
             type="number" 
             min="0" 
-            value={row[f]} 
+            value={row[f] ?? ''} 
             onChange={e=>handleChange(f, e.target.value)} 
             onKeyDown={handleGridKeyDown}
             style={getInputStyle()} 
@@ -263,7 +272,7 @@ const ReportRow = React.memo(({
         <input 
           readOnly={true} 
           type="number" 
-          value={row.othersCount} 
+          value={row.othersCount ?? ''} 
           tabIndex={-1} 
           style={{
             ...getInputStyle(true), 
@@ -280,7 +289,7 @@ const ReportRow = React.memo(({
         <textarea 
           ref={specifyRef} 
           readOnly={isRowReadOnly} 
-          value={row.othersSpec} 
+          value={row.othersSpec ?? ''} 
           onChange={handleSpecifyChange} 
           onKeyDown={handleGridKeyDown}
           placeholder={isRowReadOnly ? "" : "e.g. 1 Monkey"}
@@ -302,7 +311,7 @@ const ReportRow = React.memo(({
         />
       </td>
       
-      <td className="text-center text-sm font-bold" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: defaultCellBg, color: defaultTextColor}}>
+      <td className="text-center text-sm font-bold transition-colors" style={{...PDF_STYLES.border, ...PDF_STYLES.cell, backgroundColor: isGoldenError ? errorBgColor : defaultCellBg, color: isGoldenError ? errorTextColor : defaultTextColor}}>
           {c.animalTotal}
       </td>
       
@@ -311,7 +320,7 @@ const ReportRow = React.memo(({
           readOnly={isRowReadOnly} 
           type="number" 
           min="0" 
-          value={row.washed} 
+          value={row.washed ?? ''} 
           onChange={e=>handleChange('washed', e.target.value)} 
           onKeyDown={handleGridKeyDown}
           style={getInputStyle(false, isWashedError)} 
@@ -326,7 +335,7 @@ const ReportRow = React.memo(({
       <td style={{...PDF_STYLES.border, padding:0}}>
         <textarea 
           readOnly={isRowReadOnly} 
-          value={row.remarks} 
+          value={row.remarks ?? ''} 
           onChange={e=>handleChange('remarks', e.target.value)} 
           onKeyDown={handleGridKeyDown}
           style={{

@@ -6,8 +6,7 @@ import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
 import ModalPortal from '../modals/ModalPortal';
-// ADDED getComputations HERE:
-import { downloadPDF, hasData, hasCohortData, getComputations } from '../../lib/utils';
+import { downloadPDF, hasData, hasCohortData } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import MainReportTable from '../reports/MainReportTable';
 import CohortReportTable from '../reports/CohortReportTable';
@@ -198,35 +197,43 @@ export default function FacilityDashboard({
     : Object.keys(cohortData).length > 0 && Object.keys(cohortData).every(key => key === "Others:" || (!hasCohortData(cohortData[key], 'cat2') && !hasCohortData(cohortData[key], 'cat3')));
   const showZeroBanner = isZeroReportActiveTab && reportStatus !== 'Draft' && !loading;
 
+  // --- SUBMISSION GUARDRAIL ---
   const onSaveClick = async (status) => {
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
     
-    // --- NEW VALIDATION CHECK ON SUBMIT ---
-    if (status === 'Pending') { 
+    if (status === 'Pending' && activeTab === 'main') { 
         let hasForm1Errors = false;
 
-        // Loop through all data to find any mismatches
         for (const key of Object.keys(data)) {
             if (key === "Others:") continue;
             const row = data[key];
             if (!hasData(row)) continue;
             
-            const c = getComputations(row);
-            const isSexAgeMismatch = c.sexTotal !== c.ageTotal;
-            const isWashedError = Number(row.washed || 0) > c.animalTotal;
+            const sexSum = (Number(row.male) || 0) + (Number(row.female) || 0);
+            const ageSum = (Number(row.ageLt15) || 0) + (Number(row.ageGt15) || 0);
+            const cat23Sum = (Number(row.cat2) || 0) + (Number(row.cat3) || 0);
+            const animalSum = (Number(row.dog) || 0) + (Number(row.cat) || 0) + (Number(row.othersCount) || 0);
+            const washedCount = Number(row.washed) || 0;
 
-            if (isSexAgeMismatch || isWashedError) {
-                hasForm1Errors = true;
-                break;
+            const hasAnyData = sexSum > 0 || ageSum > 0 || (Number(row.cat1)||0) > 0 || cat23Sum > 0 || animalSum > 0;
+            
+            if (hasAnyData) {
+                // Category 1 is ignored. Rule: Sex = Age AND Cat2+Cat3 = Animals AND washed <= animalSum
+                if (sexSum !== ageSum || cat23Sum !== animalSum || washedCount > animalSum) {
+                    hasForm1Errors = true;
+                    break;
+                }
             }
         }
         
-        // If there are errors, BLOCK submission
         if (hasForm1Errors) {
-            toast.error("Validation Error: Please fix the red highlighted cells in Form 1. Sex and Age totals must match, and Washed cannot exceed Animal Total.");
-            setActiveTab('main'); // Switch them to Form 1 so they can see the red highlights
+            toast.error(
+                "DATA MISMATCH: Submission Blocked. Please check the RED highlighted cells to ensure your totals balance properly.", 
+                { duration: 6000, position: 'top-center' }
+            );
+            setActiveTab('main'); // Switch to main tab so they see the errors
             return;
         }
 
@@ -234,6 +241,7 @@ export default function FacilityDashboard({
         setShowSubmitModal(true); 
         return; 
     }
+    
     await handleSave(status); 
   };
 
@@ -295,6 +303,7 @@ export default function FacilityDashboard({
         
         {/* --- MODALS --- */}
         {statusModal.isOpen && (
+            <ModalPortal>
             <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                     <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -341,11 +350,13 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
 
         {consolidatedModal.isOpen && (
+            <ModalPortal>
             <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                <div className="bg-white rounded-none shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                     <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className="w-10 h-10 rounded-full flex shrink-0 items-center justify-center bg-slate-900 text-yellow-400 shadow-sm">
@@ -396,11 +407,11 @@ export default function FacilityDashboard({
                                                 const isRejected = m.status === 'Rejected';
                                                 return (
                                                     <div key={m.month} title={`${m.month}: ${m.status}`} className={`flex items-center justify-center px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md border ${
-                                                            isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
-                                                            isPending ? 'bg-amber-50 border-amber-200 text-amber-700' : 
-                                                            isRejected ? 'bg-rose-50 border-rose-200 text-rose-700' : 
-                                                            'bg-slate-100 border-slate-200 text-slate-400'
-                                                        }`}>
+                                                        isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
+                                                        isPending ? 'bg-amber-50 border-amber-200 text-amber-700' : 
+                                                        isRejected ? 'bg-rose-50 border-rose-200 text-rose-700' : 
+                                                        'bg-slate-100 border-slate-200 text-slate-400'
+                                                    }`}>
                                                         {m.month.substring(0, 3).toUpperCase()}
                                                     </div>
                                                 );
@@ -413,6 +424,7 @@ export default function FacilityDashboard({
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
 
         {/* --- HEADER --- */}

@@ -19,6 +19,9 @@ import LicenseModal from '../modals/LicenseModal';
 import ErrorBoundary from '../ErrorBoundary';
 import AnalyticsOverview from '../reports/AnalyticsOverview'; 
 
+// IMPORT YOUR PACKAGE.JSON TO GET THE DYNAMIC VERSION
+import packageInfo from '../../../package.json';
+
 /**
  * Helper to get initials for the user avatar
  */
@@ -282,7 +285,6 @@ function DashboardContent() {
       </main>
 
       {/* --- GROUNDED PILL FOOTER --- */}
-      {/* Added pb-28 to push footer content up above the mobile pill */}
       <footer className="w-full py-8 px-4 md:px-8 bg-slate-50 no-print shrink-0 border-t border-slate-200/60 pb-28 md:pb-8">
         <div className="max-w-[1600px] mx-auto flex justify-center">
           
@@ -306,6 +308,10 @@ function DashboardContent() {
               <a href="/images/System_Manual.pdf" target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">
                 User Manual
               </a>
+              {/* SYSTEM VERSION DISPLAY */}
+              <span className="text-[10px] font-bold text-slate-500 tracking-widest cursor-default">
+                ABTC-RS v.{packageInfo.version}
+              </span>
             </div>
 
             <div className="hidden md:block w-px h-3 bg-slate-700"></div>
@@ -324,7 +330,7 @@ function DashboardContent() {
         </div>
       </footer>
 
-      {/* --- NEW: MOBILE FLOATING NAVIGATION PILL --- */}
+      {/* --- MOBILE FLOATING NAVIGATION PILL --- */}
       <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 duration-500 fade-in w-max no-print">
         <div className="flex items-center bg-white/90 backdrop-blur-xl p-1.5 rounded-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
           <button
