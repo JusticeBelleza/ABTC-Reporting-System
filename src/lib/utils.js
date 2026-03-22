@@ -53,6 +53,7 @@ export const aggregateAnimalSpecs = (specsList) => {
         let name = item.replace(match[0], '').trim().toLowerCase();
         if (name.endsWith('s')) name = name.slice(0, -1); 
         name = name.replace(/[^a-z0-9\s-]/g, ''); 
+        
         if (name) counts[name] = (counts[name] || 0) + count;
       }
     });
@@ -94,14 +95,12 @@ export const getComputations = (row) => {
   return { sexTotal, ageTotal, cat23, catTotal, animalTotal, percent, sexMismatch: sexTotal !== ageTotal };
 };
 
-// --- DATA-DRIVEN PDF ENGINE WITH ASYNC YIELDING ---
+// --- DATA-DRIVEN PDF ENGINE ---
 export const downloadPDF = async ({ 
   type, cohortType, filename, data, rowKeys, grandTotals, cohortTotals, 
   periodText, facilityName, userProfile, globalSettings, isConsolidated, facilityType, facilityOwnership
 }) => {
   try {
-    // 1. ASYNC YIELD: This tiny pause forces the browser to paint the UI (show the loading spinner) 
-    // before the main thread is locked up by the heavy PDF calculations.
     await new Promise(resolve => setTimeout(resolve, 50));
 
     const doc = new jsPDF('landscape', 'pt', [612, 936]); 

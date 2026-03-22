@@ -11,6 +11,9 @@ import { supabase } from '../../lib/supabase';
 import MainReportTable from '../reports/MainReportTable';
 import CohortReportTable from '../reports/CohortReportTable';
 
+// --- NEW: IMPORT INDEXED-DB WRAPPER ---
+import { saveOfflineDraft, getOfflineDraft, clearOfflineDraft } from '../../lib/offlineDB';
+
 export default function FacilityDashboard({
   periodType, setPeriodType,
   year, setYear,
@@ -18,7 +21,8 @@ export default function FacilityDashboard({
   quarter, setQuarter,
   availableYears, availableMonths,
   adminViewMode, selectedFacility, onBack,
-  setReportToDelete
+  setReportToDelete,
+  currentRealYear, currentRealMonthIdx // <--- NEW: Using strict Server Time
 }) {
   const { user, facilities, facilityBarangays, facilityDetails, globalSettings, userProfile } = useApp();
   const [activeTab, setActiveTab] = useState('main'); 
@@ -38,10 +42,6 @@ export default function FacilityDashboard({
   const [statusModal, setStatusModal] = useState({ isOpen: false, status: null, reportType: 'main' });
   const [consolidatedModal, setConsolidatedModal] = useState({ isOpen: false, filter: null, reportType: 'main' });
   const [yearlyStats, setYearlyStats] = useState({ main: [], cohort: [] });
-
-  const currentDate = new Date();
-  const currentRealYear = currentDate.getFullYear();
-  const currentRealMonthIdx = currentDate.getMonth();
 
   const formatQuarterName = (q) => {
       if (!q) return '';
@@ -68,13 +68,12 @@ export default function FacilityDashboard({
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
-  // --- NEW: SILENT BACKGROUND SYNC API ---
+  // --- NEW: ADVANCED INDEXED-DB BACKGROUND AUTO-SYNC ---
   useEffect(() => {
     const checkOfflineDraft = async () => {
-        const draftJson = localStorage.getItem('abtc_offline_draft');
-        if (draftJson && navigator.onLine) {
+        const draft = await getOfflineDraft(); // Read from IndexedDB
+        if (draft && navigator.onLine) {
             try {
-                const draft = JSON.parse(draftJson);
                 toast.loading("🌐 Internet Restored! Auto-syncing offline data...", { id: 'offline-sync' });
 
                 let payload = [];
@@ -95,7 +94,6 @@ export default function FacilityDashboard({
                     }).filter(x => x !== null);
                 }
 
-                // Push physical payload directly to database
                 const { error } = await supabase.rpc('save_report_atomic', { 
                     p_year: String(draft.year), 
                     p_month: String(draft.month), 
@@ -106,11 +104,9 @@ export default function FacilityDashboard({
 
                 if (error) throw error;
 
-                localStorage.removeItem('abtc_offline_draft');
+                await clearOfflineDraft(); // Clean up IndexedDB
                 toast.success("Offline data automatically synced to the server!", { id: 'offline-sync' });
-                
-                // Refresh the React State from the now-updated database
-                fetchData();
+                fetchData(); // Refresh UI
             } catch (err) {
                 toast.error("Auto-sync failed. Please save manually.", { id: 'offline-sync' });
             }
@@ -295,26 +291,27 @@ export default function FacilityDashboard({
     }
     
     await handleSave(status); 
-    localStorage.removeItem('abtc_offline_draft'); 
+    await clearOfflineDraft(); 
   };
 
+  // --- CONFIRMATION ACTIONS (WITH INDEXED-DB CLEANUP) ---
   const confirmApprove = async () => { 
     setShowApproveModal(false); 
     await handleSave('Approved'); 
-    localStorage.removeItem('abtc_offline_draft'); 
+    await clearOfflineDraft(); 
   };
 
   const confirmRejection = async () => { 
     if (!rejectionReason.trim()) { toast.error("Reason required"); return; } 
     setShowRejectModal(false); 
     await handleSave('Rejected', rejectionReason); 
-    localStorage.removeItem('abtc_offline_draft'); 
+    await clearOfflineDraft(); 
   };
 
   const confirmSubmit = async () => { 
     setShowSubmitModal(false); 
     await handleSave('Pending'); 
-    localStorage.removeItem('abtc_offline_draft'); 
+    await clearOfflineDraft(); 
   };
 
   const confirmSaveDraft = async () => { 
@@ -325,18 +322,18 @@ export default function FacilityDashboard({
             data: activeTab === 'main' ? data : cohortData, activeTab,
             timestamp: new Date().toISOString()
         };
-        localStorage.setItem('abtc_offline_draft', JSON.stringify(offlinePayload));
+        await saveOfflineDraft(offlinePayload);
         toast.warning("📴 Offline! Draft saved locally. It will automatically sync when internet is restored.", { duration: 8000 });
         return;
     }
     await handleSave('Draft'); 
-    localStorage.removeItem('abtc_offline_draft'); 
+    await clearOfflineDraft(); 
   };
 
   const handleDeleteReportClick = async () => { 
     setShowDeleteReportModal(false); 
     await confirmDeleteReport(); 
-    localStorage.removeItem('abtc_offline_draft');
+    await clearOfflineDraft();
   };
 
   const confirmDeleteRow = () => {

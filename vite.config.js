@@ -12,7 +12,6 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['images/pho-logo.png', 'images/dog-icon.png'],
       manifest: {
-        // Removed the ABTC-RS duplication to keep the install prompt perfectly clean
         name: `ABTC Reporting System v${packageInfo.version}`,
         short_name: `ABTC v${packageInfo.version}`,
         description: 'Provincial Rabies Registry and Reporting System',
@@ -36,8 +35,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
+      // --- FIX: TURN THIS OFF FOR LOCAL DEVELOPMENT ---
       devOptions: {
-        enabled: false, 
+        enabled: false, // Changed this to false!
         type: 'module',
       }
     })
