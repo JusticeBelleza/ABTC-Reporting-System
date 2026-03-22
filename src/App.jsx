@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -36,21 +37,46 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [session, logout]);
 
+  // 1. Keep your loading UI exactly the same
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-zinc-900" size={20} /></div>;
   
+  // 2. Keep your password update UI exactly the same
   if (showPasswordUpdate) return <UpdatePasswordForm onComplete={() => setShowPasswordUpdate(false)} />;
   
-  if (!session) return <Login />;
+  // 3. Here is where the Router takes over!
+  return (
+    <Routes>
+      {/* The Dashboard Route (Protected)
+        If they have a session, show the Dashboard. If not, redirect to /login 
+      */}
+      <Route 
+        path="/" 
+        element={session ? <Dashboard /> : <Navigate to="/login" replace />} 
+      />
+      
+      {/* The Login Route
+        If they DON'T have a session, show Login. If they do, redirect to the Dashboard 
+      */}
+      <Route 
+        path="/login" 
+        element={!session ? <Login /> : <Navigate to="/" replace />} 
+      />
 
-  return <Dashboard />;
+      {/* Catch-all route: If they type a random URL, send them back to the start */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }
 
 export default function App() {
   return (
     // This Provider is CRITICAL. It makes useApp() work inside Dashboard.
     <AppProvider>
-      <Toaster position="bottom-right" theme="light" closeButton />
-      <AppContent />
+      {/* We wrap everything inside the Router so all components know about the current URL */}
+      <Router>
+        <Toaster position="bottom-right" theme="light" closeButton />
+        <AppContent />
+      </Router>
     </AppProvider>
   );
 }
