@@ -44,7 +44,7 @@ function DashboardContent() {
         if (data && !error) {
           const authoritativeDate = new Date(data);
           setServerDate(authoritativeDate);
-          setLiveTime(authoritativeDate); // Initialize live clock
+          setLiveTime(authoritativeDate); 
           
           const sYear = authoritativeDate.getFullYear();
           const sMonth = MONTHS[authoritativeDate.getMonth()];
@@ -167,10 +167,10 @@ function DashboardContent() {
           </div>
 
           <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner absolute left-1/2 -translate-x-1/2">
-            <button onClick={() => setActiveNav('dashboard')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${activeNav === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'}`}>
+            <button onClick={() => setActiveNav('dashboard')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${activeNav === 'dashboard' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'}`}>
               <LayoutDashboard size={16} strokeWidth={2.5} /> Dashboard
             </button>
-            <button onClick={() => setActiveNav('reports')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${activeNav === 'reports' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'}`}>
+            <button onClick={() => setActiveNav('reports')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${activeNav === 'reports' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'}`}>
               <PieChart size={16} strokeWidth={2.5} /> Reports
             </button>
           </div>

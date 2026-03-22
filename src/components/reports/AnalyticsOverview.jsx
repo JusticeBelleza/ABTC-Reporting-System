@@ -9,7 +9,6 @@ import { useApp } from '../../context/AppContext';
 import { useReportData } from '../../hooks/useReportData';
 import { QUARTERS, MUNICIPALITIES } from '../../lib/constants';
 
-// Refined, professional color palette
 const COLORS = {
   male: '#2563EB', female: '#E11D48', 
   ageLt15: '#0D9488', ageGt15: '#D97706', 
@@ -19,7 +18,6 @@ const COLORS = {
 
 const DYNAMIC_COLORS = ['#14B8A6', '#F43F5E', '#F97316', '#06B6D4', '#8B5CF6', '#EAB308'];
 
-// Clean Pie Label
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
   if (value === 0) return null; 
@@ -34,7 +32,6 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
   );
 };
 
-// Clean Bar Label
 const renderDynamicBarLabel = (props) => {
   const { x, y, width, height, value } = props;
   if (!value || value === 0) return null;
@@ -50,7 +47,6 @@ const renderDynamicBarLabel = (props) => {
   );
 };
 
-// Sleek Tooltip Style
 const TOOLTIP_STYLE = {
   borderRadius: '12px',
   border: '1px solid #E2E8F0',
@@ -311,7 +307,8 @@ export default function AnalyticsOverview({
                     <XAxis dataKey="name" tick={{fill: '#64748B', fontSize: 11, fontWeight: 500}} axisLine={{stroke: '#E2E8F0'}} tickLine={false} angle={-45} textAnchor="end" />
                     <YAxis tick={{fill: '#94A3B8', fontSize: 11}} axisLine={false} tickLine={false} />
                     <RechartsTooltip cursor={{fill: '#F8FAFC'}} contentStyle={TOOLTIP_STYLE}/>
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={50} fill="#3B82F6" name="Total Patients">
+                    {/* ADDED isAnimationActive={false} TO FIX BLINKING */}
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={50} fill="#3B82F6" name="Total Patients" isAnimationActive={false}>
                         {locationData.map((entry, index) => <Cell key={`cell-${index}`} fill={index === 0 ? '#2563EB' : '#93C5FD'} />)}
                         <LabelList dataKey="value" content={renderDynamicBarLabel} />
                     </Bar>
@@ -342,7 +339,8 @@ export default function AnalyticsOverview({
                   <XAxis dataKey="name" tick={{fill: '#64748B', fontSize: 11, fontWeight: 600}} axisLine={{stroke: '#E2E8F0'}} tickLine={false} />
                   <YAxis tick={{fill: '#94A3B8', fontSize: 11}} axisLine={false} tickLine={false} />
                   <RechartsTooltip cursor={{fill: '#F8FAFC'}} contentStyle={TOOLTIP_STYLE}/>
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60} name="Cases">
+                  {/* ADDED isAnimationActive={false} TO FIX BLINKING */}
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60} name="Cases" isAnimationActive={false}>
                     {animalData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
                     <LabelList dataKey="value" content={renderDynamicBarLabel} />
                   </Bar>
@@ -370,7 +368,8 @@ export default function AnalyticsOverview({
                   <XAxis dataKey="name" tick={{fill: '#64748B', fontSize: 11, fontWeight: 600}} axisLine={{stroke: '#E2E8F0'}} tickLine={false} />
                   <YAxis tick={{fill: '#94A3B8', fontSize: 11}} axisLine={false} tickLine={false} />
                   <RechartsTooltip cursor={{fill: '#F8FAFC'}} contentStyle={TOOLTIP_STYLE}/>
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60} name="Cases">
+                  {/* ADDED isAnimationActive={false} TO FIX BLINKING */}
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60} name="Cases" isAnimationActive={false}>
                     {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
                     <LabelList dataKey="value" content={renderDynamicBarLabel} />
                   </Bar>
@@ -394,7 +393,8 @@ export default function AnalyticsOverview({
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={demographicsSexData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={4} dataKey="value" stroke="none" labelLine={false} label={renderCustomizedLabel}>
+                  {/* ADDED isAnimationActive={false} TO FIX BLINKING */}
+                  <Pie data={demographicsSexData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={4} dataKey="value" stroke="none" labelLine={false} label={renderCustomizedLabel} isAnimationActive={false}>
                     {demographicsSexData.map((entry, index) => <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.male : COLORS.female} />)}
                   </Pie>
                   <RechartsTooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ fontWeight: 600 }} />
@@ -423,7 +423,8 @@ export default function AnalyticsOverview({
                   <XAxis dataKey="name" tick={{fill: '#64748B', fontSize: 11, fontWeight: 600}} axisLine={{stroke: '#E2E8F0'}} tickLine={false} />
                   <YAxis tick={{fill: '#94A3B8', fontSize: 11}} axisLine={false} tickLine={false} />
                   <RechartsTooltip cursor={{fill: '#F8FAFC'}} contentStyle={TOOLTIP_STYLE}/>
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60} name="Patients">
+                  {/* ADDED isAnimationActive={false} TO FIX BLINKING */}
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={60} name="Patients" isAnimationActive={false}>
                     {demographicsAgeData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.ageLt15 : COLORS.ageGt15} />
                     ))}
