@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, ClipboardList, Loader2, ChevronLeft, ChevronRight, ShieldCheck, History } from 'lucide-react';
+import { X, ClipboardList, Loader2, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import ModalPortal from './ModalPortal';
 
-export default function AuditLogsModal({ onClose, isAdmin }) {
+export default function AuditLogsModal({ onClose }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -38,12 +38,11 @@ export default function AuditLogsModal({ onClose, isAdmin }) {
       case 'APPROVED': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
       case 'REJECTED': return 'bg-rose-50 text-rose-600 border-rose-200';
       case 'SUBMITTED': return 'bg-blue-50 text-blue-600 border-blue-200';
-      case 'PENDING': return 'bg-amber-50 text-amber-600 border-amber-200';
       default: return 'bg-slate-50 text-slate-600 border-slate-200';
     }
   };
 
-  const getActor = (action) => {
+  const getActorFallback = (action) => {
     if (action === 'APPROVED' || action === 'REJECTED') return 'PHO Admin';
     return 'Facility User';
   };
@@ -60,37 +59,31 @@ export default function AuditLogsModal({ onClose, isAdmin }) {
     }
   };
 
-  const handlePerPageChange = (e) => {
-    setLogsPerPage(Number(e.target.value));
-    setCurrentPage(1); 
-  };
-
   return (
     <ModalPortal>
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden relative border border-slate-200 animate-in zoom-in-95 duration-200">
-          
-          {/* Close Button - Updated for dark header */}
-          <button onClick={onClose} className="absolute top-5 right-5 p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all z-10">
-            <X size={20} strokeWidth={2.5} />
-          </button>
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden relative border border-slate-200 animate-in zoom-in-95 duration-200">
 
-          {/* Dark Header */}
-          <div className="bg-slate-900 p-6 sm:p-7 border-b border-slate-800 shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="bg-slate-800 p-3 rounded-2xl text-yellow-400 shadow-inner border border-slate-700">
-                {isAdmin ? <ShieldCheck size={26} strokeWidth={2.5} /> : <History size={26} strokeWidth={2.5} />}
+          {/* Dark Header - Compact Version */}
+          <div className="bg-slate-900 p-4 sm:p-5 border-b border-slate-800 shrink-0 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-slate-800 p-2 rounded-lg text-yellow-400 shadow-inner border border-slate-700">
+                <ShieldCheck size={18} strokeWidth={2.5} />
               </div>
               <div>
-                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">System Audit Logs</h2>
-                <p className="text-[11px] sm:text-xs font-medium text-slate-400 mt-1">
-                  {isAdmin ? 'PROVINCIAL SECURITY TRAIL & ACTIVITY RECORD' : 'YOUR FACILITY ACTIVITY HISTORY'}
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-white leading-none">System Audit Logs</h2>
+                <p className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-widest leading-none">
+                  PROVINCIAL SECURITY TRAIL & ACTIVITY RECORD
                 </p>
               </div>
             </div>
+            
+            <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all">
+              <X size={18} strokeWidth={2.5} />
+            </button>
           </div>
 
-          {/* Table Body */}
+          {/* Table Body - Mobile Scrollable */}
           <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6">
             {loading ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
@@ -98,48 +91,44 @@ export default function AuditLogsModal({ onClose, isAdmin }) {
                 <p className="text-xs font-semibold">Loading secure logs...</p>
               </div>
             ) : logs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed">
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed mx-2 sm:mx-0">
                 <ClipboardList size={48} className="mb-4 opacity-20" />
                 <p className="text-xs font-semibold text-slate-500">No audit logs recorded yet.</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
-                <table className="w-full text-left border-collapse text-[10px] sm:text-xs">
-                  <thead className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
-                    <tr>
-                      {isAdmin ? (
-                        <th className="py-2 px-3 sm:px-4 border-r border-slate-200 w-1/4">Facility</th>
-                      ) : (
-                        <th className="py-2 px-3 sm:px-4 border-r border-slate-200 w-1/4">Action By</th>
-                      )}
-                      <th className="py-2 px-3 sm:px-4 border-r border-slate-200 text-center w-24">Status</th>
-                      <th className="py-2 px-3 sm:px-4 border-r border-slate-200 w-1/4">Type of Report</th>
-                      <th className="py-2 px-3 sm:px-4 border-r border-slate-200 w-1/4">Period</th>
-                      <th className="py-2 px-3 sm:px-4 w-1/4">Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentLogs.map((log) => (
-                      <tr key={log.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0">
-                        {isAdmin ? (
-                          <td className="py-2.5 px-3 sm:px-4 font-bold text-slate-800 border-r border-slate-100">{log.facility_name}</td>
-                        ) : (
-                          <td className="py-2.5 px-3 sm:px-4 font-bold text-slate-700 border-r border-slate-100">{getActor(log.action)}</td>
-                        )}
-                        <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-black border uppercase tracking-widest ${getActionBadge(log.action)}`}>
-                            {log.action}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 sm:px-4 font-semibold text-slate-600 border-r border-slate-100">{log.report_type}</td>
-                        <td className="py-2.5 px-3 sm:px-4 font-black text-slate-700 border-r border-slate-100 tracking-tight">{log.period_info}</td>
-                        <td className="py-2.5 px-3 sm:px-4 text-slate-500 font-medium whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </td>
+              <div className="rounded-xl border border-slate-200 shadow-sm bg-white w-full overflow-hidden flex flex-col">
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-left border-collapse text-[10px] sm:text-[11px] min-w-[800px]">
+                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                      <tr>
+                        <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-1/5">Facility</th>
+                        <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 text-center w-24">Status</th>
+                        <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-1/6">Type of Report</th>
+                        <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-1/6">Period</th>
+                        <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-1/6">Timestamp</th>
+                        <th className="py-2.5 px-3 sm:px-4 text-indigo-700 w-1/5">Action By</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {currentLogs.map((log) => (
+                        <tr key={log.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0">
+                          <td className="py-2.5 px-3 sm:px-4 font-bold text-slate-800 border-r border-slate-100">{log.facility_name}</td>
+                          <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black border uppercase tracking-widest ${getActionBadge(log.action)}`}>
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 sm:px-4 font-semibold text-slate-600 border-r border-slate-100">{log.report_type}</td>
+                          <td className="py-2.5 px-3 sm:px-4 font-black text-slate-700 border-r border-slate-100 tracking-tight">{log.period_info}</td>
+                          <td className="py-2.5 px-3 sm:px-4 text-slate-500 font-medium whitespace-nowrap border-r border-slate-100">
+                            {new Date(log.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="py-2.5 px-3 sm:px-4 font-bold text-indigo-600">{log.actor_name || getActorFallback(log.action)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -152,7 +141,7 @@ export default function AuditLogsModal({ onClose, isAdmin }) {
                 <span>Show</span>
                 <select 
                   value={logsPerPage} 
-                  onChange={handlePerPageChange} 
+                  onChange={(e) => { setLogsPerPage(Number(e.target.value)); setCurrentPage(1); }} 
                   className="bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:ring-2 focus:ring-slate-900/20 font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors"
                 >
                   <option value={10}>10</option>

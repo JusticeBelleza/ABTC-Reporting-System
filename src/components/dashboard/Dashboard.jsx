@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-// ADDED ClipboardList for the Audit Log icon
 import { FileText, LogOut, User, Settings, Github, AlertTriangle, X, PlusCircle, Loader2, LayoutDashboard, PieChart, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
-import AuditLogsModal from '../modals/AuditLogsModal';
+
 import { supabase, adminHelperClient } from '../../lib/supabase';
 import { MONTHS } from '../../lib/constants';
 import { useApp } from '../../context/AppContext';
@@ -17,10 +16,10 @@ import SettingsModal from '../modals/SettingsModal';
 import ProfileModal from '../modals/ProfileModal';
 import UserManagementModal from '../modals/UserManagementModal';
 import LicenseModal from '../modals/LicenseModal'; 
+import AuditLogsModal from '../modals/AuditLogsModal'; 
 import ErrorBoundary from '../ErrorBoundary';
 import AnalyticsOverview from '../reports/AnalyticsOverview'; 
 
-// IMPORT YOUR PACKAGE.JSON TO GET THE DYNAMIC VERSION
 import packageInfo from '../../../package.json';
 
 const getInitials = (name) => {
@@ -34,7 +33,6 @@ const getInitials = (name) => {
 function DashboardContent() {
   const { user, facilities, setFacilities, setFacilityBarangays, logout, globalSettings, setGlobalSettings, userProfile, setUserProfile } = useApp();
 
-  // --- SERVER-TIME SYNCHRONIZATION & LIVE CLOCK ---
   const [serverDate, setServerDate] = useState(new Date()); 
   const [liveTime, setLiveTime] = useState(new Date());
   
@@ -63,7 +61,6 @@ function DashboardContent() {
     fetchServerTime();
   }, []);
 
-  // Tick the clock every second based on the server time
   useEffect(() => {
     const timer = setInterval(() => {
       setLiveTime(prev => new Date(prev.getTime() + 1000));
@@ -71,7 +68,6 @@ function DashboardContent() {
     return () => clearInterval(timer);
   }, []);
 
-  // Format to Philippine Time
   const formattedPHT = liveTime.toLocaleString('en-PH', {
       timeZone: 'Asia/Manila',
       month: 'short',
@@ -79,7 +75,6 @@ function DashboardContent() {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true
   });
 
@@ -102,12 +97,10 @@ function DashboardContent() {
     year === currentRealYear ? MONTHS.slice(0, currentRealMonthIdx + 1) : MONTHS
   ), [year, currentRealYear, currentRealMonthIdx]);
 
-  // View & UI State
   const [activeNav, setActiveNav] = useState('dashboard');
   const [adminViewMode, setAdminViewMode] = useState('dashboard');
   const [selectedFacility, setSelectedFacility] = useState(null);
 
-  // Modal Visibility State
   const [showManageUsers, setShowManageUsers] = useState(false);
   const [showAddFacilityModal, setShowAddFacilityModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -116,10 +109,8 @@ function DashboardContent() {
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
   const [showLicense, setShowLicense] = useState(false); 
   const [showLogoutModal, setShowLogoutModal] = useState(false); 
-  // ADDED state for Audit Logs
   const [showAuditLogs, setShowAuditLogs] = useState(false); 
   
-  // Deletion State
   const [facilityToDelete, setFacilityToDelete] = useState(null);
   const [deleteFacilityInput, setDeleteFacilityInput] = useState('');
   const [isDeletingFacility, setIsDeletingFacility] = useState(false);
@@ -154,8 +145,6 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 relative">
-      
-      {/* --- HEADER (FROSTED GLASS) --- */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 no-print transition-all duration-300 shadow-sm shrink-0">
         <div className="max-w-[1600px] mx-auto px-4 md:px-8 h-16 flex items-center justify-between relative">
           
@@ -179,14 +168,11 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center justify-end gap-2 sm:gap-3 w-1/3">
-            
-            {/* LIVE SERVER TIME CLOCK (Hidden on small screens) */}
-            <div className="hidden xl:flex items-center bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-inner gap-2" title="Philippine Standard Time (Server Synced)">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[11px] font-bold text-slate-600 tracking-wide uppercase">{formattedPHT}</span>
+            <div className="hidden xl:flex items-center bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200 shadow-inner gap-2" title="Philippine Standard Time (Server Synced)">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+              <span className="text-[11px] font-bold text-slate-600 tracking-wide uppercase whitespace-nowrap">{formattedPHT}</span>
             </div>
 
-            <NotificationBell user={user} />
             <div onClick={() => setShowProfileModal(true)} className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 pr-1 py-1 bg-white border border-slate-200 rounded-full shadow-sm hover:border-slate-400 active:scale-95 transition-all duration-300 cursor-pointer group">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-black text-slate-800 leading-none truncate max-w-[120px]">{userProfile?.full_name || 'User'}</p>
@@ -198,22 +184,35 @@ function DashboardContent() {
             </div>
 
             <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner">
-              {/* NEW AUDIT LOG BUTTON */}
-              <button onClick={() => setShowAuditLogs(true)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-white rounded-full transition-all active:scale-90" title="System Audit Logs"><ClipboardList size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} /></button>
+              
+              {/* ORDER: Bell | Audit | Settings | Logout */}
+              <NotificationBell user={user} />
+              
+              {user.role === 'admin' && (
+                <>
+                  <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
+                  <button onClick={() => setShowAuditLogs(true)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:-translate-y-0.5 transition-all duration-300 active:scale-90" title="System Audit Logs">
+                    <ClipboardList size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
+                  </button>
+                </>
+              )}
+              
+              <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
+
+              <button onClick={() => setShowSettingsModal(true)} className="p-1.5 text-slate-500 hover:text-slate-900 hover:-translate-y-0.5 transition-all duration-300 active:scale-90" title="System Settings">
+                <Settings size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
+              </button>
               
               <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
               
-              <button onClick={() => setShowSettingsModal(true)} className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-white rounded-full transition-all active:scale-90" title="System Settings"><Settings size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} /></button>
-              
-              <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
-              
-              <button onClick={() => setShowLogoutModal(true)} className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-white rounded-full transition-all active:scale-90" title="Log Out"><LogOut size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} /></button>
+              <button onClick={() => setShowLogoutModal(true)} className="p-1.5 text-slate-500 hover:text-rose-600 hover:-translate-y-0.5 transition-all duration-300 active:scale-90" title="Log Out">
+                <LogOut size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* --- MAIN CONTENT --- */}
       <main className="flex-1 p-4 md:p-8" id="report-content">
         {activeNav === 'reports' ? (
            <AnalyticsOverview 
@@ -249,12 +248,11 @@ function DashboardContent() {
           )
         )}
 
-        {/* --- GLOBAL MODALS --- */}
         {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} globalSettings={globalSettings} onSaveGlobal={setGlobalSettings} userProfile={userProfile} onSaveProfile={setUserProfile} isAdmin={user.role === 'admin'} />}
-        {showAuditLogs && <AuditLogsModal onClose={() => setShowAuditLogs(false)} isAdmin={user.role === 'admin'} />}
         {showManageUsers && <UserManagementModal onClose={() => setShowManageUsers(false)} facilities={facilities} client={adminHelperClient} />}
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
         {showAddFacilityModal && <AddFacilityForm onAdd={handleAddFacility} loading={false} facilities={facilities} onClose={() => setShowAddFacilityModal(false)} />}
+        {showAuditLogs && <AuditLogsModal onClose={() => setShowAuditLogs(false)} />}
         
         {facilityToDelete && (
           <ModalPortal>
@@ -322,14 +320,6 @@ function DashboardContent() {
           </div>
         </div>
       </footer>
-
-      {/* --- MOBILE FLOATING NAVIGATION PILL --- */}
-      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 duration-500 fade-in w-max no-print">
-        <div className="flex items-center bg-white/90 backdrop-blur-xl p-1.5 rounded-full border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
-          <button onClick={() => { setActiveNav('dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-bold transition-all w-[130px] ${activeNav === 'dashboard' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900 active:bg-slate-100'}`}><LayoutDashboard size={18} strokeWidth={2.5} /><span>Dashboard</span></button>
-          <button onClick={() => { setActiveNav('reports'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-bold transition-all w-[130px] ${activeNav === 'reports' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900 active:bg-slate-100'}`}><PieChart size={18} strokeWidth={2.5} /><span>Reports</span></button>
-        </div>
-      </div>
     </div>
   );
 }
