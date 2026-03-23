@@ -10,10 +10,10 @@ import { useReportData } from '../../hooks/useReportData';
 import { QUARTERS, MUNICIPALITIES } from '../../lib/constants';
 
 const COLORS = {
-  male: '#3B82F6', female: '#F43F5E', 
-  ageLt15: '#10B981', ageGt15: '#F59E0B', 
-  cat1: '#14B8A6', cat2: '#F59E0B', cat3: '#EF4444', 
-  dog: '#6366F1', cat: '#8B5CF6', other: '#64748B' 
+  male: '#3B82F6', female: '#F43F5E', // Bright Blue, Bright Rose
+  ageLt15: '#10B981', ageGt15: '#F59E0B', // Emerald, Amber
+  cat1: '#14B8A6', cat2: '#F59E0B', cat3: '#EF4444', // Teal, Amber, Red
+  dog: '#6366F1', cat: '#8B5CF6', other: '#64748B' // Indigo, Violet, Slate
 };
 
 const DYNAMIC_COLORS = ['#14B8A6', '#F43F5E', '#F97316', '#06B6D4', '#8B5CF6', '#EAB308'];

@@ -1,0 +1,34 @@
+name: ABTC Automated Tests
+
+# This tells GitHub to run this script every time you push code 
+# to the main branch, or when someone makes a pull request.
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    name: Run Vitest Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Grab your code from the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up a fresh Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # Using a modern, stable version of Node
+          cache: 'npm'     # Makes future runs faster
+
+      # Step 3: Install all your dependencies (React, Recharts, Vitest, etc.)
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Run your bulletproof math tests!
+      - name: Run unit tests
+        run: npm run test
