@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FileText, LogOut, User, Settings, Github, AlertTriangle, X, PlusCircle, Loader2, LayoutDashboard, PieChart } from 'lucide-react';
+// ADDED ClipboardList for the Audit Log icon
+import { FileText, LogOut, User, Settings, Github, AlertTriangle, X, PlusCircle, Loader2, LayoutDashboard, PieChart, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
-
+import AuditLogsModal from '../modals/AuditLogsModal';
 import { supabase, adminHelperClient } from '../../lib/supabase';
 import { MONTHS } from '../../lib/constants';
 import { useApp } from '../../context/AppContext';
@@ -115,6 +116,8 @@ function DashboardContent() {
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
   const [showLicense, setShowLicense] = useState(false); 
   const [showLogoutModal, setShowLogoutModal] = useState(false); 
+  // ADDED state for Audit Logs
+  const [showAuditLogs, setShowAuditLogs] = useState(false); 
   
   // Deletion State
   const [facilityToDelete, setFacilityToDelete] = useState(null);
@@ -195,8 +198,15 @@ function DashboardContent() {
             </div>
 
             <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner">
-              <button onClick={() => setShowSettingsModal(true)} className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-white rounded-full transition-all active:scale-90" title="System Settings"><Settings size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} /></button>
+              {/* NEW AUDIT LOG BUTTON */}
+              <button onClick={() => setShowAuditLogs(true)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-white rounded-full transition-all active:scale-90" title="System Audit Logs"><ClipboardList size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} /></button>
+              
               <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
+              
+              <button onClick={() => setShowSettingsModal(true)} className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-white rounded-full transition-all active:scale-90" title="System Settings"><Settings size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} /></button>
+              
+              <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
+              
               <button onClick={() => setShowLogoutModal(true)} className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-white rounded-full transition-all active:scale-90" title="Log Out"><LogOut size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} /></button>
             </div>
           </div>
@@ -241,6 +251,7 @@ function DashboardContent() {
 
         {/* --- GLOBAL MODALS --- */}
         {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} globalSettings={globalSettings} onSaveGlobal={setGlobalSettings} userProfile={userProfile} onSaveProfile={setUserProfile} isAdmin={user.role === 'admin'} />}
+        {showAuditLogs && <AuditLogsModal onClose={() => setShowAuditLogs(false)} isAdmin={user.role === 'admin'} />}
         {showManageUsers && <UserManagementModal onClose={() => setShowManageUsers(false)} facilities={facilities} client={adminHelperClient} />}
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
         {showAddFacilityModal && <AddFacilityForm onAdd={handleAddFacility} loading={false} facilities={facilities} onClose={() => setShowAddFacilityModal(false)} />}
