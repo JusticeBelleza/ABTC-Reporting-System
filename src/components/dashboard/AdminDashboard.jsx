@@ -7,7 +7,6 @@ import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
-// 1. Correctly import the ModalPortal
 import ModalPortal from '../modals/ModalPortal';
 
 export default function AdminDashboard({ 
@@ -275,7 +274,16 @@ export default function AdminDashboard({
                                 <div className="flex flex-col h-full">
                                     <div className="flex flex-col gap-1 p-4 flex-1 overflow-y-auto custom-scrollbar">
                                         {paginatedModalFacilities.map(f => (
-                                            <div key={f} onClick={() => { setStatusModal({ isOpen: false, status: null, reportType: 'main' }); onSelectFacility(f); }} className="group px-4 py-3.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all">
+                                            <div 
+                                                key={f} 
+                                                onClick={() => { 
+                                                    // Pass the target tab based on which overview modal we are in!
+                                                    localStorage.setItem('adminTargetTab', statusModal.reportType === 'cohort' ? 'cohort' : 'main');
+                                                    setStatusModal({ isOpen: false, status: null, reportType: 'main' }); 
+                                                    onSelectFacility(f); 
+                                                }} 
+                                                className="group px-4 py-3.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all"
+                                            >
                                                 <div className="flex items-center gap-3 overflow-hidden">
                                                     <div className="p-2 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition-colors">
                                                         <Building2 size={16} />
@@ -414,43 +422,51 @@ export default function AdminDashboard({
             </ModalPortal>
         )}
 
-        {/* --- COMMAND CENTER HEADER --- */}
-        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print">
+        {/* ========================================== */}
+        {/* TIER 1: MAIN ADMIN HEADER & ACTIONS        */}
+        {/* ========================================== */}
+        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print z-20 mt-2 mb-3">
             <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
             
+            {/* Left side: Title & Subtitle */}
             <div className="relative z-10 w-full xl:w-auto">
                 <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Admin Dashboard</h2>
-                <p className="text-slate-400 text-xs sm:text-sm mt-1.5 font-medium">Manage and monitor facility submissions province-wide</p>
+                <p className="text-slate-400 text-xs sm:text-sm mt-1 font-medium">Manage and monitor facility submissions province-wide</p>
             </div>
             
-            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3 relative z-10 w-full xl:w-auto">
-                <button onClick={() => setShowArchived(!showArchived)} className={`flex-1 sm:flex-none px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95 transition-all duration-200 ${showArchived ? 'bg-slate-700 text-white shadow-inner' : 'bg-slate-800/80 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white'}`}>
-                    {showArchived ? <RefreshCcw size={16} /> : <Archive size={16} />}
-                    <span className="truncate">{showArchived ? 'View Active' : 'View Archived'}</span>
+            {/* Right side: Global Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 relative z-10 w-full xl:w-auto">
+                <button onClick={onAddFacility} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
+                    <Plus size={16} /> <span>Add Facility</span>
                 </button>
-                <button onClick={onAddFacility} className="flex-1 sm:flex-none bg-slate-800/80 border border-slate-700 text-slate-300 px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white active:scale-95 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2">
-                    <Plus size={16} /> <span className="truncate">Add Facility</span>
+                <button onClick={onManageUsers} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
+                    <Users size={16} /> <span>Manage Users</span>
                 </button>
-                <button onClick={onManageUsers} className="flex-1 sm:flex-none bg-slate-800/80 border border-slate-700 text-slate-300 px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white active:scale-95 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2">
-                    <Users size={16} /> <span className="truncate">Manage Users</span>
-                </button>
-                <button onClick={onViewConsolidated} className="flex-1 sm:flex-none bg-yellow-400 text-black px-3 sm:px-4 py-3 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.3)] hover:bg-yellow-500 active:scale-95 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2">
-                    <Layers size={16} /> <span className="truncate">Consolidated</span>
+                <div className="hidden sm:block w-px h-6 bg-slate-700 mx-1"></div>
+                <button onClick={onViewConsolidated} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 flex items-center gap-2 active:scale-95 transition-all duration-200">
+                    <Layers size={16} /> <span>Consolidated Report</span>
                 </button>
             </div>
         </div>
 
-        {/* --- FILTERS --- */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8 items-start md:items-center">
-            <div className="bg-white p-1.5 rounded-xl border border-slate-200 flex flex-wrap items-center gap-1 w-full sm:w-fit shadow-sm">
-                <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="flex-1 sm:flex-none bg-slate-100 text-xs sm:text-sm font-bold text-slate-800 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer rounded-lg border-none focus:ring-2 focus:ring-slate-900/10 transition-all">
-                    <option value="Monthly">Monthly</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Annual">Annual</option>
-                </select>
+        {/* ========================================== */}
+        {/* TIER 2: DATA CONTROLS (FILTERS & VIEWS)    */}
+        {/* ========================================== */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2 sm:p-3 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10 no-print">
+
+            {/* Left side: Date Filters */}
+            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline-block mr-1">Period:</span>
+                    <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm">
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="Annual">Annual</option>
+                    </select>
+                </div>
                 
                 {periodType === 'Monthly' && (
-                    <select value={month} onChange={e => setMonth(e.target.value)} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
+                    <select value={month} onChange={e => setMonth(e.target.value)} disabled={!availableMonths.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
                         {availableMonths.map(m => {
                             const mIdx = MONTHS.indexOf(m);
                             const isFuture = year > currentRealYear || (year === currentRealYear && mIdx > currentRealMonthIdx);
@@ -460,7 +476,7 @@ export default function AdminDashboard({
                 )}
                 
                 {periodType === 'Quarterly' && (
-                    <select value={quarter} onChange={e => setQuarter(e.target.value)} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
+                    <select value={quarter} onChange={e => setQuarter(e.target.value)} disabled={!QUARTERS.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
                         {QUARTERS.map((q, idx) => {
                             const isFuture = year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3));
                             return <option key={q} value={q} disabled={isFuture}>{formatQuarterName(q)}</option>;
@@ -468,19 +484,30 @@ export default function AdminDashboard({
                     </select>
                 )}
                 
-                <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block"></div>
-
-                <select value={year} onChange={e => setYear(Number(e.target.value))} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-600 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all">
+                <select value={year} onChange={e => setYear(Number(e.target.value))} disabled={!availableYears.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[80px]">
                     {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
             </div>
-            
-            {showArchived && (
-                <div className="flex items-center gap-2 text-slate-700 bg-slate-200/50 px-4 py-2.5 rounded-xl border border-slate-300 shadow-sm w-full sm:w-fit animate-in fade-in slide-in-from-left-2">
-                    <Archive size={16} className="text-slate-600 shrink-0" />
-                    <span className="text-xs sm:text-sm font-semibold">Viewing Archived Facilities. Restore to enable reporting.</span>
-                </div>
-            )}
+
+            {/* Right side: Archive Toggle */}
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+                {showArchived && (
+                    <div className="hidden sm:flex items-center gap-1.5 text-amber-700 bg-amber-50 px-3 py-1.5 rounded-md border border-amber-200 text-xs font-bold animate-in fade-in slide-in-from-right-2">
+                        <AlertTriangle size={14} /> Viewing Archived
+                    </div>
+                )}
+                <button 
+                    onClick={() => setShowArchived(!showArchived)} 
+                    className={`flex-1 sm:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-all duration-200 border flex items-center justify-center gap-2 ${
+                        showArchived 
+                            ? 'bg-slate-800 text-white border-slate-700 shadow-md' 
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-sm'
+                    }`}
+                >
+                    {showArchived ? <RefreshCcw size={16} /> : <Archive size={16} />}
+                    <span>{showArchived ? 'Show Active Facilities' : 'View Archived'}</span>
+                </button>
+            </div>
         </div>
 
         {/* --- KPI CARDS --- */}
@@ -690,7 +717,16 @@ export default function AdminDashboard({
             const ownerName = facilityOwners[f];
 
             return (
-              <div key={f} onClick={() => !showArchived && onSelectFacility(f)} className={`group relative p-5 sm:p-6 rounded-2xl border transition-all duration-300 flex flex-col h-full cursor-pointer overflow-hidden ${showArchived ? 'bg-slate-100 border-slate-200 opacity-80' : 'bg-white border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] hover:border-slate-900/30'}`}>
+              <div 
+                key={f} 
+                onClick={() => {
+                    if (!showArchived) {
+                        localStorage.setItem('adminTargetTab', 'main');
+                        onSelectFacility(f);
+                    }
+                }} 
+                className={`group relative p-5 sm:p-6 rounded-2xl border transition-all duration-300 flex flex-col h-full cursor-pointer overflow-hidden ${showArchived ? 'bg-slate-100 border-slate-200 opacity-80' : 'bg-white border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] hover:border-slate-900/30'}`}
+              >
                 <div className="flex justify-between items-start mb-4 sm:mb-5">
                   <div className={`p-2.5 sm:p-3 rounded-xl transition-all duration-300 ${showArchived ? 'bg-slate-200 text-slate-400' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-900 group-hover:text-yellow-400 group-hover:shadow-md'}`}>
                     {type === 'Hospital' ? <Hospital size={24} strokeWidth={2}/> : (type === 'Clinic' ? <Stethoscope size={24} strokeWidth={2}/> : <Building2 size={24} strokeWidth={2}/>)}

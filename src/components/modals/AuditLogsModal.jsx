@@ -78,7 +78,11 @@ export default function AuditLogsModal({ onClose }) {
               </div>
             </div>
             
-            <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-all">
+            {/* Added active:scale-90 and active:bg-slate-600 for the click effect */}
+            <button 
+              onClick={onClose} 
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 active:scale-90 active:bg-slate-600 rounded-full transition-all duration-200"
+            >
               <X size={18} strokeWidth={2.5} />
             </button>
           </div>

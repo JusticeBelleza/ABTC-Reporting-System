@@ -27,20 +27,23 @@ To ensure strict compliance with **RA 10173 (Data Privacy Act of 2012)**, the sy
 
 ## Key Features
 
-### 🛡️ Compliance & Security
+### 🛡️ Compliance, Security & Auditing
 -   **Zero PII Collection:** Eliminates privacy risks by rejecting Patient Personally Identifiable Information (PII).
--   **Republic Act (R.A.) No. 10173 Adherence:** Built-in safeguards including automated data purging for inactive personnel accounts.
--   **Role-Based Access Control (RBAC):** Strict separation of duties between System Admins, Program Coordinators, and ABTC Staff.
+-   **Strict RBAC (Role-Based Access Control):** Dedicated views and permissions for System Admins, Program Coordinators, and ABTC Staff.
+-   **Comprehensive Audit Trail:** Real-time tracking of system actions, report submissions, approvals, and rejections via a dedicated System Audit Log.
+-   **Smart Data Validation:** Built-in mathematical guardrails automatically cross-check demographic totals (e.g., Sex vs. Age, Total Animals vs. Washed) to prevent erroneous reporting.
 
-### ⚡ Operational Capabilities
--   **Centralized Reporting:** Real-time submission of bite cases from remote ABTCs (Government & Private) to the Provincial Health Office.
--   **Automated Analytics:** Instant compilation of monthly and quarterly cohorts without manual tabulation.
--   **Vaccine Inventory Tracking:** Monitoring of human rabies vaccine (PVRV, PCECV) and RIG (HRIG, ERIG) usage.
+### ⚡ Offline Resilience & Performance
+-   **Real-Time Offline Detection:** Instantly alerts users when internet connectivity drops without interrupting their workflow.
+-   **Local Draft Saving:** Utilizes IndexedDB to securely save unsubmitted Form 1 and Cohort reports locally on the user's device when offline.
+-   **Background Auto-Sync:** Automatically pushes offline drafts to the cloud the moment internet connectivity is restored.
+-   **Scalable PDF Exporting:** Offloads heavy PDF generation to Background Web Workers, ensuring the main UI never freezes during complex document rendering.
 
-### 🚀 Technical Architecture
--   **Frontend:** Built on **React** and **Vite** for rapid load times even on slower provincial internet connections.
--   **Backend:** Powered by a scalable **Node.js** runtime.
--   **Infrastructure:** Database, Authentication, and Edge Functions are secured via **Managed Database Infrastructure** (Supabase).
+### 📊 Advanced Analytics & Reporting
+-   **Provincial Compliance Matrix:** Dynamic leaderboards allowing admins to instantly track submission rates (Fully Compliant, Partially Compliant, Zero Submissions) across all municipalities.
+-   **Interactive Data Visualization:** Sleek, dynamic charts (powered by Recharts) breaking down demographics, biting animals, exposure categories, and geographical case maps.
+-   **Instant Chart Exporting:** One-click functionality to download analytics charts as high-resolution PNG images for presentations.
+-   **Automated Cohort Tracking:** Instant compilation of Category II and Category III patient outcomes across monthly, quarterly, and annual periods.
 
 ---
 
@@ -51,6 +54,9 @@ To ensure strict compliance with **RA 10173 (Data Privacy Act of 2012)**, the sy
 | **Frontend Framework** | React 19, Tailwind CSS |
 | **Build Tool** | Vite |
 | **Backend & Auth** | Supabase (PostgreSQL) |
+| **Offline Storage** | IndexedDB (Browser Native) |
+| **Data Visualization** | Recharts, HTML-to-Image |
+| **Background Processing** | Web Workers (PDF Generation) |
 | **Hosting** | Hostinger (Production Environment) |
 
 ---
@@ -61,8 +67,8 @@ To ensure optimal performance for health facilities:
 
 ### For End-Users (ABTC Staff)
 * **Web Browser:** Google Chrome, Microsoft Edge, or Firefox (Latest Versions). *Internet Explorer is not supported.*
-* **Network:** Stable internet connection (Required for real-time synchronization).
-* **Device:** Desktop or Laptop is recommended for data entry; Tablets are supported for dashboard viewing.
+* **Network:** Intermittent internet is supported (Offline Draft mode available), but a stable connection is required for final cloud submission.
+* **Device:** Fully responsive design. Desktop/Laptop is recommended for dense data entry; Tablets and Mobile Phones are fully supported for dashboard viewing via the bottom navigation bar.
 
 ### For Administrators
 * **Database Access:** Requires authorized credentials for the Supabase project dashboard.

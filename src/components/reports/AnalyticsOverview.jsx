@@ -317,9 +317,9 @@ export default function AnalyticsOverview({
             {locationData.length > 0 ? (
                 <div className="h-80 w-full">
                 <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                    <BarChart data={locationData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
+                    <BarChart data={locationData} margin={{ top: 20, right: 20, left: -20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} angle={-45} textAnchor="end" />
+                    <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700, letterSpacing: 1}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} angle={-90} textAnchor="end" dy={5} />
                     <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
                     <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={TOOLTIP_STYLE}/>
                     <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={50} fill="#3B82F6" name="Total Patients" isAnimationActive={false}>
@@ -355,7 +355,7 @@ export default function AnalyticsOverview({
               <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={animalData} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
+                  <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700, letterSpacing: 1}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
                   <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
                   <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={TOOLTIP_STYLE}/>
                   <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60} name="Cases" isAnimationActive={false}>
@@ -385,7 +385,7 @@ export default function AnalyticsOverview({
               <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <BarChart data={categoryData} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
+                  <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700, letterSpacing: 1}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
                   <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
                   <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={TOOLTIP_STYLE}/>
                   <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60} name="Cases" isAnimationActive={false}>
@@ -440,16 +440,18 @@ export default function AnalyticsOverview({
 
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                <BarChart data={demographicsAgeData} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
-                  <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
+                {/* Converted to layout="vertical" for horizontal bars */}
+                <BarChart layout="vertical" data={demographicsAgeData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={true} stroke="#E2E8F0" />
+                  <XAxis type="number" tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="name" type="category" tick={{fill: '#475569', fontSize: 11, fontWeight: 700, letterSpacing: 1}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
                   <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={TOOLTIP_STYLE}/>
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60} name="Patients" isAnimationActive={false}>
+                  <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={40} name="Patients" isAnimationActive={false}>
                     {demographicsAgeData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.ageLt15 : COLORS.ageGt15} />
                     ))}
-                    <LabelList dataKey="value" content={renderDynamicBarLabel} />
+                    {/* Positioned the label to the right of the horizontal bar */}
+                    <LabelList dataKey="value" position="right" fill="#475569" fontSize={12} fontWeight={800} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

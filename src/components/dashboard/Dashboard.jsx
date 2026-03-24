@@ -163,7 +163,7 @@ function DashboardContent() {
               <LayoutDashboard size={16} strokeWidth={2.5} /> Dashboard
             </button>
             <button onClick={() => setActiveNav('reports')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${activeNav === 'reports' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'}`}>
-              <PieChart size={16} strokeWidth={2.5} /> Reports
+              <PieChart size={16} strokeWidth={2.5} /> Analytics
             </button>
           </div>
 

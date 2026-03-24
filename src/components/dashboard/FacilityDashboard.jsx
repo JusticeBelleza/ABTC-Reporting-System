@@ -23,7 +23,17 @@ export default function FacilityDashboard({
   currentRealYear, currentRealMonthIdx 
 }) {
   const { user, facilities, facilityBarangays, facilityDetails, globalSettings, userProfile } = useApp();
-  const [activeTab, setActiveTab] = useState('main'); 
+  
+  // This reads the flag passed from the Admin Dashboard to automatically switch tabs!
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('adminTargetTab');
+    if (savedTab) {
+        localStorage.removeItem('adminTargetTab');
+        return savedTab;
+    }
+    return 'main';
+  });
+
   const [cohortSubTab, setCohortSubTab] = useState('cat2'); 
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
@@ -277,7 +287,7 @@ export default function FacilityDashboard({
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
     
-    // --- FIXED: COHORT MODAL NOW TRIGGERS PROPERLY ---
+    // VALIDATION LOGIC MODIFIED HERE:
     if (status === 'Pending') { 
         if (activeTab === 'main') {
             let hasForm1Errors = false;
@@ -285,19 +295,22 @@ export default function FacilityDashboard({
                 if (key === "Others:") continue;
                 const row = data[key];
                 if (!hasData(row)) continue;
+                
                 const sexSum = (Number(row.male) || 0) + (Number(row.female) || 0);
                 const ageSum = (Number(row.ageLt15) || 0) + (Number(row.ageGt15) || 0);
-                const cat23Sum = (Number(row.cat2) || 0) + (Number(row.cat3) || 0);
                 const animalSum = (Number(row.dog) || 0) + (Number(row.cat) || 0) + (Number(row.othersCount) || 0);
                 const washedCount = Number(row.washed) || 0;
-                const hasAnyData = sexSum > 0 || ageSum > 0 || (Number(row.cat1)||0) > 0 || cat23Sum > 0 || animalSum > 0;
-                if (hasAnyData && (sexSum !== ageSum || cat23Sum !== animalSum || washedCount > animalSum)) {
+                
+                const hasAnyData = sexSum > 0 || ageSum > 0 || (Number(row.cat1)||0) > 0 || (Number(row.cat2)||0) > 0 || (Number(row.cat3)||0) > 0 || animalSum > 0;
+                
+                // Removed the cat2+cat3 === animalSum validation
+                if (hasAnyData && (sexSum !== ageSum || washedCount > animalSum)) {
                     hasForm1Errors = true;
                     break;
                 }
             }
             if (hasForm1Errors) {
-                toast.error("DATA MISMATCH: Please check the RED highlighted cells to ensure your totals balance properly.", { duration: 6000 });
+                toast.error("DATA MISMATCH: Please ensure Sex totals match Age totals, and Washed doesn't exceed Total Animals.", { duration: 6000 });
                 setActiveTab('main'); 
                 return;
             }
@@ -435,7 +448,17 @@ export default function FacilityDashboard({
                         ) : (
                             <div className="flex flex-col gap-1 p-2">
                                 {getMonthsByStatus(statusModal.status, statusModal.reportType).map(m => (
-                                    <div key={m} onClick={() => { setStatusModal({ isOpen: false, status: null, reportType: 'main' }); setMonth(m); setPeriodType('Monthly'); }} className="group px-4 py-3 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all">
+                                    <div 
+                                        key={m} 
+                                        onClick={() => { 
+                                            // Make sure clicking the month correctly switches to the associated tab!
+                                            setActiveTab(statusModal.reportType === 'cohort' ? 'cohort' : 'main');
+                                            setStatusModal({ isOpen: false, status: null, reportType: 'main' }); 
+                                            setMonth(m); 
+                                            setPeriodType('Monthly'); 
+                                        }} 
+                                        className="group px-4 py-3 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all"
+                                    >
                                         <div className="flex flex-col overflow-hidden">
                                             <span className="font-bold text-sm text-slate-800 truncate group-hover:text-black transition-colors">{m} {year}</span>
                                             <span className="text-xs font-medium text-slate-500 truncate mt-0.5">Click to jump to this month's report</span>
@@ -525,103 +548,122 @@ export default function FacilityDashboard({
             </ModalPortal>
         )}
 
-        {/* --- HEADER --- */}
-        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print">
+        {/* ========================================== */}
+        {/* TIER 1: MAIN FACILITY HEADER & ACTIONS */}
+        {/* ========================================== */}
+        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print z-20 mt-2 mb-3">
             <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
             
-            <div className="flex items-start gap-3 sm:gap-4 relative z-10 w-full xl:w-auto">
+            {/* Left side: Facility Name & Status */}
+            <div className="flex items-start sm:items-center gap-3 sm:gap-4 relative z-10 w-full xl:w-auto">
                 {user.role === 'admin' && (
-                    <button onClick={onBack} className="mt-1 p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:bg-slate-700 hover:text-white hover:border-slate-600 hover:shadow-md active:scale-90 transition-all duration-200 shrink-0">
+                    <button onClick={onBack} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:bg-slate-700 hover:text-white hover:border-slate-600 hover:shadow-md active:scale-90 transition-all duration-200 shrink-0">
                         <ArrowLeft size={20}/>
                     </button>
                 )}
-                <div className="flex-1 min-w-0">
-                    <h2 className={`font-extrabold tracking-tight text-white flex flex-wrap items-center gap-2 sm:gap-3 leading-tight break-words
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
+                    <h2 className={`font-extrabold tracking-tight text-white leading-tight break-words
                         ${isConsolidatedView ? 'text-2xl sm:text-3xl' : activeFacilityName?.length > 50 ? 'text-lg sm:text-xl' : activeFacilityName?.length > 30 ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'}`}
                     >
-                        <span>{isConsolidatedView ? 'Consolidated Report' : activeFacilityName}</span>
-                        {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && (
-                            <div className="shrink-0 flex items-center shadow-sm"><StatusBadge status={reportStatus} /></div>
-                        )}
+                        {isConsolidatedView ? 'Consolidated Report' : activeFacilityName}
                     </h2>
-                    <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-slate-400">
-                        <span className="bg-slate-800 px-2.5 py-1 rounded-md text-slate-300 border border-slate-700">{periodType}</span> 
-                        <span className="hidden sm:inline">&bull;</span> 
-                        <span>{getCurrentPeriodText()}</span>
-                    </div>
+                    
+                    {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && (
+                        <div className="shrink-0 flex items-center shadow-sm"><StatusBadge status={reportStatus} /></div>
+                    )}
                 </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 relative z-10 w-full xl:w-auto">
-                <div className="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700 flex items-center shadow-inner w-full sm:w-auto">
-                    <button onClick={() => setActiveTab('main')} className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-1.5 text-xs sm:text-sm font-semibold rounded-lg active:scale-95 transition-all duration-200 ${activeTab==='main'?'bg-slate-700 text-white shadow-sm border border-slate-600':'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}>Form 1</button>
-                    <button onClick={() => setActiveTab('cohort')} className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-1.5 text-xs sm:text-sm font-semibold rounded-lg active:scale-95 transition-all duration-200 ${activeTab==='cohort'?'bg-slate-700 text-white shadow-sm border border-slate-600':'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}`}>Cohort</button>
-                </div>
-                
-                <div className="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700 flex flex-wrap items-center justify-between sm:justify-start gap-1 shadow-inner w-full sm:w-auto">
-                    <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="flex-1 sm:flex-none bg-slate-700 text-xs sm:text-sm font-semibold text-white py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer rounded-lg border border-slate-600 shadow-sm focus:ring-2 focus:ring-yellow-400/20 transition-all">
+            {/* Right side: Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 relative z-10 w-full xl:w-auto">
+                <button disabled={isDownloadingPdf || (!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved')} onClick={() => setShowExportModal(true)} title={(!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved') ? "Only Approved reports can be exported to PDF." : "Export PDF"} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 hover:text-white hover:border-slate-500">
+                    {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
+                    <span>Export PDF</span>
+                </button>
+
+                {!isConsolidatedView && !isAggregationMode && (
+                    <div className="flex flex-1 sm:flex-none items-center gap-2 sm:pl-3 sm:border-l sm:border-slate-700 w-full sm:w-auto">
+                    {user.role === 'admin' ? (
+                        <>
+                        <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:shadow-none">
+                            {isSaving ? <Loader2 size={14} className="animate-spin"/> : <CheckCircle size={14}/>} Approve
+                        </button>
+                        <button onClick={() => onSaveClick('Rejected')} disabled={loading || isSaving || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-rose-400 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-rose-600 hover:text-white flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50">
+                            {isSaving ? <Loader2 size={14} className="animate-spin"/> : <XCircle size={14}/>} Reject
+                        </button>
+                        <button onClick={() => setShowDeleteReportModal(true)} disabled={loading || isSaving || reportStatus === 'Draft'} className="bg-slate-800 border border-slate-700 text-red-400 p-2.5 sm:p-2 rounded-xl hover:bg-red-600 hover:text-white flex items-center justify-center active:scale-90 transition-all duration-200 disabled:opacity-50 shrink-0">
+                            <Trash2 size={16} />
+                        </button>
+                        </>
+                    ) : (
+                        <>
+                        <button onClick={() => onSaveClick('Draft')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50">
+                            {isSaving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Save Draft
+                        </button>
+                        <button onClick={() => onSaveClick('Pending')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:shadow-none">
+                            {isSaving ? <Loader2 size={14} className="animate-spin"/> : null} Submit Report
+                        </button>
+                        </>
+                    )}
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* ========================================== */}
+        {/* TIER 2: DATA CONTROLS (TABS & FILTERS) */}
+        {/* ========================================== */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2 sm:p-3 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10 no-print">
+            
+            {/* Left side: View Tabs */}
+            <div className="flex items-center bg-slate-100/80 p-1 rounded-lg border border-slate-200/60 w-full sm:w-auto">
+                <button 
+                    onClick={() => setActiveTab('main')} 
+                    className={`flex-1 sm:flex-none px-6 py-2 text-sm font-bold rounded-md transition-all duration-200 ${activeTab === 'main' ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}
+                >
+                    Form 1
+                </button>
+                <button 
+                    onClick={() => setActiveTab('cohort')} 
+                    className={`flex-1 sm:flex-none px-6 py-2 text-sm font-bold rounded-md transition-all duration-200 ${activeTab === 'cohort' ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}
+                >
+                    Cohort
+                </button>
+            </div>
+
+            {/* Right side: Date Filters */}
+            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline-block mr-1">Period:</span>
+                    <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm">
                         <option value="Monthly">Monthly</option>
                         <option value="Quarterly">Quarterly</option>
                         <option value="Annual">Annual</option>
                     </select>
-                    <div className="w-px h-5 bg-slate-600 mx-1 hidden sm:block"></div>
-                    
-                    {periodType === 'Monthly' && (
-                        <select value={month} onChange={e => setMonth(e.target.value)} disabled={loading} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-300 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-700 hover:text-white rounded-lg transition-all disabled:opacity-50">
-                            {availableMonths.map((m) => {
-                                const mIdx = MONTHS.indexOf(m);
-                                const isFuture = year > currentRealYear || (year === currentRealYear && mIdx > currentRealMonthIdx);
-                                return <option key={m} value={m} disabled={isFuture}>{m}</option>;
-                            })}
-                        </select>
-                    )}
-                    
-                    {periodType === 'Quarterly' && (
-                        <select value={quarter} onChange={e => setQuarter(e.target.value)} disabled={loading} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-300 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-700 hover:text-white rounded-lg transition-all disabled:opacity-50">
-                            {QUARTERS.map((q, idx) => {
-                                const isFuture = year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3));
-                                return <option key={q} value={q} disabled={isFuture}>{formatQuarterName(q)}</option>;
-                            })}
-                        </select>
-                    )}
-                    
-                    <select value={year} onChange={e => setYear(Number(e.target.value))} disabled={loading} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-300 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-700 hover:text-white rounded-lg transition-all disabled:opacity-50">
-                        {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </div>
+                
+                {periodType === 'Monthly' && (
+                    <select value={month} onChange={e => setMonth(e.target.value)} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
+                        {availableMonths.map((m) => {
+                            const mIdx = MONTHS.indexOf(m);
+                            const isFuture = year > currentRealYear || (year === currentRealYear && mIdx > currentRealMonthIdx);
+                            return <option key={m} value={m} disabled={isFuture}>{m}</option>;
+                        })}
                     </select>
-                </div>
-
-                <div className="flex w-full sm:w-auto gap-2">
-                    <button disabled={isDownloadingPdf || (!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved')} onClick={() => setShowExportModal(true)} title={(!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved') ? "Only Approved reports can be exported to PDF." : "Export PDF"} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 hover:text-white hover:border-slate-500">
-                        {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
-                        <span className="hidden sm:inline">Export PDF</span><span className="sm:hidden">Export</span>
-                    </button>
-                    {!isConsolidatedView && !isAggregationMode && (
-                        <div className="flex flex-1 sm:flex-none items-center gap-2 sm:gap-3 sm:pl-3 sm:border-l sm:border-slate-700">
-                        {user.role === 'admin' ? (
-                            <>
-                            <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:shadow-none">
-                                {isSaving ? <Loader2 size={14} className="animate-spin"/> : <CheckCircle size={14}/>} Approve
-                            </button>
-                            <button onClick={() => onSaveClick('Rejected')} disabled={loading || isSaving || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-rose-400 px-3 sm:px-4 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-rose-600 hover:text-white flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50">
-                                {isSaving ? <Loader2 size={14} className="animate-spin"/> : <XCircle size={14}/>} Reject
-                            </button>
-                            <button onClick={() => setShowDeleteReportModal(true)} disabled={loading || isSaving || reportStatus === 'Draft'} className="bg-slate-800 border border-slate-700 text-red-400 p-3 sm:p-2 rounded-xl hover:bg-red-600 hover:text-white flex items-center justify-center active:scale-90 transition-all duration-200 disabled:opacity-50 shrink-0">
-                                <Trash2 size={16} />
-                            </button>
-                            </>
-                        ) : (
-                            <>
-                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-700 hover:text-white flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50">
-                                {isSaving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} <span className="hidden sm:inline">Save Draft</span><span className="sm:hidden">Draft</span>
-                            </button>
-                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-3 sm:px-5 py-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:shadow-none">
-                                {isSaving ? <Loader2 size={14} className="animate-spin"/> : null} Submit <span className="hidden sm:inline">Report</span>
-                            </button>
-                            </>
-                        )}
-                        </div>
-                    )}
-                </div>
+                )}
+                
+                {periodType === 'Quarterly' && (
+                    <select value={quarter} onChange={e => setQuarter(e.target.value)} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
+                        {QUARTERS.map((q, idx) => {
+                            const isFuture = year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3));
+                            return <option key={q} value={q} disabled={isFuture}>{formatQuarterName(q)}</option>;
+                        })}
+                    </select>
+                )}
+                
+                <select value={year} onChange={e => setYear(Number(e.target.value))} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[80px]">
+                    {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
             </div>
         </div>
 
@@ -817,10 +859,10 @@ export default function FacilityDashboard({
                     </div>
                     
                     <div className="flex flex-wrap gap-4 sm:gap-6 mb-4 sm:mb-6 border-b border-gray-200 no-print px-4 sm:px-6">
-                        <button onClick={() => setCohortSubTab('cat2')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 active:opacity-70 transition-all duration-200 ${cohortSubTab==='cat2' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
+                        <button onClick={() => setCohortSubTab('cat2')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 active:opacity-70 transition-all duration-200 ${cohortSubTab==='cat2' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
                             Category II Exposures
                         </button>
-                        <button onClick={() => setCohortSubTab('cat3')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 active:opacity-70 transition-all duration-200 ${cohortSubTab==='cat3' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
+                        <button onClick={() => setCohortSubTab('cat3')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 active:opacity-70 transition-all duration-200 ${cohortSubTab==='cat3' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
                             Category III Exposures
                         </button>
                     </div>
