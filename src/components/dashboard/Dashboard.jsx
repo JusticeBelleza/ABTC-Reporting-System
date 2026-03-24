@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { FileText, LogOut, User, Settings, Github, AlertTriangle, X, PlusCircle, Loader2, LayoutDashboard, PieChart, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,6 +32,55 @@ const getInitials = (name) => {
 
 function DashboardContent() {
   const { user, facilities, setFacilities, setFacilityBarangays, logout, globalSettings, setGlobalSettings, userProfile, setUserProfile } = useApp();
+
+  // ==========================================
+  // AUTO-LOGOUT / SESSION TIMEOUT LOGIC
+  // ==========================================
+  const timeoutIdRef = useRef(null);
+  const INACTIVITY_LIMIT = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
+
+  const resetTimeout = useCallback(() => {
+    if (timeoutIdRef.current) {
+      clearTimeout(timeoutIdRef.current);
+    }
+    timeoutIdRef.current = setTimeout(() => {
+      toast.error("Session expired due to inactivity. Please log in again.", { duration: 6000 });
+      logout();
+    }, INACTIVITY_LIMIT);
+  }, [logout]);
+
+  useEffect(() => {
+    // Start the timer when the component mounts
+    resetTimeout();
+
+    // List of events that count as "User Activity"
+    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+
+    // Throttle the reset slightly so it doesn't fire constantly on mousemove
+    let throttleTimer;
+    const handleActivity = () => {
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        resetTimeout();
+        throttleTimer = null;
+      }, 1000); // Only reset the timer at most once per second
+    };
+
+    // Attach the event listeners to the window
+    events.forEach(event => {
+      window.addEventListener(event, handleActivity);
+    });
+
+    // Cleanup listeners and timers when the component unmounts
+    return () => {
+      if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
+      if (throttleTimer) clearTimeout(throttleTimer);
+      events.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [resetTimeout]);
+  // ==========================================
 
   const [serverDate, setServerDate] = useState(new Date()); 
   const [liveTime, setLiveTime] = useState(new Date());
