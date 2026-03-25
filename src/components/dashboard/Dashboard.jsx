@@ -361,7 +361,8 @@ function DashboardContent() {
               <button onClick={() => setShowPrivacyPolicy(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Privacy</button>
               <button onClick={() => setShowTermsOfUse(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Terms</button>
               <button onClick={() => setShowLicense(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">License</button>
-              <a href="/images/System_Manual.pdf" target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">User Manual</a>
+              {/* Updated Link to target /files/User_Manual.pdf */}
+              <a href="images/User_Manual.pdf" target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">User Manual</a>
               <span className="text-[10px] font-bold text-slate-500 tracking-widest cursor-default">ABTC-RS v.{packageInfo.version}</span>
             </div>
             <div className="hidden md:block w-px h-3 bg-slate-700"></div>
