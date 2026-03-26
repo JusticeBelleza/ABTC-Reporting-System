@@ -9,6 +9,8 @@ import Login from './components/auth/Login';
 import UpdatePasswordForm from './components/auth/UpdatePasswordForm';
 import Dashboard from './components/dashboard/Dashboard';
 
+import MainReportTableV2 from './components/reports/MainReportTableV2';
+
 function AppContent() {
   const { session, loading, logout } = useApp();
   const [showPasswordUpdate, setShowPasswordUpdate] = useState(false);
@@ -60,6 +62,16 @@ function AppContent() {
       <Route 
         path="/login" 
         element={!session ? <Login /> : <Navigate to="/" replace />} 
+      />
+
+      {/* SECRET V2 TEST ROUTE: This is where we added the new DOH Form preview! */}
+      <Route 
+        path="/v2-test" 
+        element={
+          <div className="p-8 bg-gray-100 min-h-screen">
+            <MainReportTableV2 facilityName="Preview Mode (Secret URL)" />
+          </div>
+        } 
       />
 
       {/* Catch-all route: If they type a random URL, send them back to the start */}
