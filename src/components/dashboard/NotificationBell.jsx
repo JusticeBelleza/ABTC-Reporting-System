@@ -9,7 +9,9 @@ export default function NotificationBell({ user }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
 
-  const recipient = user?.role === 'admin' ? 'PHO Admin' : user?.name;
+  // FIX: Allow BOTH admin and SYSADMIN to receive the 'PHO Admin' provincial notifications
+  const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
+  const recipient = isAnyAdmin ? 'PHO Admin' : user?.name;
 
   useEffect(() => {
     if (!recipient) return;

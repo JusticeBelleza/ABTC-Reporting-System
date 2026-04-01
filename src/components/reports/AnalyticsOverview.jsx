@@ -62,7 +62,9 @@ export default function AnalyticsOverview({
   quarter, setQuarter, availableYears, availableMonths 
 }) {
   const { user, facilities, facilityBarangays, facilityDetails } = useApp();
-  const isAdmin = user?.role === 'admin';
+  
+  // FIX: Include SYSADMIN in the admin check
+  const isAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
 
   const { data, grandTotals, loading, reportStatus } = useReportData({
     user, facilities, facilityBarangays, year, month, quarter, periodType,

@@ -69,10 +69,23 @@ export default function AdminDashboard({
   useEffect(() => {
     const fetchFacilityOwners = async () => {
       try {
-        const { data } = await supabase.from('profiles').select('facility_name, full_name');
+        // Fetch email as a fallback
+        const { data } = await supabase.from('profiles').select('facility_name, full_name, email');
         if (data) {
           const mapping = {};
-          data.forEach(u => { if (u.facility_name) mapping[u.facility_name] = u.full_name; });
+          data.forEach(u => { 
+            if (u.facility_name) {
+              // If they have no name, show their email. If no email, show "User Assigned"
+              const displayName = u.full_name || u.email || 'User Assigned (No Name)';
+              
+              // If multiple users are assigned to the same facility, join their names!
+              if (mapping[u.facility_name]) {
+                  mapping[u.facility_name] += `, ${displayName}`;
+              } else {
+                  mapping[u.facility_name] = displayName;
+              }
+            } 
+          });
           setFacilityOwners(mapping);
         }
       } catch (error) { console.error("Error fetching facility owners:", error); }
@@ -766,14 +779,19 @@ export default function AdminDashboard({
                   <span className={`text-xs sm:text-sm font-bold transition-colors ${showArchived ? 'text-slate-400' : 'text-slate-800 group-hover:text-yellow-600'}`}>
                     {showArchived ? 'Archived Facility' : 'Open Report →'}
                   </span>
-                  <div className="flex gap-1.5">
-                    <button onClick={(e) => requestAction(e, f, showArchived ? 'restore' : 'archive')} className={`transition-all duration-200 active:scale-90 p-1.5 sm:p-2 rounded-lg border border-transparent ${showArchived ? 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200'}`} title={showArchived ? "Restore" : "Archive"}>
-                        {showArchived ? <RefreshCcw size={14} /> : <Archive size={14} />}
-                    </button>
-                    <button onClick={(e) => requestAction(e, f, 'delete')} className="text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all duration-200 active:scale-90 p-1.5 sm:p-2 rounded-lg border border-transparent" title="Delete">
-                        <Trash2 size={14} />
-                    </button>
-                  </div>
+                  
+                  {/* ONLY SYSADMIN CAN SEE ARCHIVE/DELETE */}
+                  {user?.role === 'SYSADMIN' && (
+                      <div className="flex gap-1.5">
+                        <button onClick={(e) => requestAction(e, f, showArchived ? 'restore' : 'archive')} className={`transition-all duration-200 active:scale-90 p-1.5 sm:p-2 rounded-lg border border-transparent ${showArchived ? 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200'}`} title={showArchived ? "Restore" : "Archive"}>
+                            {showArchived ? <RefreshCcw size={14} /> : <Archive size={14} />}
+                        </button>
+                        <button onClick={(e) => requestAction(e, f, 'delete')} className="text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all duration-200 active:scale-90 p-1.5 sm:p-2 rounded-lg border border-transparent" title="Delete">
+                            <Trash2 size={14} />
+                        </button>
+                      </div>
+                  )}
+
                 </div>
 
                 {lastUpdated && (

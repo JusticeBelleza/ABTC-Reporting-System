@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Mail, Building2, KeyRound, Loader2, UserPlus, CheckCircle, AlertCircle, Eye, EyeOff, User, Briefcase, Phone } from 'lucide-react';
+import { Mail, Building2, KeyRound, Loader2, UserPlus, CheckCircle, AlertCircle, Eye, EyeOff, User, Briefcase, Phone, Shield } from 'lucide-react';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import ModalPortal from '../modals/ModalPortal';
+import { useApp } from '../../context/AppContext'; // Imported Context to check current user role
 
 const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
 
@@ -51,6 +52,7 @@ const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, 
 );
 
 export default function RegisterUserForm({ facilities = [], client, onSuccess }) {
+  const { user: currentUser } = useApp(); // Check if creator is Admin/Sysadmin
   const supabaseClient = client || supabase;
 
   const [formData, setFormData] = useState({
@@ -59,9 +61,10 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
     fullName: '', 
     designation: '', 
     contactNumber: '', 
-    facility: '', // Placeholder logic
+    facility: '', 
     role: 'user' 
   });
+  
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -92,8 +95,9 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
         return;
     }
 
-    if (!formData.facility) {
-        toast.error("Please select a facility for this user.");
+    // Only strictly require facility if they are a standard encoder user
+    if (formData.role === 'user' && !formData.facility) {
+        toast.error("Please select an assigned facility for standard users.");
         return;
     }
 
@@ -126,13 +130,13 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
              full_name: formData.fullName,
              designation: formData.designation,
              contact_number: formData.contactNumber, 
-             facility_name: formData.facility,
+             facility_name: formData.facility || null, // Convert empty string to null for admins
              role: formData.role
          });
 
-         if (profileError) throw new Error("User created, but failed to assign facility and role.");
+         if (profileError) throw new Error("User created, but failed to assign profile settings.");
 
-         toast.success("User and permissions created successfully");
+         toast.success(`Account created successfully with ${formData.role.toUpperCase()} privileges.`);
          setFormData({ email: '', password: '', fullName: '', designation: '', contactNumber: '', facility: '', role: 'user' });
          setConfirmPassword('');
          
@@ -253,33 +257,73 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
             </div>
         </div>
 
-        {/* --- FACILITY ASSIGNMENT --- */}
+        {/* --- SYSTEM ACCESS & ROLES --- */}
         <div className="space-y-4 pt-2">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">System Access</h4>
             
-            <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${!formData.facility ? 'border-rose-200 bg-rose-50/20' : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md'}`}>
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                    <Building2 size={14} className={`transition-colors duration-300 ${!formData.facility ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900 group-focus-within:scale-110'}`} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* ROLE SELECTOR */}
+                <div className="relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                        <Shield size={14} className="text-slate-400 group-focus-within:text-slate-900" />
+                    </div>
+                    <label className="absolute text-[9px] duration-300 transform -translate-y-1 top-2 z-10 origin-[0] left-8 pointer-events-none font-bold tracking-wide text-slate-500 group-focus-within:text-slate-900">
+                        Account Role <span className="text-red-500 ml-0.5">*</span>
+                    </label>
+                    <select 
+                        required
+                        value={formData.role} 
+                        onChange={e => setFormData({...formData, role: e.target.value, facility: e.target.value === 'user' ? formData.facility : ''})} 
+                        className="block w-full pl-8 pr-10 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer text-slate-900"
+                    >
+                        <option value="user">Standard User (Encoder)</option>
+                        {/* ONLY SHOW ADMIN AND SYSADMIN OPTIONS IF CURRENT USER IS A SYSADMIN */}
+                        {currentUser?.role === 'SYSADMIN' && (
+                            <>
+                                <option value="admin">Administrator (Manager)</option>
+                                <option value="SYSADMIN">System Administrator</option>
+                            </>
+                        )}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-900">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    </div>
                 </div>
-                <label className={`absolute text-[9px] duration-300 transform -translate-y-1 top-2 z-10 origin-[0] left-8 pointer-events-none font-bold tracking-wide transition-all ${!formData.facility ? 'text-rose-500' : 'text-slate-500 group-focus-within:text-slate-900'}`}>
-                    Assigned Facility <span className="text-red-500 ml-0.5">*</span>
-                </label>
-                <select 
-                    required
-                    value={formData.facility} 
-                    onChange={e=>setFormData({...formData, facility: e.target.value})} 
-                    className={`block w-full pl-8 pr-10 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${formData.facility ? 'text-slate-900' : 'text-slate-400'}`}
-                >
-                    <option value="" disabled>Select a facility...</option>
-                    {facilities.length > 0 ? (
-                        facilities.map(f => <option key={f} value={f} className="text-slate-900">{f}</option>)
-                    ) : (
-                        <option value="" disabled>No available facilities</option>
-                    )}
-                </select>
-                <div className={`absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none ${!formData.facility ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900'}`}>
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+
+                {/* FACILITY SELECTOR */}
+                <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${formData.role === 'user' && !formData.facility ? 'border-rose-200 bg-rose-50/20' : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md'}`}>
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                        <Building2 size={14} className={`transition-colors duration-300 ${formData.role === 'user' && !formData.facility ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900 group-focus-within:scale-110'}`} />
+                    </div>
+                    <label className={`absolute text-[9px] duration-300 transform -translate-y-1 top-2 z-10 origin-[0] left-8 pointer-events-none font-bold tracking-wide transition-all ${formData.role === 'user' && !formData.facility ? 'text-rose-500' : 'text-slate-500 group-focus-within:text-slate-900'}`}>
+                        Assigned Facility {formData.role === 'user' && <span className="text-red-500 ml-0.5">*</span>}
+                    </label>
+                    <select 
+                        required={formData.role === 'user'}
+                        disabled={formData.role !== 'user'}
+                        value={formData.facility} 
+                        onChange={e=>setFormData({...formData, facility: e.target.value})} 
+                        className={`block w-full pl-8 pr-10 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${formData.facility || formData.role !== 'user' ? 'text-slate-900' : 'text-slate-400'} ${formData.role !== 'user' ? 'cursor-not-allowed opacity-60' : ''}`}
+                    >
+                        {formData.role !== 'user' ? (
+                            <option value="">System-wide (No Facility Assigned)</option>
+                        ) : (
+                            <>
+                                <option value="" disabled>Select a facility...</option>
+                                {facilities.length > 0 ? (
+                                    facilities.map(f => <option key={f} value={f} className="text-slate-900">{f}</option>)
+                                ) : (
+                                    <option value="" disabled>No available facilities</option>
+                                )}
+                            </>
+                        )}
+                    </select>
+                    <div className={`absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none ${formData.role === 'user' && !formData.facility ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900'}`}>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    </div>
                 </div>
+
             </div>
         </div>
         
@@ -297,7 +341,7 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
         {/* Submit Area */}
         <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-6">
             <div className="hidden sm:flex items-center gap-2 text-[10px] font-semibold text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-                <AlertCircle size={12}/> Verify facility before creating
+                <AlertCircle size={12}/> Verify details before creating
             </div>
             <button 
                 type="submit" 
@@ -319,9 +363,15 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
                       <div className="bg-slate-100 p-4 rounded-full mb-5 text-slate-800 shadow-inner">
                           <UserPlus size={28} strokeWidth={2.5} />
                       </div>
-                      <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Register User?</h3>
+                      <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Register {formData.role.toUpperCase()}?</h3>
                       <p className="text-sm text-slate-500 mt-2 mb-6 leading-relaxed">
-                          Are you sure you want to create an account for <strong className="text-slate-900">{formData.fullName || formData.email}</strong> under the facility <strong className="text-slate-900">{formData.facility}</strong>?
+                          Are you sure you want to create a <strong className="text-slate-900">{formData.role.toUpperCase()}</strong> account for <strong className="text-slate-900">{formData.fullName || formData.email}</strong>?
+                          {formData.role === 'user' && formData.facility && (
+                              <span> They will be assigned to <strong className="text-slate-900">{formData.facility}</strong>.</span>
+                          )}
+                          {formData.role !== 'user' && (
+                              <span> They will have system-wide access.</span>
+                          )}
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3 w-full">
                           <button 

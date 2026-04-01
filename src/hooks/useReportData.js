@@ -34,6 +34,9 @@ export function useReportData({
 }) {
   const userRole = user?.role; 
   const userFacility = user?.facility; 
+  
+  // Create a helper to check if user is ANY type of admin
+  const isAdminUser = userRole === 'admin' || userRole === 'SYSADMIN';
 
   const [data, setData] = useState({});
   const [cohortData, setCohortData] = useState({});
@@ -48,7 +51,8 @@ export function useReportData({
   const reportStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
   const isConsolidatedView = adminViewMode === 'consolidated';
   
-  const activeFacilityName = userRole === 'admin' 
+  // FIX: Check isAdminUser instead of strictly 'admin'
+  const activeFacilityName = isAdminUser 
     ? (isConsolidatedView ? 'PHO' : selectedFacility) 
     : userFacility;
   
@@ -90,25 +94,28 @@ export function useReportData({
     return [...new Set([...barangays, "Others:", ...MUNICIPALITIES])];
   }, [facilityBarangays, visibleOtherMunicipalities]);
 
+  // FIX: Check isAdminUser
   const currentRows = useMemo(() => 
-    (userRole === 'admin' && adminViewMode === 'dashboard') 
+    (isAdminUser && adminViewMode === 'dashboard') 
       ? [] 
       : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, false, visibleOtherMunicipalities),
-    [activeFacilityName, isConsolidatedView, userRole, adminViewMode, visibleOtherMunicipalities, getRowKeysForFacility]
+    [activeFacilityName, isConsolidatedView, isAdminUser, adminViewMode, visibleOtherMunicipalities, getRowKeysForFacility]
   );
 
+  // FIX: Check isAdminUser
   const cohortRowsCat2 = useMemo(() => 
-    (userRole === 'admin' && adminViewMode === 'dashboard') 
+    (isAdminUser && adminViewMode === 'dashboard') 
       ? [] 
       : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, true, visibleCat2),
-    [activeFacilityName, isConsolidatedView, userRole, adminViewMode, visibleCat2, getRowKeysForFacility]
+    [activeFacilityName, isConsolidatedView, isAdminUser, adminViewMode, visibleCat2, getRowKeysForFacility]
   );
 
+  // FIX: Check isAdminUser
   const cohortRowsCat3 = useMemo(() => 
-    (userRole === 'admin' && adminViewMode === 'dashboard') 
+    (isAdminUser && adminViewMode === 'dashboard') 
       ? [] 
       : getRowKeysForFacility(activeFacilityName, isConsolidatedView, false, true, visibleCat3),
-    [activeFacilityName, isConsolidatedView, userRole, adminViewMode, visibleCat3, getRowKeysForFacility]
+    [activeFacilityName, isConsolidatedView, isAdminUser, adminViewMode, visibleCat3, getRowKeysForFacility]
   );
 
   const initData = (rowKeys, isCohort = false) => { 
@@ -151,7 +158,8 @@ export function useReportData({
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const target = userRole === 'admin' ? (isConsolidatedView ? null : selectedFacility) : userFacility;
+      // FIX: Check isAdminUser
+      const target = isAdminUser ? (isConsolidatedView ? null : selectedFacility) : userFacility;
       const fullRowKeys = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView, true, false, []);
       
       if (activeTab === 'main') {
@@ -248,14 +256,15 @@ export function useReportData({
           setVisibleCat3(Array.from(newVisibleCat3));
       }
     } catch (err) { console.error("Fetch Error:", err); toast.error("Failed to load data"); } finally { setLoading(false); }
-  }, [userRole, userFacility, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, isConsolidatedView, facilityBarangays]); 
+  }, [isAdminUser, userFacility, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, isConsolidatedView, facilityBarangays]); 
 
   useEffect(() => {
-    if (userRole === 'admin') {
+    // FIX: Check isAdminUser
+    if (isAdminUser) {
       if (adminViewMode === 'dashboard') fetchFacilityStatuses();
       else if (adminViewMode === 'consolidated' || (adminViewMode === 'review' && selectedFacility)) fetchData();
     } else { fetchData(); }
-  }, [userRole, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, fetchData, fetchFacilityStatuses]);
+  }, [isAdminUser, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, fetchData, fetchFacilityStatuses]);
 
   const handleDeleteRow = (key) => {
     if (activeTab === 'main') {
@@ -279,7 +288,8 @@ export function useReportData({
 
   const handleChange = (m, f, v) => {
     if (activeTab === 'main') {
-        if (periodType !== 'Monthly' || userRole === 'admin' || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
+        // FIX: Check isAdminUser
+        if (periodType !== 'Monthly' || isAdminUser || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
         
         setData(prev => {
             const n = { ...prev }; 
@@ -304,7 +314,8 @@ export function useReportData({
             return n;
         });
     } else {
-        if (userRole === 'admin' || m === currentHostMunicipality) return;
+        // FIX: Check isAdminUser
+        if (isAdminUser || m === currentHostMunicipality) return;
         setCohortData(prev => {
             const n = { ...prev }; n[m] = { ...(n[m] || INITIAL_COHORT_ROW), [f]: v };
             if (currentHostMunicipality && facilityBarangays[activeFacilityName]?.includes(m)) {
@@ -331,11 +342,13 @@ export function useReportData({
 
   const handleSave = async (newStatus, reason = null) => {
     if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
-    const target = userRole === 'admin' ? selectedFacility : userFacility;
+    // FIX: Check isAdminUser
+    const target = isAdminUser ? selectedFacility : userFacility;
     if (!target) { toast.error("Error: Could not determine facility."); return false; }
     const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
     
-    if (userRole === 'admin' && (newStatus === 'Approved' || newStatus === 'Rejected') && currentStatus === 'Draft') {
+    // FIX: Check isAdminUser
+    if (isAdminUser && (newStatus === 'Approved' || newStatus === 'Rejected') && currentStatus === 'Draft') {
         toast.error("Cannot approve or reject a report that has not been submitted.");
         return false;
     }
@@ -355,7 +368,7 @@ export function useReportData({
                 if (!hasData(row) && !getRowKeysForFacility(target, false, false, false, visibleOtherMunicipalities).includes(m)) return null;
                 let rem = row.remarks; 
                 const dbRow = mapRowToDb(row);
-                delete dbRow.reported_by; // <--- FIX: Ensure reported_by is removed from the payload
+                delete dbRow.reported_by; 
                 dbRow.others_count = row.othersCount === '' ? null : toInt(row.othersCount);  
                 if (row.othersSpec) dbRow.others_spec = row.othersSpec;
                 return { ...dbRow, municipality: m, status: newStatus, remarks: rem };
@@ -365,7 +378,7 @@ export function useReportData({
             payload = Object.entries(cohortData).map(([m, row]) => {
                 if (!hasCohortData(row, 'cat2') && !hasCohortData(row, 'cat3') && !getRowKeysForFacility(target, false, false, true, visibleCat2).includes(m) && !getRowKeysForFacility(target, false, false, true, visibleCat3).includes(m)) return null;
                 const dbCohortRow = mapCohortRowToDb(row);
-                delete dbCohortRow.reported_by; // <--- FIX: Ensure reported_by is removed from the payload
+                delete dbCohortRow.reported_by;
                 return { ...dbCohortRow, municipality: m, status: newStatus };
             }).filter(x => x !== null);
         }
@@ -403,7 +416,8 @@ export function useReportData({
   const confirmDeleteReport = async () => {
     try {
         const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
-        if (userRole === 'admin' && currentStatus === 'Draft') {
+        // FIX: Check isAdminUser
+        if (isAdminUser && currentStatus === 'Draft') {
             toast.error("Cannot delete a report that has not been submitted.");
             return false;
         }

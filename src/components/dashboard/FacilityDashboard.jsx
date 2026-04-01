@@ -24,6 +24,9 @@ export default function FacilityDashboard({
 }) {
   const { user, facilities, facilityBarangays, facilityDetails, globalSettings, userProfile } = useApp();
   
+  // Helper to check if current user is any type of admin
+  const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
+
   // This reads the flag passed from the Admin Dashboard to automatically switch tabs!
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('adminTargetTab');
@@ -287,7 +290,7 @@ export default function FacilityDashboard({
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
     
-    // VALIDATION LOGIC MODIFIED HERE:
+    // VALIDATION LOGIC
     if (status === 'Pending') { 
         if (activeTab === 'main') {
             let hasForm1Errors = false;
@@ -303,7 +306,6 @@ export default function FacilityDashboard({
                 
                 const hasAnyData = sexSum > 0 || ageSum > 0 || (Number(row.cat1)||0) > 0 || (Number(row.cat2)||0) > 0 || (Number(row.cat3)||0) > 0 || animalSum > 0;
                 
-                // Removed the cat2+cat3 === animalSum validation
                 if (hasAnyData && (sexSum !== ageSum || washedCount > animalSum)) {
                     hasForm1Errors = true;
                     break;
@@ -451,7 +453,6 @@ export default function FacilityDashboard({
                                     <div 
                                         key={m} 
                                         onClick={() => { 
-                                            // Make sure clicking the month correctly switches to the associated tab!
                                             setActiveTab(statusModal.reportType === 'cohort' ? 'cohort' : 'main');
                                             setStatusModal({ isOpen: false, status: null, reportType: 'main' }); 
                                             setMonth(m); 
@@ -556,7 +557,7 @@ export default function FacilityDashboard({
             
             {/* Left side: Facility Name & Status */}
             <div className="flex items-start sm:items-center gap-3 sm:gap-4 relative z-10 w-full xl:w-auto">
-                {user.role === 'admin' && (
+                {isAnyAdmin && (
                     <button onClick={onBack} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:bg-slate-700 hover:text-white hover:border-slate-600 hover:shadow-md active:scale-90 transition-all duration-200 shrink-0">
                         <ArrowLeft size={20}/>
                     </button>
@@ -583,7 +584,7 @@ export default function FacilityDashboard({
 
                 {!isConsolidatedView && !isAggregationMode && (
                     <div className="flex flex-1 sm:flex-none items-center gap-2 sm:pl-3 sm:border-l sm:border-slate-700 w-full sm:w-auto">
-                    {user.role === 'admin' ? (
+                    {isAnyAdmin ? (
                         <>
                         <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving || reportStatus === 'Approved' || reportStatus === 'Rejected' || reportStatus === 'Draft'} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold hover:bg-yellow-500 shadow-[0_0_15px_rgba(250,204,21,0.2)] flex items-center gap-1.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:shadow-none">
                             {isSaving ? <Loader2 size={14} className="animate-spin"/> : <CheckCircle size={14}/>} Approve

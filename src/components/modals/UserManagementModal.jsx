@@ -5,8 +5,12 @@ import { toast } from 'sonner';
 import RegisterUserForm from '../auth/RegisterUserForm'; 
 import ProfileModal from './ProfileModal';
 import ModalPortal from './ModalPortal';
+import { useApp } from '../../context/AppContext'; // Import context for RBAC check
 
 export default function UserManagementModal({ onClose, facilities, client }) {
+  // Extract currentUser from Context to enforce RBAC
+  const { user: currentUser } = useApp();
+  
   const [activeTab, setActiveTab] = useState('list'); 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +25,8 @@ export default function UserManagementModal({ onClose, facilities, client }) {
     const { data } = await effectiveClient.from('profiles').select('*');
     if (data) {
         const sorted = data.sort((a, b) => {
+            if (a.role === 'SYSADMIN' && b.role !== 'SYSADMIN') return -1;
+            if (a.role !== 'SYSADMIN' && b.role === 'SYSADMIN') return 1;
             if (a.role === 'admin' && b.role !== 'admin') return -1;
             if (a.role !== 'admin' && b.role === 'admin') return 1;
             return new Date(b.created_at) - new Date(a.created_at);
@@ -83,7 +89,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
       </ModalPortal>
       )}
 
-      {/* Main Modal Container - Reduced to max-w-4xl for a tighter look */}
+      {/* Main Modal Container */}
       <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
         
         {/* Header - Deep Slate Design */}
@@ -150,7 +156,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                                 <div className="font-bold text-slate-900 text-sm mb-1 group-hover:text-black transition-colors leading-tight">
                                     {u.facility_name || <span className="italic text-slate-400">System Admin</span>}
                                 </div>
-                                <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shadow-sm border ${u.role === 'admin' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
+                                <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shadow-sm border ${u.role === 'SYSADMIN' ? 'bg-purple-700 text-white border-purple-600' : u.role === 'admin' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
                                     {u.role}
                                 </span>
 
@@ -173,7 +179,6 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                           {u.email}
                       </td>
 
-                      {/* --- ICON ONLY ACTIONS --- */}
                       <td className="p-3 sm:p-4 pr-6 text-right whitespace-nowrap align-top sm:align-middle">
                         <div className="flex justify-end gap-1.5">
                             <button 
@@ -184,7 +189,8 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                                 <Edit size={16} strokeWidth={2.5}/>
                             </button>
                             
-                            {u.role !== 'admin' && (
+                            {/* RBAC: ONLY SYSADMIN CAN DELETE OTHER USERS */}
+                            {currentUser?.role === 'SYSADMIN' && u.id !== currentUser?.id && (
                                 <button 
                                     onClick={() => initiateDelete(u)} 
                                     className="p-2 bg-white border border-red-100 text-red-500 rounded-lg hover:bg-red-50 hover:text-red-700 hover:border-red-300 active:scale-90 transition-all shadow-sm" 

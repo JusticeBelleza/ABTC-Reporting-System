@@ -33,6 +33,9 @@ const getInitials = (name) => {
 function DashboardContent() {
   const { user, facilities, setFacilities, setFacilityBarangays, logout, globalSettings, setGlobalSettings, userProfile, setUserProfile } = useApp();
 
+  // Helper boolean to check if the user is ANY type of admin
+  const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
+
   // ==========================================
   // AUTO-LOGOUT / SESSION TIMEOUT LOGIC
   // ==========================================
@@ -237,7 +240,8 @@ function DashboardContent() {
               {/* ORDER: Bell | Audit | Settings | Logout */}
               <NotificationBell user={user} />
               
-              {user.role === 'admin' && (
+              {/* BOTH ADMIN AND SYSADMIN GET LOGS */}
+              {isAnyAdmin && (
                 <>
                   <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
                   <button onClick={() => setShowAuditLogs(true)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:-translate-y-0.5 transition-all duration-300 active:scale-90" title="System Audit Logs">
@@ -271,7 +275,8 @@ function DashboardContent() {
               availableYears={availableYears} availableMonths={availableMonths}
            />
         ) : (
-          user.role === 'admin' && adminViewMode === 'dashboard' ? (
+          /* Check for BOTH admin and SYSADMIN here */
+          isAnyAdmin && adminViewMode === 'dashboard' ? (
             <AdminDashboard 
               onViewConsolidated={() => setAdminViewMode('consolidated')}
               onSelectFacility={(f) => { setSelectedFacility(f); setAdminViewMode('review'); }}
@@ -297,7 +302,8 @@ function DashboardContent() {
           )
         )}
 
-        {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} globalSettings={globalSettings} onSaveGlobal={setGlobalSettings} userProfile={userProfile} onSaveProfile={setUserProfile} isAdmin={user.role === 'admin'} />}
+        {/* Update SettingsModal to accept SYSADMIN */}
+        {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} globalSettings={globalSettings} onSaveGlobal={setGlobalSettings} userProfile={userProfile} onSaveProfile={setUserProfile} isAdmin={isAnyAdmin} />}
         {showManageUsers && <UserManagementModal onClose={() => setShowManageUsers(false)} facilities={facilities} client={adminHelperClient} />}
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
         {showAddFacilityModal && <AddFacilityForm onAdd={handleAddFacility} loading={false} facilities={facilities} onClose={() => setShowAddFacilityModal(false)} />}
