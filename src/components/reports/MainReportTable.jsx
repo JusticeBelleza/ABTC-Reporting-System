@@ -131,6 +131,7 @@ export default function MainReportTable({
             const isHost = key === currentHostMunicipality;
             const isRowReadOnly = 
               userRole === 'admin' || 
+              userRole === 'SYSADMIN' || 
               (isHost && hasBarangays) || 
               isConsolidated || 
               isAggregationMode || 

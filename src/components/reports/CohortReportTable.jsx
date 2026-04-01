@@ -23,28 +23,21 @@ export default function CohortReportTable({
     ? `outline-none bg-transparent w-full px-2 text-sm font-semibold ${isTotalRow ? 'text-slate-900' : 'text-slate-700'}`
     : "outline-none transition-all hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded-sm w-full py-1 px-2 text-sm font-medium text-blue-900";
 
-  // --- IMPROVED GRID KEYBOARD NAVIGATION ---
   const handleGridKeyDown = (e) => {
     const { key } = e;
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(key)) return;
-
     const isTextElement = e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type === 'text');
-
     if (isTextElement && (key === 'ArrowLeft' || key === 'ArrowRight')) {
         const { selectionStart, selectionEnd, value } = e.target;
-        
         if (selectionStart !== selectionEnd) return;
         if (key === 'ArrowLeft' && selectionStart > 0) return;
         if (key === 'ArrowRight' && selectionEnd < value.length) return;
     }
-
     e.preventDefault();
-    
     const currentInput = e.target;
     const currentTd = currentInput.closest('td');
     const currentRow = currentTd.closest('tr');
     const tbody = currentRow.closest('tbody');
-    
     const allRows = Array.from(tbody.querySelectorAll('tr'));
     const rowIndex = allRows.indexOf(currentRow);
     const allCellsInRow = Array.from(currentRow.children);
@@ -54,7 +47,6 @@ export default function CohortReportTable({
         if (rIdx < 0 || rIdx >= allRows.length) return null;
         const row = allRows[rIdx];
         const cells = Array.from(row.children);
-        
         if (cIdx < 0) {
             if (direction === 'left' && rIdx > 0) return findEditableInput(rIdx - 1, allRows[rIdx - 1].children.length - 1, direction);
             return null;
@@ -63,12 +55,9 @@ export default function CohortReportTable({
             if (direction === 'right' && rIdx < allRows.length - 1) return findEditableInput(rIdx + 1, 0, direction);
             return null;
         }
-
         const cell = cells[cIdx];
         const input = cell.querySelector('input:not([readonly]):not([disabled]), textarea:not([readonly]):not([disabled])');
-        
         if (input) return input;
-
         if (direction === 'right') return findEditableInput(rIdx, cIdx + 1, direction);
         if (direction === 'left') return findEditableInput(rIdx, cIdx - 1, direction);
         if (direction === 'up') return findEditableInput(rIdx - 1, cIdx, direction);
@@ -77,7 +66,6 @@ export default function CohortReportTable({
     };
 
     let targetInput = null;
-
     if (key === 'ArrowRight') targetInput = findEditableInput(rowIndex, cellIndex + 1, 'right');
     else if (key === 'ArrowLeft') targetInput = findEditableInput(rowIndex, cellIndex - 1, 'left');
     else if (key === 'ArrowDown' || key === 'Enter') targetInput = findEditableInput(rowIndex + 1, cellIndex, 'down');
@@ -94,16 +82,13 @@ export default function CohortReportTable({
     const rowKeys = isCat2 ? rowKeysCat2 : rowKeysCat3;
     const visibleList = isCat2 ? visibleCat2 : visibleCat3;
     const setVisible = isCat2 ? setVisibleCat2 : setVisibleCat3;
-    const suffix = isCat2 ? '_Category_II' : '_Category_III';
 
     return (
       <div className={`cohort-table-hidden ${subTab === category ? 'block' : 'hidden'} mb-8`}>
-        {/* Removed borderTopLeftRadius and borderTopRightRadius from the header to keep it fully square */}
         <div style={{ backgroundColor: '#f9fafb', padding: '8px', fontWeight: 'bold', textAlign: 'center', border: '1px solid #94A3B8', borderBottom: 'none', borderRadius: '0', fontSize: '14px', color: '#4b5563', marginBottom: '0' }}>
             {isCat2 ? 'CATEGORY II - EXPOSURES' : 'CATEGORY III - EXPOSURES'}
         </div>
         
-        {/* Fixed rounded-n to rounded-none here! */}
         <div className="w-full overflow-auto max-h-[75vh] shadow-sm border border-[#94A3B8] rounded-none bg-white relative custom-scrollbar">
           <table className="w-full border-collapse tabular-nums [&_th]:!border-[#94A3B8] [&_td]:!border-[#94A3B8]" style={{ borderColor: PDF_STYLES.border.borderColor }}>
             <thead className="sticky top-0 z-20 shadow-sm bg-white">
@@ -127,9 +112,11 @@ export default function CohortReportTable({
                 const hideClass = isEmpty ? 'pdf-hide-empty' : '';
                 const row = data[key] || INITIAL_COHORT_ROW;
                 const isHost = key === currentHostMunicipality;
-                const isRowReadOnly = userRole === 'admin' || isHost;
-                const isTotalRow = isHost && isRowReadOnly;
                 
+                // FIX: Added userRole === 'SYSADMIN' to ensure they cannot edit either
+                const isRowReadOnly = userRole === 'admin' || userRole === 'SYSADMIN' || isHost;
+                
+                const isTotalRow = isHost && isRowReadOnly;
                 const isOtherRow = currentHostMunicipality !== null && visibleList.includes(key);
 
                 if (key === "Others:") {
@@ -142,7 +129,7 @@ export default function CohortReportTable({
                       return a.localeCompare(b);
                     });
 
-                  const showAddControls = userRole !== 'admin' && !isConsolidated;
+                  const showAddControls = userRole !== 'admin' && userRole !== 'SYSADMIN' && !isConsolidated;
                   return (
                     <tr key={`cohort-others-sep-${category}`} className={hideClass} style={{ ...PDF_STYLES.rowEven, backgroundColor: '#E2E8F0' }}>
                       <td colSpan={9} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', backgroundColor: '#E2E8F0', padding:'8px'}}>
