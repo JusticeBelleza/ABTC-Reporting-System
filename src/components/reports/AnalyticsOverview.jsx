@@ -128,17 +128,17 @@ export default function AnalyticsOverview({
               const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
               const passedMonthsInQuarter = targetMonths.filter(m => (year < currentRealYear) || MONTHS.indexOf(m) <= currentDate.getMonth());
               expectedReports = targetFacilitiesCount * passedMonthsInQuarter.length;
-              actualReports = reports.filter(r => Number(r.year) === year && passedMonthsInQuarter.includes(r.month)).length;
+              actualReports = new Set(reports.filter(r => Number(r.year) === year && passedMonthsInQuarter.includes(r.month)).map(r => `${r.facility}-${r.month}`)).size;
           } else {
               const passedMonths = year === currentRealYear ? currentDate.getMonth() + 1 : 12;
               expectedReports = targetFacilitiesCount * passedMonths;
-              actualReports = reports.filter(r => Number(r.year) === year).length;
+              actualReports = new Set(reports.filter(r => Number(r.year) === year).map(r => `${r.facility}-${r.month}`)).size;
           }
 
           let calcRate = expectedReports > 0 ? Math.round((actualReports / expectedReports) * 100) : 0;
           setComplianceRate(Math.min(calcRate, 100));
 
-          // --- 2. BUILD CONTINUOUS 24-MONTH ARRAY (100% SECURE MATH) ---
+          // --- 2. BUILD CONTINUOUS 24-MONTH ARRAY (FOOLPROOF MATH) ---
           const allMonthsRaw = [];
           [year - 1, year].forEach(y => {
              MONTHS.forEach((m) => {
@@ -147,31 +147,18 @@ export default function AnalyticsOverview({
                 let total = null; 
                 
                 if (hasData) {
-                    // Prevent duplicate submission rows from artificially inflating the total
-                    const uniqueReports = [];
-                    periodReports.forEach(r => {
-                        const existingIdx = uniqueReports.findIndex(ex => ex.facility === r.facility && ex.municipality === r.municipality);
-                        if (existingIdx === -1) {
-                            uniqueReports.push(r);
-                        } else if (new Date(r.created_at) > new Date(uniqueReports[existingIdx].created_at)) {
-                            uniqueReports[existingIdx] = r;
-                        }
-                    });
-
-                    total = uniqueReports.reduce((sum, r) => {
+                    total = periodReports.reduce((sum, r) => {
+                        const muni = String(r.municipality || '').trim();
                         const fName = String(r.facility || '').trim();
-                        const muniStr = String(r.municipality || '').trim();
                         const type = facilityDetails?.[fName]?.type || 'RHU';
                         const isHospital = type === 'Hospital' || type === 'Clinic';
                         
-                        // SKIP dummy separator and total rows
-                        if (muniStr.toLowerCase().includes('total')) return sum;
-                        
+                        // Skip dummy separator rows
+                        if (muni === 'Others:' || muni.toLowerCase().includes('total')) return sum;
+
                         // MATHEMATICAL GUARDRAIL: Prevent double-counting for RHUs!
-                        // The database saves BOTH the individual barangays AND the rolled-up host municipality.
-                        // We strictly sum ONLY official Municipalities and 'Others:'. This mathematically skips all Barangays.
-                        const isMuniOrOthers = muniStr === 'Others:' || MUNICIPALITIES.some(mun => mun.toLowerCase() === muniStr.toLowerCase());
-                        if (!isHospital && !isMuniOrOthers) return sum;
+                        const hostMunicipality = MUNICIPALITIES.find(mun => fName.includes(mun));
+                        if (!isHospital && muni === hostMunicipality) return sum;
 
                         let rTotal = (Number(r.cat1) || 0) + (Number(r.cat2) || 0) + (Number(r.cat3) || 0);
                         if (rTotal === 0) rTotal = Number(r.total_patients) || 0;
@@ -337,11 +324,10 @@ export default function AnalyticsOverview({
     return Object.entries(data)
       .filter(([name, row]) => {
           const lower = name.toLowerCase().trim();
-          // Filter out aggregate rows ONLY
-          // IMPORTANT: We do NOT filter out 'others:', so they remain visible on the chart!
+          // Filter out aggregate rows
           if (lower === 'total' || lower.includes('grand total')) return false;
           
-          // IF RHU: We MUST hide the Host Municipality's rolled-up row so the chart doesn't double count.
+          // IF RHU: Hide the Host Municipality's rolled-up row so the chart doesn't double count.
           if (!isConsolidatedView && hostMuni) {
               if (lower === hostMuni.toLowerCase()) return false;
           }
@@ -352,11 +338,10 @@ export default function AnalyticsOverview({
           let cleanName = name.trim();
           let val = Number(row.totalPatients) || ((Number(row.cat1)||0)+(Number(row.cat2)||0)+(Number(row.cat3)||0));
           
-          // SMART CLEANUP: Strip out the Host Municipality name from barangay labels for cleaner UI
+          // SMART CLEANUP: Strip out the Host Municipality name from barangay labels
           if (!isConsolidatedView && hostMuni) {
               const regex = new RegExp(`\\b${hostMuni}\\b`, 'ig');
               let stripped = cleanName.replace(regex, '').replace(/^[-\s,]+|[-\s,]+$/g, '').trim();
-              
               if (stripped !== '') cleanName = stripped;
           }
           return { name: cleanName, value: val };

@@ -174,7 +174,15 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
                     <select 
                         required
                         value={formData.role} 
-                        onChange={e => setFormData({...formData, role: e.target.value, facility: e.target.value === 'user' ? formData.facility : ''})} 
+                        onChange={e => {
+                            const newRole = e.target.value;
+                            // Automatically assign 'PHO' if Admin is selected
+                            setFormData({
+                                ...formData, 
+                                role: newRole, 
+                                facility: newRole === 'admin' ? 'PHO' : (newRole === 'user' ? formData.facility : '')
+                            });
+                        }} 
                         className={`block w-full pl-3 pr-10 pt-5 pb-1.5 text-sm font-bold appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${formData.role ? 'text-slate-900' : 'text-slate-400'}`}
                     >
                         <option value="" disabled>Select a role...</option>
@@ -200,7 +208,9 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
                         onChange={e=>setFormData({...formData, facility: e.target.value})} 
                         className={`block w-full pl-3 pr-10 pt-5 pb-1.5 text-sm font-bold appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${formData.facility || formData.role !== 'user' ? 'text-slate-900' : 'text-slate-400'} ${formData.role !== 'user' ? 'cursor-not-allowed opacity-60 bg-slate-50' : ''}`}
                     >
-                        {formData.role !== 'user' ? (
+                        {formData.role === 'admin' ? (
+                            <option value="PHO">Provincial Health Office (PHO)</option>
+                        ) : formData.role === 'SYSADMIN' ? (
                             <option value="">System-wide (No Facility)</option>
                         ) : (
                             <>

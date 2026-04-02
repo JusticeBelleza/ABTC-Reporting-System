@@ -38,7 +38,7 @@ export default function AuditLogsModal({ onClose }) {
       case 'APPROVED': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
       case 'REJECTED': return 'bg-rose-50 text-rose-600 border-rose-200';
       case 'SUBMITTED': return 'bg-blue-50 text-blue-600 border-blue-200';
-      case 'DELETED': return 'bg-red-50 text-red-600 border-red-200'; // Added styling for Deletions
+      case 'DELETED': return 'bg-red-50 text-red-600 border-red-200'; // Added DELETED styling
       default: return 'bg-slate-50 text-slate-600 border-slate-200';
     }
   };

@@ -66,32 +66,36 @@ export default function AdminDashboard({
     } catch (err) { console.error("Error fetching facility meta", err); }
   };
 
+  // Abstracted to a reusable function so we can call it on mount and on custom events
+  const fetchFacilityOwners = async () => {
+    try {
+      const { data } = await supabase.from('profiles').select('facility_name, full_name, email');
+      if (data) {
+        const mapping = {};
+        data.forEach(u => { 
+          if (u.facility_name) {
+            const displayName = u.full_name || u.email || 'User Assigned (No Name)';
+            if (mapping[u.facility_name]) {
+                mapping[u.facility_name] += `, ${displayName}`;
+            } else {
+                mapping[u.facility_name] = displayName;
+            }
+          } 
+        });
+        setFacilityOwners(mapping);
+      }
+    } catch (error) { console.error("Error fetching facility owners:", error); }
+  };
+
+  // Run on mount
+  useEffect(() => { fetchFacilityOwners(); }, [facilities]); 
+
+  // Run when a custom event is fired (e.g., from UserManagementModal)
   useEffect(() => {
-    const fetchFacilityOwners = async () => {
-      try {
-        // Fetch email as a fallback
-        const { data } = await supabase.from('profiles').select('facility_name, full_name, email');
-        if (data) {
-          const mapping = {};
-          data.forEach(u => { 
-            if (u.facility_name) {
-              // If they have no name, show their email. If no email, show "User Assigned"
-              const displayName = u.full_name || u.email || 'User Assigned (No Name)';
-              
-              // If multiple users are assigned to the same facility, join their names!
-              if (mapping[u.facility_name]) {
-                  mapping[u.facility_name] += `, ${displayName}`;
-              } else {
-                  mapping[u.facility_name] = displayName;
-              }
-            } 
-          });
-          setFacilityOwners(mapping);
-        }
-      } catch (error) { console.error("Error fetching facility owners:", error); }
-    };
-    fetchFacilityOwners();
-  }, [facilities]); 
+    const handleUserRegistered = () => fetchFacilityOwners();
+    window.addEventListener('user_registered', handleUserRegistered);
+    return () => window.removeEventListener('user_registered', handleUserRegistered);
+  }, []);
 
   useEffect(() => { fetchFacilityMeta(); }, [facilities]);
 
@@ -290,7 +294,6 @@ export default function AdminDashboard({
                                             <div 
                                                 key={f} 
                                                 onClick={() => { 
-                                                    // Pass the target tab based on which overview modal we are in!
                                                     localStorage.setItem('adminTargetTab', statusModal.reportType === 'cohort' ? 'cohort' : 'main');
                                                     setStatusModal({ isOpen: false, status: null, reportType: 'main' }); 
                                                     onSelectFacility(f); 

@@ -58,16 +58,21 @@ export default function UserManagementModal({ onClose, facilities, client }) {
       const { error } = await effectiveClient.rpc('delete_user_by_id', { target_user_id: userToDelete.id });
       if (error) throw error;
       toast.success("User deleted successfully.");
+      
+      // Fire custom event to refresh the dashboard cards instantly
+      window.dispatchEvent(new Event('user_registered'));
+      
       fetchUsers();
     } catch(err) { toast.error("Error deleting user: " + err.message); }
     setIsDeletingUser(false);
     setUserToDelete(null);
   };
 
-  // --- INSTANT PASSWORD RESET LOGIC ---
+  // --- INSTANT PASSWORD RESET LOGIC (Fixed Format) ---
   const initiateReset = (user) => {
-    const baseName = user.facility_name ? user.facility_name.replace(/\s+/g, '') : user.role;
-    const tempPassword = `${baseName}@1234`;
+    // Generate: User@ + 4 random numbers
+    const randomNumber = Math.floor(1000 + Math.random() * 9000);
+    const tempPassword = `User@${randomNumber}`;
     setUserToReset({ ...user, tempPassword });
   };
 
@@ -117,7 +122,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
       
       {/* Edit Profile Sub-Modal */}
-      {editingUserId && <ProfileModal userId={editingUserId} onClose={() => { setEditingUserId(null); fetchUsers(); }} />}
+      {editingUserId && <ProfileModal userId={editingUserId} onClose={() => { setEditingUserId(null); fetchUsers(); window.dispatchEvent(new Event('user_registered')); }} />}
       
       {/* Delete Confirmation Sub-Modal */}
       {userToDelete && (
@@ -240,7 +245,6 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                             <thead className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
                                 <tr>
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Assigned Facility</th>
-                                    {/* INCREASED WIDTH TO w-36 OR w-40 FOR ROLE */}
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 text-center w-36">Role</th>
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Full Name & Designation</th>
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Contact Info</th>
@@ -254,7 +258,6 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                                             {u.facility_name || <span className="italic text-slate-400 font-medium">System Administration</span>}
                                         </td>
                                         <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 text-center align-middle">
-                                            {/* ADDED whitespace-nowrap SO IT DOESN'T BREAK */}
                                             <span className={`px-2 py-0.5 rounded text-[9px] font-black border uppercase tracking-widest whitespace-nowrap ${getRoleBadge(u.role)}`}>
                                                 {getRoleDisplayName(u.role)}
                                             </span>
@@ -311,7 +314,11 @@ export default function UserManagementModal({ onClose, facilities, client }) {
           ) : (
             <div className="w-full max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
-                  <RegisterUserForm facilities={availableFacilities} client={effectiveClient} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
+                  <RegisterUserForm facilities={availableFacilities} client={effectiveClient} onSuccess={() => { 
+                      setActiveTab('list'); 
+                      fetchUsers(); 
+                      window.dispatchEvent(new Event('user_registered')); // Triggers instant dashboard update
+                  }} />
               </div>
             </div>
           )}

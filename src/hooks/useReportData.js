@@ -429,32 +429,32 @@ export function useReportData({
 
         const { error } = await deleteQuery;
         if (error) throw error;
-        
-        // --- BULLETPROOF AUDIT LOGGING ---
-        // Ensure user?.id is populated. If not, fall back to "System Action".
-        const currentUserId = user?.id || null;
-        const actorName = isAdminUser ? 'PHO Admin' : (user?.email || 'Facility User');
+
+        // PERFECTLY MAPPED AUDIT LOG PAYLOAD
+        // We pull the "fullName" directly from the AppContext 'user' object so it records the actual name!
+        const actorName = user?.fullName || user?.email || (isAdminUser ? 'PHO Admin' : 'Facility User');
         const reportTypeLabel = activeTab === 'main' ? 'Form 1 Report' : 'Cohort Report';
 
         const auditPayload = {
-            facility_name: target,
+            facility_name: isAdminUser ? 'PHO' : target,
             action: 'DELETED',
             report_type: reportTypeLabel,
-            period_info: periodStr,
+            period_info: `${target} - ${periodStr}`,
             actor_name: actorName
         };
-
-        if (currentUserId) auditPayload.user_id = currentUserId;
 
         const { error: auditError } = await supabase.from('audit_logs').insert([auditPayload]);
 
         if (auditError) {
             console.error("Audit log failed to insert:", auditError);
+            toast.error(`Report deleted, but audit log failed: ${auditError.message}`);
+        } else {
+            toast.success("Report data deleted and logged successfully."); 
         }
 
         if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: 'Draft' }));
         else setReportStatuses(prev => ({ ...prev, cohort: 'Draft' }));
-        toast.success("Report data deleted successfully."); 
+        
         fetchData(); 
         return true;
     } catch(err) { toast.error(err.message); return false; }
