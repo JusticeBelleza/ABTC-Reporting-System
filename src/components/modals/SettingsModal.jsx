@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Settings, X, ImageIcon, Plus, Loader2, User, Briefcase, Bookmark, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Settings, X, ImageIcon, Plus, Loader2, User, Briefcase, Bookmark, CheckCircle, BrainCircuit, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import ModalPortal from './ModalPortal';
 
 // --- ULTRA-COMPACT 12PX FLOATING LABEL INPUT ---
-const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, disabled = false, required }) => (
+const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, disabled = false, required, min, max }) => (
     <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${
         disabled 
             ? 'bg-slate-50 border-slate-200' 
@@ -21,6 +21,8 @@ const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, 
             id={id}
             required={required}
             disabled={disabled}
+            min={min}
+            max={max}
             className={`block w-full ${Icon ? 'pl-8' : 'pl-3'} pr-3 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 peer ${
                 disabled ? 'text-slate-500 cursor-not-allowed' : 'text-slate-900'
             }`}
@@ -42,11 +44,13 @@ const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, 
 );
 
 export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onSaveProfile, isAdmin }) {
-  const [logoForm, setLogoForm] = useState(globalSettings || { logo_base64: '' });
+  const [logoForm, setLogoForm] = useState(globalSettings || { logo_base64: '', outbreak_threshold_percent: 50, trend_alert_percent: 10 });
   const [signatories, setSignatories] = useState(userProfile?.signatories || []);
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [activeTab, setActiveTab] = useState(isAdmin ? 'logo' : 'signatories');
+  
+  // Tab Management
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'analytics' : 'signatories');
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
@@ -71,13 +75,22 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
     setShowConfirmModal(false);
     setLoading(true);
     try {
-      if (isAdmin && activeTab === 'logo') {
+      if (isAdmin && (activeTab === 'logo' || activeTab === 'analytics')) {
         const { data: existing } = await supabase.from('settings').select('id').single();
-        if(existing) await supabase.from('settings').update({ logo_base64: logoForm.logo_base64 }).eq('id', existing.id);
-        else await supabase.from('settings').insert({ logo_base64: logoForm.logo_base64 });
-        onSaveGlobal(logoForm);
+        
+        const payload = { 
+            logo_base64: logoForm.logo_base64,
+            outbreak_threshold_percent: Number(logoForm.outbreak_threshold_percent || 50),
+            trend_alert_percent: Number(logoForm.trend_alert_percent || 10)
+        };
+
+        if(existing) await supabase.from('settings').update(payload).eq('id', existing.id);
+        else await supabase.from('settings').insert(payload);
+        
+        onSaveGlobal({ ...globalSettings, ...payload });
         toast.success("System settings saved successfully.");
       }
+      
       if (activeTab === 'signatories') {
         const { error } = await supabase.from('profiles').update({ signatories: signatories, facility_logo: userProfile.facility_logo }).eq('id', userProfile.id);
         if(error) throw error;
@@ -102,7 +115,7 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
                 </div>
                 <div>
                     <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight">System Settings</h2>
-                    <p className="text-[11px] sm:text-xs font-medium text-slate-400 mt-0.5">Manage logos and PDF signatories</p>
+                    <p className="text-[11px] sm:text-xs font-medium text-slate-400 mt-0.5">Manage analytics, logos and PDF signatories</p>
                 </div>
             </div>
             <button onClick={onClose} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-all active:scale-90 border border-slate-700 shadow-sm relative z-10">
@@ -110,18 +123,27 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
             </button>
           </div>
           
-          <div className="flex px-6 sm:px-8 pt-4 border-b border-slate-100 gap-8 bg-slate-50 shrink-0">
+          {/* TABS HEADER */}
+          <div className="flex px-6 sm:px-8 pt-4 border-b border-slate-100 gap-8 bg-slate-50 shrink-0 overflow-x-auto no-scrollbar">
             {isAdmin && (
-              <button 
-                  onClick={() => setActiveTab('logo')} 
-                  className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] active:opacity-70 ${activeTab==='logo' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
-              >
-                  Global Logo
-              </button>
+              <>
+                <button 
+                    onClick={() => setActiveTab('analytics')} 
+                    className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 ${activeTab==='analytics' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
+                >
+                    Predictive Analytics
+                </button>
+                <button 
+                    onClick={() => setActiveTab('logo')} 
+                    className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 ${activeTab==='logo' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
+                >
+                    Global Logo
+                </button>
+              </>
             )}
             <button 
                 onClick={() => setActiveTab('signatories')} 
-                className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] active:opacity-70 ${activeTab==='signatories' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 ${activeTab==='signatories' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
             >
                 Facility Logo & Signatories
             </button>
@@ -129,7 +151,50 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
 
           <form onSubmit={handlePreSubmit} className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar bg-white">
              
-             {activeTab === 'logo' && (
+            {/* ANALYTICS SETTINGS TAB (Admin Only) */}
+            {activeTab === 'analytics' && isAdmin && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 max-w-xl">
+                <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2 flex items-center gap-1.5"><BrainCircuit size={12}/> Smart Alert Thresholds</h4>
+                    <p className="text-xs text-slate-500 font-medium mb-4">Adjust the sensitivity of the AI predictive alerts displayed on the dashboard. Changing these values immediately affects how warnings are triggered.</p>
+                    
+                    <div className="space-y-4">
+                        <div className="flex flex-col gap-1 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                            <label className="text-xs font-bold text-slate-800">Outbreak Anomaly Sensitivity (%)</label>
+                            <p className="text-[10px] text-slate-500 mb-2">Triggers a HIGH RISK alert when current cases exceed the 6-month average by this percentage. (Default: 50%)</p>
+                            <FloatingInput 
+                                id="outbreak_threshold" 
+                                type="number" 
+                                min="1"
+                                max="500"
+                                label="Outbreak Threshold (%)" 
+                                icon={Activity} 
+                                value={logoForm.outbreak_threshold_percent} 
+                                onChange={(e) => setLogoForm({...logoForm, outbreak_threshold_percent: e.target.value})} 
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-1 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                            <label className="text-xs font-bold text-slate-800">Rising Trend Sensitivity (%)</label>
+                            <p className="text-[10px] text-slate-500 mb-2">Triggers a WARNING alert when the fast-signal projected cases (WMA) exceed the 3-month average (SMA) by this percentage. (Default: 10%)</p>
+                            <FloatingInput 
+                                id="trend_threshold" 
+                                type="number" 
+                                min="1"
+                                max="100"
+                                label="Rising Trend Threshold (%)" 
+                                icon={Activity} 
+                                value={logoForm.trend_alert_percent} 
+                                onChange={(e) => setLogoForm({...logoForm, trend_alert_percent: e.target.value})} 
+                            />
+                        </div>
+                    </div>
+                </div>
+              </div>
+            )}
+
+            {/* GLOBAL LOGO TAB (Admin Only) */}
+            {activeTab === 'logo' && isAdmin && (
               <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 max-w-xl">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Provincial / Global Header Logo</h4>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-5 p-5 border border-slate-200 rounded-xl bg-slate-50/50 shadow-sm">
@@ -144,6 +209,7 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
               </div>
             )}
 
+            {/* SIGNATORIES TAB (All Users) */}
             {activeTab === 'signatories' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
                 <div className="space-y-4 max-w-xl">
