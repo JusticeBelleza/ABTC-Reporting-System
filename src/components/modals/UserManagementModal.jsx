@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, X, Loader2, Edit, Trash2, Building2, Mail, ShieldAlert, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, X, Loader2, Edit, Trash2, Building2, ShieldAlert, ChevronLeft, ChevronRight, Key, CheckCircle, Copy } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import RegisterUserForm from '../auth/RegisterUserForm'; 
@@ -14,8 +14,13 @@ export default function UserManagementModal({ onClose, facilities, client }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUserId, setEditingUserId] = useState(null);
+  
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
+
+  // Instant Reset Password State
+  const [userToReset, setUserToReset] = useState(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,8 +49,8 @@ export default function UserManagementModal({ onClose, facilities, client }) {
   const assignedFacilities = users.map(u => u.facility_name).filter(Boolean);
   const availableFacilities = facilities.filter(f => !assignedFacilities.includes(f));
 
+  // --- DELETE LOGIC ---
   const initiateDelete = (user) => { setUserToDelete(user); };
-
   const confirmDelete = async () => {
     if (!userToDelete) return;
     setIsDeletingUser(true);
@@ -59,6 +64,32 @@ export default function UserManagementModal({ onClose, facilities, client }) {
     setUserToDelete(null);
   };
 
+  // --- INSTANT PASSWORD RESET LOGIC ---
+  const initiateReset = (user) => {
+    const baseName = user.facility_name ? user.facility_name.replace(/\s+/g, '') : user.role;
+    const tempPassword = `${baseName}@1234`;
+    setUserToReset({ ...user, tempPassword });
+  };
+
+  const confirmResetPassword = async () => {
+    if (!userToReset) return;
+    setIsResettingPassword(true);
+    try {
+      const { error } = await effectiveClient.rpc('admin_reset_user_password', { 
+          target_user_id: userToReset.id, 
+          new_password: userToReset.tempPassword 
+      });
+      if (error) throw error;
+      
+      navigator.clipboard.writeText(userToReset.tempPassword);
+      toast.success(`Password instantly reset to ${userToReset.tempPassword} and copied to clipboard!`);
+    } catch(err) { 
+      toast.error("Error resetting password: " + err.message); 
+    }
+    setIsResettingPassword(false);
+    setUserToReset(null);
+  };
+
   // Pagination Logic
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
@@ -66,9 +97,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
   const totalPages = Math.ceil(users.length / usersPerPage) || 1;
 
   const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
+    if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
   };
 
   const getRoleBadge = (role) => {
@@ -110,10 +139,44 @@ export default function UserManagementModal({ onClose, facilities, client }) {
       </ModalPortal>
       )}
 
-      {/* Main Modal Container (Matches Audit Logs Style) */}
+      {/* Password Reset Confirmation Sub-Modal */}
+      {userToReset && (
+        <ModalPortal>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
+                 <div className="flex flex-col items-center text-center">
+                    <div className="bg-amber-50 p-4 rounded-full mb-5 text-amber-600 shadow-inner">
+                        <Key size={32} strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Instant Password Reset</h3>
+                    <p className="text-sm text-slate-500 mt-2 mb-4 leading-relaxed">
+                        Are you sure you want to instantly reset the password for <strong className="text-slate-900">{userToReset.full_name || userToReset.email}</strong>?
+                    </p>
+                    
+                    <div className="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg mb-6 flex flex-col items-center">
+                        <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1">New Temporary Password</span>
+                        <div className="text-lg font-black text-slate-800 tracking-wide">{userToReset.tempPassword}</div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 w-full">
+                        <button onClick={() => setUserToReset(null)} disabled={isResettingPassword} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
+                            Cancel
+                        </button>
+                        <button onClick={confirmResetPassword} disabled={isResettingPassword} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-900 text-yellow-400 rounded-xl text-sm font-bold shadow-sm active:scale-95 transition-all flex justify-center items-center gap-2 order-1 sm:order-2">
+                            {isResettingPassword ? <Loader2 size={16} className="animate-spin"/> : <Copy size={16}/>} 
+                            Reset & Copy
+                        </button>
+                    </div>
+                 </div>
+            </div>
+        </div>
+      </ModalPortal>
+      )}
+
+      {/* Main Modal Container */}
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden relative border border-slate-200 animate-in zoom-in-95 duration-200">
         
-        {/* Dark Header - Compact Version */}
+        {/* Dark Header */}
         <div className="bg-slate-900 p-4 sm:p-5 border-b border-slate-800 shrink-0 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-slate-800 p-2 rounded-lg text-yellow-400 shadow-inner border border-slate-700">
@@ -173,7 +236,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 text-center w-28">Role</th>
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Full Name & Designation</th>
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Contact Info</th>
-                                    <th className="py-2.5 px-3 sm:px-4 text-center w-24">Actions</th>
+                                    <th className="py-2.5 px-3 sm:px-4 text-center w-32">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -197,6 +260,18 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                                         </td>
                                         <td className="py-2.5 px-3 sm:px-4 text-center align-middle">
                                             <div className="flex justify-center gap-1.5">
+                                                
+                                                {/* INSTANT RESET PASSWORD (SYSADMIN ONLY) */}
+                                                {currentUser?.role === 'SYSADMIN' && u.id !== currentUser?.id && (
+                                                    <button 
+                                                        onClick={() => initiateReset(u)} 
+                                                        className="p-1.5 bg-amber-50 border border-amber-200 text-amber-600 rounded hover:bg-amber-100 hover:text-amber-800 hover:border-amber-300 transition-all shadow-sm active:scale-95"
+                                                        title="Instant Password Reset"
+                                                    >
+                                                        <Key size={14} strokeWidth={2.5}/>
+                                                    </button>
+                                                )}
+
                                                 <button 
                                                     onClick={() => setEditingUserId(u.id)} 
                                                     className="p-1.5 bg-white border border-slate-200 text-slate-500 rounded hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm active:scale-95"
@@ -204,6 +279,8 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                                                 >
                                                     <Edit size={14} strokeWidth={2.5}/>
                                                 </button>
+                                                
+                                                {/* DELETE (SYSADMIN ONLY) */}
                                                 {currentUser?.role === 'SYSADMIN' && u.id !== currentUser?.id && (
                                                     <button 
                                                         onClick={() => initiateDelete(u)} 
@@ -223,25 +300,17 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                 </div>
             )
           ) : (
-            <div className="w-full max-w-2xl mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="w-full max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
-                  <div className="mb-6 text-center">
-                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                          <Users className="text-slate-600" size={24} />
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-900">Register New User</h3>
-                      <p className="text-xs text-slate-500 mt-1">Create a new account and assign appropriate permissions.</p>
-                  </div>
                   <RegisterUserForm facilities={availableFacilities} client={effectiveClient} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
               </div>
             </div>
           )}
         </div>
 
-        {/* Pagination Footer (Only visible on User Directory tab) */}
+        {/* Pagination Footer */}
         {!loading && activeTab === 'list' && users.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between px-6 sm:px-8 py-3 border-t border-slate-200 bg-white shrink-0 gap-4">
-            
             <div className="flex items-center gap-2 text-[10px] sm:text-xs font-medium text-slate-500">
               <span>Show</span>
               <select 
@@ -255,7 +324,6 @@ export default function UserManagementModal({ onClose, facilities, client }) {
               </select>
               <span>users per page</span>
             </div>
-
             <div className="flex items-center gap-4 text-[10px] sm:text-xs font-medium text-slate-500">
               <span>Page <strong className="text-slate-900">{currentPage}</strong> of <strong className="text-slate-900">{totalPages}</strong></span>
               <div className="flex items-center gap-1.5">
@@ -275,10 +343,8 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                 </button>
               </div>
             </div>
-            
           </div>
         )}
-
       </div>
     </div>
   );
