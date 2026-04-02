@@ -1,30 +1,44 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   PieChart, Pie, Cell, 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList 
+  BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList,
+  Line, ComposedChart 
 } from 'recharts';
-import { Loader2, Download, ShieldAlert, PieChart as PieChartIcon, Archive } from 'lucide-react';
+import { 
+  Loader2, Download, ShieldAlert, PieChart as PieChartIcon, 
+  TrendingUp, TrendingDown, Info, Calendar, User, Activity, BrainCircuit, AlertTriangle, CheckCircle2, Zap, ActivitySquare
+} from 'lucide-react';
 import { toPng } from 'html-to-image'; 
 import { useApp } from '../../context/AppContext';
 import { useReportData } from '../../hooks/useReportData';
-import { QUARTERS, MUNICIPALITIES } from '../../lib/constants';
+import { supabase } from '../../lib/supabase';
+import { QUARTERS, MONTHS, MUNICIPALITIES } from '../../lib/constants';
 
+// --- STYLING CONSTANTS ---
 const COLORS = {
-  male: '#3B82F6', female: '#F43F5E', // Bright Blue, Bright Rose
-  ageLt15: '#10B981', ageGt15: '#F59E0B', // Emerald, Amber
-  cat1: '#14B8A6', cat2: '#F59E0B', cat3: '#EF4444', // Teal, Amber, Red
-  dog: '#6366F1', cat: '#8B5CF6', other: '#64748B' // Indigo, Violet, Slate
+  male: '#3B82F6', female: '#F43F5E',
+  ageLt15: '#10B981', ageGt15: '#F59E0B',
+  cat1: '#14B8A6', cat2: '#F59E0B', cat3: '#EF4444',
+  dog: '#6366F1', cat: '#8B5CF6', other: '#64748B'
 };
 
-const DYNAMIC_COLORS = ['#14B8A6', '#F43F5E', '#F97316', '#06B6D4', '#8B5CF6', '#EAB308'];
+const TOOLTIP_STYLE = {
+  borderRadius: '16px',
+  border: '1px solid #E2E8F0',
+  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+  padding: '12px 16px',
+  fontWeight: '700',
+  color: '#0F172A',
+  backgroundColor: 'rgba(255, 255, 255, 0.98)'
+};
 
+// --- HELPER COMPONENTS & FUNCTIONS ---
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
-  if (value === 0) return null; 
+  if (!value || value === 0) return null; 
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
   return (
     <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight="900" style={{ textShadow: '0px 2px 4px rgba(0,0,0,0.4)' }}>
       {value}
@@ -35,11 +49,9 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 const renderDynamicBarLabel = (props) => {
   const { x, y, width, height, value } = props;
   if (!value || value === 0) return null;
-
   const isShortBar = height < 24;
   const textY = isShortBar ? y - 10 : y + 14;
   const textColor = isShortBar ? '#475569' : '#ffffff';
-
   return (
     <text x={x + width / 2} y={textY} fill={textColor} textAnchor="middle" fontSize={12} fontWeight="800">
       {value}
@@ -47,24 +59,39 @@ const renderDynamicBarLabel = (props) => {
   );
 };
 
-const TOOLTIP_STYLE = {
-  borderRadius: '16px',
-  border: '1px solid #E2E8F0',
-  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
-  padding: '12px 16px',
-  fontWeight: '700',
-  color: '#0F172A',
-  backgroundColor: 'rgba(255, 255, 255, 0.98)'
-};
-
 export default function AnalyticsOverview({ 
   periodType, setPeriodType, year, setYear, month, setMonth, 
   quarter, setQuarter, availableYears, availableMonths 
 }) {
   const { user, facilities, facilityBarangays, facilityDetails } = useApp();
-  
-  // FIX: Include SYSADMIN in the admin check
   const isAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
+
+  // --- DYNAMIC LOCATION TITLE ---
+  const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
+  const locationTitle = isAdmin 
+    ? "Cases by Municipality" 
+    : (facilityType === 'Hospital' || facilityType === 'Clinic' ? "Cases by Municipality" : "Cases by Barangay");
+
+  // --- TAB STATE ---
+  const [activeSubTab, setActiveSubTab] = useState('overview');
+
+  // --- ANALYTICS STATE ---
+  const [historicalData, setHistoricalData] = useState([]);
+  const [full24MonthData, setFull24MonthData] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [smartAlerts, setSmartAlerts] = useState([]);
+  const [complianceRate, setComplianceRate] = useState(0);
+  const [riskLevel, setRiskLevel] = useState('LOW');
+  const [projectedNextMonth, setProjectedNextMonth] = useState(null);
+
+  const currentDate = useMemo(() => new Date(), []);
+  const currentRealYear = currentDate.getFullYear();
+  const currentQuarterIndex = Math.floor(currentDate.getMonth() / 3);
+  
+  const availableQuarters = useMemo(() => {
+    if (year === currentRealYear) return QUARTERS.slice(0, currentQuarterIndex + 1);
+    return QUARTERS;
+  }, [year, currentRealYear, currentQuarterIndex]);
 
   const { data, grandTotals, loading, reportStatus } = useReportData({
     user, facilities, facilityBarangays, year, month, quarter, periodType,
@@ -73,393 +100,551 @@ export default function AnalyticsOverview({
     selectedFacility: null
   });
 
-  const dynamicDateText = useMemo(() => {
-    if (periodType === 'Monthly') return `for ${month} ${year}`;
-    if (periodType === 'Quarterly') return `for the ${quarter} ${year}`;
-    return `for the Year ${year}`;
-  }, [periodType, month, quarter, year]);
+  const currentTotal = (grandTotals?.cat1 || 0) + (grandTotals?.cat2 || 0) + (grandTotals?.cat3 || 0);
 
-  const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
-  
-  const title = isAdmin ? "Provincial Analytics" : "Facility Analytics";
-  
-  const locationTitle = isAdmin 
-    ? `Top Municipalities by Case Volume` 
-    : (facilityType === 'Hospital' || facilityType === 'Clinic' ? `Top Municipalities by Case Volume` : `Top Barangays by Case Volume`);
+  // ==========================================
+  // EFFECT: FETCH COMPARATIVE, SMART DATA, & FORECAST
+  // ==========================================
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setLoadingHistory(true);
+      try {
+        const query = supabase.from('abtc_reports').select('*').eq('status', 'Approved');
+        if (!isAdmin) query.eq('facility', user?.facility);
+        const { data: reports, error } = await query;
 
-  const isDataApproved = useMemo(() => {
-    if (isAdmin) return true;
-    if (periodType === 'Monthly') return reportStatus === 'Approved';
-    return true; 
-  }, [isAdmin, periodType, reportStatus]);
+        if (error) throw error;
 
-  const currentDate = useMemo(() => new Date(), []);
-  const currentRealYear = currentDate.getFullYear();
-  const currentQuarterIndex = Math.floor(currentDate.getMonth() / 3);
+        if (reports) {
+          // --- 1. COMPLIANCE RATE CALCULATION ---
+          const targetFacilitiesCount = isAdmin ? facilities.length : 1;
+          let expectedReports = 0; let actualReports = 0;
 
-  const availableQuarters = useMemo(() => {
-    if (year === currentRealYear) {
-      return QUARTERS.slice(0, currentQuarterIndex + 1);
-    }
-    return QUARTERS;
-  }, [year, currentRealYear, currentQuarterIndex]);
+          if (periodType === 'Monthly') {
+              expectedReports = targetFacilitiesCount;
+              actualReports = new Set(reports.filter(r => Number(r.year) === year && r.month === month).map(r => r.facility)).size;
+          } else if (periodType === 'Quarterly') {
+              const qIdx = QUARTERS.indexOf(quarter);
+              const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
+              const passedMonthsInQuarter = targetMonths.filter(m => (year < currentRealYear) || MONTHS.indexOf(m) <= currentDate.getMonth());
+              expectedReports = targetFacilitiesCount * passedMonthsInQuarter.length;
+              actualReports = reports.filter(r => Number(r.year) === year && passedMonthsInQuarter.includes(r.month)).length;
+          } else {
+              const passedMonths = year === currentRealYear ? currentDate.getMonth() + 1 : 12;
+              expectedReports = targetFacilitiesCount * passedMonths;
+              actualReports = reports.filter(r => Number(r.year) === year).length;
+          }
 
-  const handleDownload = async (chartId, fileName) => {
-    const element = document.getElementById(chartId);
-    if (!element) return;
-    try {
-      const filter = (node) => node.tagName !== 'BUTTON';
-      const dataUrl = await toPng(element, { pixelRatio: 2, backgroundColor: '#ffffff', filter: filter });
-      const link = document.createElement('a');
-      link.download = fileName;
-      link.href = dataUrl;
-      link.click();
-    } catch (error) {
-      console.error("Error generating chart image:", error);
-    }
-  };
+          let calcRate = expectedReports > 0 ? Math.round((actualReports / expectedReports) * 100) : 0;
+          setComplianceRate(Math.min(calcRate, 100));
 
-  const demographicsSexData = [
-    { name: 'Male', value: grandTotals?.male || 0 },
-    { name: 'Female', value: grandTotals?.female || 0 }
-  ];
-
-  const demographicsAgeData = [
-    { name: '< 15 Yrs', value: grandTotals?.ageLt15 || 0 },
-    { name: '> 15 Yrs', value: grandTotals?.ageGt15 || 0 }
-  ];
-
-  const categoryData = [
-    { name: 'Category I', value: grandTotals?.cat1 || 0, fill: COLORS.cat1 },
-    { name: 'Category II', value: grandTotals?.cat2 || 0, fill: COLORS.cat2 },
-    { name: 'Category III', value: grandTotals?.cat3 || 0, fill: COLORS.cat3 }
-  ];
-
-  const animalData = useMemo(() => {
-    if (!grandTotals || !data || !isDataApproved) return [];
-    
-    const chartData = [
-      { name: 'Dog', value: grandTotals.dog || 0, fill: COLORS.dog },
-      { name: 'Cat', value: grandTotals.cat || 0, fill: COLORS.cat }
-    ];
-
-    const extraAnimals = {};
-    let unspecifiedOthers = 0;
-
-    Object.entries(data).forEach(([key, row]) => {
-      if (key === "Others:") return;
-      if (row.othersCount > 0) {
-        const specText = row.othersSpec?.trim();
-        if (specText) {
-          const parts = specText.split(/[,/]+|\sand\s/i);
-          let parsedList = [];
-          let explicitSum = 0;
-
-          parts.forEach(part => {
-            const numMatch = part.match(/\d+/);
-            const count = numMatch ? parseInt(numMatch[0], 10) : 0;
-            const textOnly = part.replace(/[^a-zA-Z\s]/g, '').trim();
-
-            if (textOnly) {
-              let cleanName = textOnly.charAt(0).toUpperCase() + textOnly.slice(1).toLowerCase();
-              if (cleanName.endsWith('s') && cleanName !== 'Walrus') {
-                  cleanName = cleanName.slice(0, -1);
-              }
-              parsedList.push({ name: cleanName, count });
-              explicitSum += count;
-            }
+          // --- 2. BUILD CONTINUOUS 24-MONTH ARRAY ---
+          const allMonthsRaw = [];
+          [year - 1, year].forEach(y => {
+             MONTHS.forEach((m) => {
+                const periodReports = reports.filter(r => Number(r.year) === y && r.month === m);
+                const hasData = periodReports.length > 0;
+                let total = null; 
+                
+                if (hasData) {
+                    // INDESTRUCTIBLE PARSER: Directly reads columns to guarantee 100% mathematical accuracy (No JSON reading needed!)
+                    total = periodReports.reduce((sum, r) => {
+                        let rowSum = (Number(r.cat1) || 0) + (Number(r.cat2) || 0) + (Number(r.cat3) || 0);
+                        if (rowSum === 0) rowSum = Number(r.total_patients) || 0;
+                        if (rowSum === 0) rowSum = (Number(r.male) || 0) + (Number(r.female) || 0);
+                        return sum + rowSum;
+                    }, 0);
+                }
+                allMonthsRaw.push({ year: y, month: m, raw: total, display: `${m.substring(0,3)} ${y}` });
+             });
           });
 
-          if (parsedList.length > 0) {
-            if (explicitSum > 0) {
-              parsedList.forEach(item => {
-                let assign = item.count;
-                if (assign === 0) { assign = 1; explicitSum += 1; }
-                extraAnimals[item.name] = (extraAnimals[item.name] || 0) + assign;
-              });
-              if (row.othersCount > explicitSum) { unspecifiedOthers += (row.othersCount - explicitSum); }
-            } else {
-              const baseCount = Math.floor(row.othersCount / parsedList.length);
-              let remainder = row.othersCount % parsedList.length;
-              parsedList.forEach(item => {
-                let assign = baseCount;
-                if (remainder > 0) { assign += 1; remainder -= 1; }
-                if (assign > 0) { extraAnimals[item.name] = (extraAnimals[item.name] || 0) + assign; }
-              });
-            }
-          } else { unspecifiedOthers += row.othersCount; }
-        } else { unspecifiedOthers += row.othersCount; }
-      }
-    });
+          // --- 3. ADAPTIVE SMA AND WMA CALCULATIONS ---
+          const processed24Months = allMonthsRaw.map((item, idx, arr) => {
+              const getAdaptiveWindow = (size) => {
+                  const startIdx = Math.max(0, idx - size + 1);
+                  const window = arr.slice(startIdx, idx + 1).map(x => x.raw).filter(x => x !== null);
+                  return window.length > 0 ? window : null;
+              };
 
-    let colorIndex = 0;
-    Object.entries(extraAnimals).forEach(([name, value]) => {
-      chartData.push({ name, value, fill: DYNAMIC_COLORS[colorIndex % DYNAMIC_COLORS.length] });
-      colorIndex++;
-    });
+              const win3 = getAdaptiveWindow(3);
+              const sma3 = win3 ? Math.round(win3.reduce((a, b) => a + b, 0) / win3.length) : null;
+              
+              const win6 = getAdaptiveWindow(6);
+              const sma6 = win6 ? Math.round(win6.reduce((a, b) => a + b, 0) / win6.length) : null;
 
-    if (unspecifiedOthers > 0) chartData.push({ name: 'Unspecified', value: unspecifiedOthers, fill: COLORS.other });
-    return chartData.filter(item => item.value > 0);
-  }, [data, grandTotals, isDataApproved]);
+              const win12 = getAdaptiveWindow(12);
+              const sma12 = win12 ? Math.round(win12.reduce((a, b) => a + b, 0) / win12.length) : null;
 
+              let wma3 = null;
+              if (win3) {
+                  if (win3.length === 3) wma3 = Math.round(((win3[0] * 1) + (win3[1] * 2) + (win3[2] * 3)) / 6);
+                  else if (win3.length === 2) wma3 = Math.round(((win3[0] * 1) + (win3[1] * 2)) / 3);
+                  else if (win3.length === 1) wma3 = win3[0];
+              }
+
+              return { ...item, sma3, wma3, sma6, sma12, forecast: null }; 
+          });
+
+          // --- 4. TRUE FORECASTING LOGIC ---
+          const lastValidIdx = processed24Months.findLastIndex(d => d.raw !== null);
+          let predictedVal = null;
+          
+          if (lastValidIdx !== -1) {
+              const lastValid = processed24Months[lastValidIdx];
+              predictedVal = lastValid.wma3 || lastValid.sma3 || lastValid.raw;
+              setProjectedNextMonth(predictedVal);
+
+              processed24Months[lastValidIdx].forecast = lastValid.raw;
+
+              if (lastValidIdx + 1 < processed24Months.length) {
+                  processed24Months[lastValidIdx + 1].forecast = predictedVal;
+              } else {
+                  processed24Months.push({
+                      year: year + 1, month: 'January', display: `Jan ${year + 1}`,
+                      raw: null, forecast: predictedVal
+                  });
+              }
+          }
+          setFull24MonthData(processed24Months);
+
+          // --- 5. FORMAT STRICTLY FOR OVERVIEW TAB ---
+          const trendMatrix = MONTHS.map((m) => {
+             const curIdx = processed24Months.findIndex(x => x.month === m && x.year === year);
+             const curMonthData = processed24Months[curIdx];
+             const prevMonthData = processed24Months[curIdx - 12];
+             return { month: m.substring(0, 3), current: curMonthData?.raw, previous: prevMonthData?.raw };
+          });
+          setHistoricalData(trendMatrix);
+
+          // --- 6. SMART ALERTS & ANOMALY DETECTION (%) ---
+          const validData = processed24Months.filter(d => d.raw !== null);
+          const latest = validData[validData.length - 1];
+          const previous = validData[validData.length - 2];
+          
+          let alerts = [];
+          let currentRisk = 'LOW';
+
+          if (latest && latest.wma3 && latest.sma3) {
+              let diffPercent = 0;
+              if (latest.sma3 > 0) diffPercent = ((latest.wma3 - latest.sma3) / latest.sma3) * 100;
+
+              if (latest.raw && latest.sma6 && latest.raw > (latest.sma6 * 1.5)) {
+                  alerts.push({ type: 'critical', title: 'Outbreak Anomaly Detected', desc: `Current case volume is over 50% higher than the 6-month baseline. Immediate review recommended.` });
+                  currentRisk = 'HIGH';
+              }
+
+              if (diffPercent > 10) {
+                  alerts.push({ type: 'warning', title: 'Rising Trend Signal', desc: `Short-term projected cases are accelerating (${diffPercent.toFixed(1)}% above average).` });
+                  if (currentRisk !== 'HIGH') currentRisk = 'MODERATE';
+              } else if (diffPercent < -10) {
+                  alerts.push({ type: 'success', title: 'Decreasing Trend', desc: `Cases are dropping (${Math.abs(diffPercent).toFixed(1)}% below average).` });
+              } else {
+                  alerts.push({ type: 'info', title: 'Stable Volume', desc: 'Short-term and mid-term averages are closely aligned (< 10% variance).' });
+              }
+
+              if (diffPercent > 0 && previous?.sma6 && latest.sma6 > previous.sma6 && currentRisk !== 'HIGH') {
+                  alerts.push({ type: 'critical', title: 'Sustained Risk', desc: 'Both fast-signal (WMA) and mid-term (6M) trends are actively rising.' });
+                  currentRisk = 'HIGH';
+              }
+          }
+          setSmartAlerts(alerts);
+          setRiskLevel(currentRisk);
+        }
+      } catch (err) { console.error("Analytics Error:", err); }
+      finally { setLoadingHistory(false); }
+    };
+    fetchHistory();
+  }, [year, month, quarter, periodType, facilities.length, user, isAdmin, currentDate, currentRealYear]);
+
+  // --- ADAPTIVE DELTA (YoY fallback to MoM/QoQ) ---
+  const comparisonData = useMemo(() => {
+    let prevTotal = 0;
+    let label = `vs Last ${periodType === 'Monthly' ? 'Month' : 'Year'}`;
+    let isLimited = false;
+
+    if (historicalData.length === 0) return { delta: 0, label, isLimited: true };
+
+    if (periodType === 'Monthly') {
+        const mIdx = MONTHS.indexOf(month);
+        const currentData = historicalData[mIdx];
+        if (currentData?.previous !== null && currentData?.previous > 0) {
+            prevTotal = currentData.previous; label = `vs ${month} ${year - 1}`;
+        } else if (mIdx > 0 && historicalData[mIdx - 1]?.current !== null) {
+            prevTotal = historicalData[mIdx - 1].current; label = `vs Last Month`; isLimited = true;
+        }
+    } else if (periodType === 'Quarterly') {
+        const qIdx = QUARTERS.indexOf(quarter);
+        const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]].map(m => m.substring(0,3));
+        const prevQTotal = historicalData.filter(d => targetMonths.includes(d.month)).reduce((sum, d) => sum + (d.previous || 0), 0);
+        if (prevQTotal > 0) { prevTotal = prevQTotal; label = `vs ${quarter} ${year - 1}`; } 
+        else { isLimited = true; label = "Insufficient History"; }
+    } else {
+        const prevYearTotal = historicalData.reduce((sum, d) => sum + (d.previous || 0), 0);
+        if (prevYearTotal > 0) { prevTotal = prevYearTotal; label = `vs ${year - 1}`; } 
+        else { isLimited = true; label = "Insufficient History"; }
+    }
+
+    let delta = 0;
+    if (prevTotal > 0) delta = ((currentTotal - prevTotal) / prevTotal) * 100;
+    else if (currentTotal > 0 && prevTotal === 0 && !isLimited) delta = 100;
+
+    return { delta, label, isLimited };
+  }, [historicalData, periodType, month, quarter, year, currentTotal]);
+
+  // --- EXISTING CHART DATA PREP (Wrapped in useMemo) ---
+  const demographicsSexData = useMemo(() => [{ name: 'Male', value: grandTotals?.male || 0 }, { name: 'Female', value: grandTotals?.female || 0 }], [grandTotals]);
+  const demographicsAgeData = useMemo(() => [{ name: '< 15 Yrs', value: grandTotals?.ageLt15 || 0 }, { name: '> 15 Yrs', value: grandTotals?.ageGt15 || 0 }], [grandTotals]);
+  const categoryData = useMemo(() => [
+    { name: 'Cat I', value: grandTotals?.cat1 || 0, fill: COLORS.cat1 },
+    { name: 'Cat II', value: grandTotals?.cat2 || 0, fill: COLORS.cat2 },
+    { name: 'Cat III', value: grandTotals?.cat3 || 0, fill: COLORS.cat3 }
+  ], [grandTotals]);
+
+  // --- RHU BARANGAY NAME CLEANUP ---
   const locationData = useMemo(() => {
-    if (!data || !isDataApproved) return [];
+    if (!data) return [];
     
-    const currentBarangays = facilityBarangays[user?.facility] || [];
-    const isHospital = MUNICIPALITIES.every(m => currentBarangays.includes(m));
-    const hostMunicipality = !isHospital && user?.facility !== "AMDC" && user?.facility !== "APH"
-        ? MUNICIPALITIES.find(m => user?.facility?.includes(m)) : null;
+    // Find the Host Municipality for the logged-in user
+    const hostMuni = MUNICIPALITIES.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
 
     return Object.entries(data)
-      .filter(([locationName, row]) => {
-          if (locationName === 'Others:') return false;
-          if (!isAdmin && hostMunicipality && locationName === hostMunicipality && currentBarangays.length > 0) return false; 
-          const tp = Number(row.totalPatients) || 0;
-          const catSum = (Number(row.cat1) || 0) + (Number(row.cat2) || 0) + (Number(row.cat3) || 0);
-          const sexSum = (Number(row.male) || 0) + (Number(row.female) || 0);
-          return Math.max(tp, catSum, sexSum) > 0;
+      .filter(([name, row]) => {
+          const lower = name.toLowerCase().trim();
+          // Filter out aggregate rows
+          if (lower.includes('total') || lower.includes('others:')) return false;
+          return Number(row.totalPatients) > 0;
       })
-      .map(([locationName, row]) => {
-          const tp = Number(row.totalPatients) || 0;
-          const catSum = (Number(row.cat1) || 0) + (Number(row.cat2) || 0) + (Number(row.cat3) || 0);
-          const sexSum = (Number(row.male) || 0) + (Number(row.female) || 0);
-          return { name: locationName, value: Math.max(tp, catSum, sexSum) };
+      .map(([name, row]) => {
+          let cleanName = name.trim();
+          
+          // SMART CLEANUP: Only strip the HOST MUNICIPALITY from the label!
+          if (!isAdmin && facilityType !== 'Hospital' && facilityType !== 'Clinic' && hostMuni) {
+              const regex = new RegExp(`\\b${hostMuni}\\b`, 'ig');
+              cleanName = cleanName.replace(regex, '').replace(/^[-\s,]+|[-\s,]+$/g, '').trim();
+          }
+          return { name: cleanName, value: Number(row.totalPatients) };
       })
-      .sort((a, b) => b.value - a.value); 
-  }, [data, isDataApproved, facilityBarangays, user, isAdmin]);
+      // If stripping the Host Municipality leaves the name blank (e.g. "Pidigan" -> ""), completely remove that bar!
+      .filter(item => item.name !== '' && item.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [data, isAdmin, facilityType, user]);
 
-  const locationTotal = useMemo(() => locationData.reduce((sum, item) => sum + item.value, 0), [locationData]);
-  const animalTotal = useMemo(() => animalData.reduce((sum, item) => sum + item.value, 0), [animalData]);
-  const categoryTotal = useMemo(() => categoryData.reduce((sum, item) => sum + item.value, 0), [categoryData]);
-  const sexTotal = useMemo(() => demographicsSexData.reduce((sum, item) => sum + item.value, 0), [demographicsSexData]);
-  const ageTotal = useMemo(() => demographicsAgeData.reduce((sum, item) => sum + item.value, 0), [demographicsAgeData]);
+  const handleDownload = async (id, name) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const url = await toPng(el, { pixelRatio: 2, backgroundColor: '#ffffff', filter: (node) => node.tagName !== 'BUTTON' });
+    const link = document.createElement('a'); link.download = name; link.href = url; link.click();
+  };
+
+  const hasAnyData = full24MonthData.some(d => d.year === year && d.raw !== null);
+  const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : hasAnyData);
 
   return (
-    <div className="max-w-7xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500 relative pb-24 sm:pb-12 w-full px-2 sm:px-4">
+    <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500 pb-12 w-full px-2 sm:px-4">
       
-      {/* --- HEADER --- */}
-      <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print">
+      {/* --- DASHBOARD HEADER --- */}
+      <div className="bg-slate-900 rounded-2xl p-6 mb-4 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-6 border border-slate-800 relative overflow-hidden">
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
-          
-          <div className="flex items-start gap-3 sm:gap-4 relative z-10 w-full xl:w-auto">
-              <div className="hidden sm:flex bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-inner border border-slate-700 items-center justify-center shrink-0">
-                  <PieChartIcon size={28} className="text-yellow-400" strokeWidth={2.5}/>
+          <div className="flex items-start gap-4 relative z-10">
+              <div className="bg-slate-800 p-4 rounded-2xl shadow-inner border border-slate-700 text-yellow-400">
+                  <PieChartIcon size={28} strokeWidth={2.5}/>
               </div>
-              <div className="flex-1 min-w-0">
-                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex flex-wrap items-center gap-2 sm:gap-3 leading-tight break-words">
-                      <span>{title}</span>
-                  </h2>
-                  <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-slate-400">
-                      <span className="bg-slate-800 px-2.5 py-1 rounded-md text-slate-300 border border-slate-700">{periodType}</span> 
-                      <span className="hidden sm:inline">&bull;</span> 
-                      <span>Visualizing approved data {dynamicDateText}</span>
-                  </div>
+              <div>
+                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">{isAdmin ? "Provincial" : "Facility"} Analytics</h2>
+                  <p className="text-sm font-medium text-slate-400 mt-1">Review performance and forecast future volume</p>
               </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 relative z-10 w-full xl:w-auto">
-              <div className="bg-slate-800/80 p-1.5 rounded-xl border border-slate-700 flex flex-wrap items-center justify-between sm:justify-start gap-1 shadow-inner w-full sm:w-auto">
-                  <select value={periodType} onChange={(e) => setPeriodType(e.target.value)} className="flex-1 sm:flex-none bg-slate-700 text-xs sm:text-sm font-semibold text-white py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer rounded-lg border border-slate-600 shadow-sm focus:ring-2 focus:ring-yellow-400/20 transition-all">
-                      <option value="Monthly">Monthly</option>
-                      <option value="Quarterly">Quarterly</option>
-                      <option value="Annual">Annual</option>
-                  </select>
-                  <div className="w-px h-5 bg-slate-600 mx-1 hidden sm:block"></div>
-                  
-                  {periodType === 'Monthly' && (
-                      <select value={month} onChange={(e) => setMonth(e.target.value)} disabled={loading} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-300 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-700 hover:text-white rounded-lg transition-all disabled:opacity-50">
-                          {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
+          <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-3 z-10 w-full xl:w-auto">
+              {/* SUB-TABS */}
+              <div className="flex bg-slate-800 p-1 rounded-lg border border-slate-700 w-full xl:w-auto shrink-0">
+                  <button onClick={() => setActiveSubTab('overview')} className={`flex-1 xl:flex-none px-4 py-2 rounded-md text-xs font-bold transition-all ${activeSubTab === 'overview' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+                      Overview
+                  </button>
+                  <button onClick={() => setActiveSubTab('predictive')} className={`flex-1 xl:flex-none px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'predictive' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+                      <BrainCircuit size={14}/> Predictive
+                  </button>
+              </div>
+
+              {/* DROPDOWNS */}
+              <div className="flex flex-wrap items-center bg-slate-800/80 p-1.5 rounded-xl border border-slate-700 shadow-inner w-full xl:w-auto">
+                  {activeSubTab === 'overview' && (
+                      <>
+                          <select value={periodType} onChange={(e) => setPeriodType(e.target.value)} className="flex-1 xl:flex-none bg-slate-700 text-xs font-bold text-white py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-600">
+                              <option value="Monthly" className="bg-slate-800 text-white">Monthly</option>
+                              <option value="Quarterly" className="bg-slate-800 text-white">Quarterly</option>
+                              <option value="Annual" className="bg-slate-800 text-white">Annual</option>
+                          </select>
+                          
+                          {periodType === 'Monthly' && (
+                              <>
+                                  <div className="w-px h-5 bg-slate-600 mx-1 hidden sm:block"></div>
+                                  <select value={month} onChange={(e) => setMonth(e.target.value)} className="flex-1 xl:flex-none bg-transparent text-xs font-bold text-slate-300 py-2 px-2 outline-none cursor-pointer hover:text-white">
+                                      {availableMonths.map(m => <option key={m} value={m} className="bg-slate-800 text-white">{m}</option>)}
+                                  </select>
+                              </>
+                          )}
+
+                          {periodType === 'Quarterly' && (
+                              <>
+                                  <div className="w-px h-5 bg-slate-600 mx-1 hidden sm:block"></div>
+                                  <select value={quarter} onChange={(e) => setQuarter(e.target.value)} className="flex-1 xl:flex-none bg-transparent text-xs font-bold text-slate-300 py-2 px-2 outline-none cursor-pointer hover:text-white">
+                                      {availableQuarters.map(q => <option key={q} value={q} className="bg-slate-800 text-white">{q}</option>)}
+                                  </select>
+                              </>
+                          )}
+                          <div className="w-px h-5 bg-slate-600 mx-1 hidden sm:block"></div>
+                      </>
                   )}
-                  
-                  {periodType === 'Quarterly' && (
-                      <select value={quarter} onChange={(e) => setQuarter(e.target.value)} disabled={loading} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-300 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-700 hover:text-white rounded-lg transition-all disabled:opacity-50">
-                          {availableQuarters.map(q => <option key={q} value={q}>{q}</option>)}
-                      </select>
-                  )}
-                  
-                  <select value={year} onChange={(e) => setYear(Number(e.target.value))} disabled={loading} className="flex-1 sm:flex-none bg-transparent text-xs sm:text-sm font-medium text-slate-300 py-3 sm:py-1.5 px-2 sm:px-3 outline-none cursor-pointer hover:bg-slate-700 hover:text-white rounded-lg transition-all disabled:opacity-50">
-                      {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                  {/* YEAR DROPDOWN ALWAYS VISIBLE */}
+                  <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={`${activeSubTab === 'predictive' ? 'bg-slate-700 rounded-lg px-4' : 'bg-transparent px-2'} flex-1 xl:flex-none text-xs font-bold text-white py-2 outline-none cursor-pointer hover:text-white`}>
+                      {availableYears.map(y => <option key={y} value={y} className="bg-slate-800 text-white">{y}</option>)}
                   </select>
               </div>
           </div>
       </div>
 
-      {loading ? (
+      {loading || loadingHistory ? (
         <div className="h-64 flex items-center justify-center bg-white rounded-2xl border border-slate-200 shadow-sm">
           <Loader2 className="animate-spin text-slate-400" size={32} />
         </div>
-      ) : !isDataApproved ? (
-        <div className="h-80 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 shadow-sm text-center p-6 animate-in fade-in duration-300">
-           <div className="bg-amber-50 p-5 rounded-full shadow-inner border border-amber-100 mb-5">
-               <ShieldAlert className="text-amber-500" size={40} strokeWidth={2.5} />
-           </div>
-           <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Data Pending Approval</h3>
-           <p className="text-sm font-medium text-slate-500 mt-2 max-w-md leading-relaxed">
-               Analytics <strong className="text-slate-800">{dynamicDateText}</strong> will remain locked until the Provincial Health Office approves your submitted report.
-           </p>
+      ) : !isDataApproved && activeSubTab === 'overview' ? (
+        <div className="h-80 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 text-center p-6">
+            <div className="bg-amber-50 p-5 rounded-full mb-5 text-amber-500"><ShieldAlert size={40} /></div>
+            <h3 className="text-xl font-black text-slate-900">Data Pending Approval</h3>
+            <p className="text-sm text-slate-500 mt-2 max-w-md">Analytics for this period are locked until the report is approved.</p>
+        </div>
+      ) : activeSubTab === 'overview' ? (
+        
+        // ==========================================
+        // TAB 1: CORE ANALYTICS OVERVIEW
+        // ==========================================
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          
+          {comparisonData.isLimited && (
+             <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-xl flex items-center gap-3 text-xs font-bold shadow-sm">
+                <Info size={16} className="shrink-0"/>
+                Comparison is based on limited historical data. Adapting to closest available previous period.
+             </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity size={12}/> Current Period Cases</p>
+                  <div className="flex items-end justify-between">
+                      <h3 className="text-3xl font-black text-slate-900">{currentTotal}</h3>
+                      <div className={`flex flex-col items-end`}>
+                          <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold ${comparisonData.delta >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                              {comparisonData.delta >= 0 ? <TrendingUp size={14}/> : <TrendingDown size={14}/>}
+                              {Math.abs(comparisonData.delta).toFixed(1)}%
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{comparisonData.label}</span>
+                      </div>
+                  </div>
+              </div>
+              
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar size={12}/> YTD Total</p>
+                  <div className="flex items-end justify-between">
+                      <h3 className="text-3xl font-black text-slate-900">
+                          {historicalData.reduce((sum, d) => sum + (d.current || 0), 0)}
+                      </h3>
+                      <div className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold">CASES IN {year}</div>
+                  </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><User size={12}/> Average Completion</p>
+                  <div className="flex items-end justify-between">
+                      <h3 className="text-3xl font-black text-slate-900">{complianceRate}%</h3>
+                      <div className="flex flex-col items-end">
+                          <div className={`${complianceRate >= 80 ? 'bg-emerald-50 text-emerald-600' : complianceRate >= 50 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'} px-2 py-1 rounded-lg text-[10px] font-bold`}>
+                              {complianceRate >= 80 ? 'OPTIMAL' : complianceRate >= 50 ? 'FAIR' : 'LOW'}
+                          </div>
+                          <span className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">APPROVED REPORTS</span>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Location Volume */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow flex flex-col" id="chart-location">
+                  <div className="flex justify-between items-start mb-6 shrink-0">
+                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">{locationTitle}</h3>
+                     <button onClick={() => handleDownload('chart-location', `Locations.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+                  </div>
+                  <div className="flex-1 w-full overflow-x-auto custom-scrollbar">
+                      <div style={{ minWidth: locationData.length > 10 ? `${locationData.length * 35}px` : '100%', height: '280px' }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                              <RechartsBarChart data={locationData} margin={{ top: 10, right: 10, left: -20, bottom: 85 }}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                                  <XAxis dataKey="name" angle={-90} textAnchor="end" dy={5} tick={{fontSize: 10, fill: '#475569'}} interval={0} />
+                                  <YAxis tick={{fontSize: 10}} />
+                                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                                  <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                                      <LabelList dataKey="value" content={renderDynamicBarLabel} />
+                                  </Bar>
+                              </RechartsBarChart>
+                          </ResponsiveContainer>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Exposure Category */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow" id="chart-cat">
+                  <div className="flex justify-between items-start mb-6">
+                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Exposure Category</h3>
+                     <button onClick={() => handleDownload('chart-cat', `Categories.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+                  </div>
+                  <div className="h-[280px]">
+                      <ResponsiveContainer>
+                          <RechartsBarChart data={categoryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                              <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 700}} />
+                              <YAxis tick={{fontSize: 10}} />
+                              <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                              <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={100}>
+                                  {categoryData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                                  <LabelList dataKey="value" content={renderDynamicBarLabel} />
+                              </Bar>
+                          </RechartsBarChart>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
+              
+              {/* Demographics */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow" id="chart-sex">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest text-center mb-4">Patient Sex</h3>
+                  <div className="h-56">
+                      <ResponsiveContainer>
+                          <PieChart>
+                              <Pie data={demographicsSexData} innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={renderCustomizedLabel} labelLine={false} isAnimationActive={false}>
+                                  <Cell fill={COLORS.male} /><Cell fill={COLORS.female} />
+                              </Pie>
+                              <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                              <Legend verticalAlign="bottom" />
+                          </PieChart>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow" id="chart-age">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest text-center mb-4">Patient Age</h3>
+                  <div className="h-56">
+                      <ResponsiveContainer>
+                          <RechartsBarChart layout="vertical" data={demographicsAgeData} margin={{ left: 20, right: 40 }}>
+                              <XAxis type="number" hide />
+                              <YAxis type="category" dataKey="name" tick={{fontSize: 11, fontWeight: 700}} axisLine={false} />
+                              <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                              <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={false}>
+                                  <Cell fill={COLORS.ageLt15} /><Cell fill={COLORS.ageGt15} />
+                                  <LabelList dataKey="value" position="right" style={{fontWeight: 'bold', fontSize: '12px'}} />
+                              </Bar>
+                          </RechartsBarChart>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 mb-6">
-          
-          {/* Geographical Chart */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 relative group hover:shadow-md transition-shadow duration-300" id="chart-location">
-            <div className="flex justify-between items-start mb-6 relative">
-               <div className="flex-1 text-center">
-                 <h3 className="text-[15px] sm:text-base font-black text-slate-800 uppercase tracking-widest">{locationTitle}</h3>
-                 <div className="inline-block bg-blue-50 border border-blue-100 px-3 py-1 rounded-full mt-2">
-                    <p className="text-[11px] sm:text-xs font-bold text-blue-600 tracking-widest">TOTAL CASES: {locationTotal}</p>
-                 </div>
-               </div>
-               <button onClick={() => handleDownload('chart-location', `Locations_${periodType}_${year}.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all absolute right-0 top-0 opacity-0 group-hover:opacity-100 border border-transparent hover:border-blue-200" title="Download Image">
-                 <Download size={18} strokeWidth={2.5}/>
-               </button>
-            </div>
 
-            {locationData.length > 0 ? (
-                <div className="h-80 w-full">
-                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                    <BarChart data={locationData} margin={{ top: 20, right: 20, left: -20, bottom: 80 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700, letterSpacing: 1}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} angle={-90} textAnchor="end" dy={5} />
-                    <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
-                    <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={TOOLTIP_STYLE}/>
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={50} fill="#3B82F6" name="Total Patients" isAnimationActive={false}>
-                        {locationData.map((entry, index) => <Cell key={`cell-${index}`} fill={index === 0 ? '#1E40AF' : '#60A5FA'} />)}
-                        <LabelList dataKey="value" content={renderDynamicBarLabel} />
-                    </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
+        // ==========================================
+        // TAB 2: PREDICTIVE ANALYTICS
+        // ==========================================
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+
+            {/* THEMED SMART ALERTS PANEL */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 bg-slate-900 rounded-2xl p-6 shadow-lg border border-slate-800 text-white relative overflow-hidden">
+                    <div className="absolute right-0 top-0 opacity-20 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
+                        <BrainCircuit size={200} className="text-slate-800"/>
+                    </div>
+                    
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400 flex items-center gap-2"><Zap size={16}/> System Insights & Alerts</h3>
+                        <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest border ${riskLevel === 'HIGH' ? 'bg-red-500/20 border-red-500/50 text-red-400' : riskLevel === 'MODERATE' ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'}`}>
+                            RISK LEVEL: {riskLevel}
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 relative z-10">
+                        {smartAlerts.length > 0 ? smartAlerts.map((alert, i) => (
+                            <div key={i} className={`p-4 rounded-xl flex items-start gap-3 border ${
+                                alert.type === 'critical' ? 'bg-red-500/20 border-red-500/50 text-red-100' :
+                                alert.type === 'warning' ? 'bg-amber-500/20 border-amber-500/50 text-amber-100' :
+                                alert.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100' :
+                                'bg-slate-800 border-slate-700 text-slate-300'
+                            }`}>
+                                {alert.type === 'critical' ? <AlertTriangle className="text-red-400 mt-0.5 shrink-0" size={18}/> :
+                                 alert.type === 'warning' ? <TrendingUp className="text-amber-400 mt-0.5 shrink-0" size={18}/> :
+                                 alert.type === 'success' ? <TrendingDown className="text-emerald-400 mt-0.5 shrink-0" size={18}/> :
+                                 <CheckCircle2 className="text-blue-400 mt-0.5 shrink-0" size={18}/>}
+                                <div>
+                                    <h4 className={`font-bold text-sm ${alert.type === 'info' ? 'text-white' : ''}`}>{alert.title}</h4>
+                                    <p className="text-xs opacity-80 mt-1">{alert.desc}</p>
+                                </div>
+                            </div>
+                        )) : (
+                            <div className="p-4 bg-slate-800 border border-slate-700 rounded-xl text-slate-400 text-sm font-medium">
+                                Analyzing data trends. Need at least 2 consecutive months of records to generate reliable insights.
+                            </div>
+                        )}
+                    </div>
                 </div>
-            ) : (
-                <div className="h-40 flex flex-col items-center justify-center text-slate-400 font-medium text-sm">
-                    <Archive size={24} className="mb-2 opacity-50" />
-                    No data available {dynamicDateText}
+
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center flex items-center justify-center gap-1"><ActivitySquare size={12}/> Projected Next Month</p>
+                    <div className="text-center">
+                        <h3 className="text-5xl font-black text-slate-900 mb-1">
+                            {projectedNextMonth || '--'}
+                        </h3>
+                        <p className="text-xs font-bold text-slate-500 bg-slate-100 py-1.5 px-3 rounded-lg inline-block mt-2">Based on Active Trend</p>
+                    </div>
                 </div>
-            )}
-          </div>
-
-          {/* Smart Biting Animal Breakdown */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 relative group hover:shadow-md transition-shadow duration-300" id="chart-animal">
-            <div className="flex justify-between items-start mb-6 relative">
-               <div className="flex-1 text-center">
-                 <h3 className="text-[15px] sm:text-base font-black text-slate-800 uppercase tracking-widest">Biting Animal Breakdown</h3>
-                 <div className="inline-block bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full mt-2">
-                    <p className="text-[11px] sm:text-xs font-bold text-indigo-600 tracking-widest">TOTAL CASES: {animalTotal}</p>
-                 </div>
-               </div>
-               <button onClick={() => handleDownload('chart-animal', `Animals_${periodType}_${year}.png`)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all absolute right-0 top-0 opacity-0 group-hover:opacity-100 border border-transparent hover:border-indigo-200" title="Download Image">
-                 <Download size={18} strokeWidth={2.5}/>
-               </button>
-            </div>
-            
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                <BarChart data={animalData} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700, letterSpacing: 1}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
-                  <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
-                  <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={TOOLTIP_STYLE}/>
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60} name="Cases" isAnimationActive={false}>
-                    {animalData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
-                    <LabelList dataKey="value" content={renderDynamicBarLabel} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Exposure Category Distribution */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 relative group hover:shadow-md transition-shadow duration-300" id="chart-category">
-            <div className="flex justify-between items-start mb-6 relative">
-               <div className="flex-1 text-center">
-                 <h3 className="text-[15px] sm:text-base font-black text-slate-800 uppercase tracking-widest">Exposure Category</h3>
-                 <div className="inline-block bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full mt-2">
-                    <p className="text-[11px] sm:text-xs font-bold text-emerald-600 tracking-widest">TOTAL CASES: {categoryTotal}</p>
-                 </div>
-               </div>
-               <button onClick={() => handleDownload('chart-category', `Categories_${periodType}_${year}.png`)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all absolute right-0 top-0 opacity-0 group-hover:opacity-100 border border-transparent hover:border-emerald-200" title="Download Image">
-                 <Download size={18} strokeWidth={2.5}/>
-               </button>
-            </div>
-            
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                <BarChart data={categoryData} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 11, fontWeight: 700, letterSpacing: 1}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
-                  <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
-                  <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={TOOLTIP_STYLE}/>
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60} name="Cases" isAnimationActive={false}>
-                    {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
-                    <LabelList dataKey="value" content={renderDynamicBarLabel} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Patient Sex Distribution */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 relative group hover:shadow-md transition-shadow duration-300" id="chart-sex">
-            <div className="flex justify-between items-start mb-2 relative">
-               <div className="flex-1 text-center">
-                 <h3 className="text-[15px] sm:text-base font-black text-slate-800 uppercase tracking-widest">Demographics (Sex)</h3>
-                 <div className="inline-block bg-rose-50 border border-rose-100 px-3 py-1 rounded-full mt-2">
-                    <p className="text-[11px] sm:text-xs font-bold text-rose-600 tracking-widest">TOTAL CASES: {sexTotal}</p>
-                 </div>
-               </div>
-               <button onClick={() => handleDownload('chart-sex', `Sex_${periodType}_${year}.png`)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all absolute right-0 top-0 opacity-0 group-hover:opacity-100 border border-transparent hover:border-rose-200" title="Download Image">
-                 <Download size={18} strokeWidth={2.5}/>
-               </button>
-            </div>
-            
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                <PieChart>
-                  <Pie data={demographicsSexData} cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={4} dataKey="value" stroke="none" labelLine={false} label={renderCustomizedLabel} isAnimationActive={false}>
-                    {demographicsSexData.map((entry, index) => <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.male : COLORS.female} />)}
-                  </Pie>
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ fontWeight: 700 }} />
-                  <Legend iconType="circle" verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}/>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Patient Age Distribution */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 relative group hover:shadow-md transition-shadow duration-300" id="chart-age">
-            <div className="flex justify-between items-start mb-6 relative">
-               <div className="flex-1 text-center">
-                 <h3 className="text-[15px] sm:text-base font-black text-slate-800 uppercase tracking-widest">Demographics (Age)</h3>
-                 <div className="inline-block bg-amber-50 border border-amber-100 px-3 py-1 rounded-full mt-2">
-                    <p className="text-[11px] sm:text-xs font-bold text-amber-600 tracking-widest">TOTAL CASES: {ageTotal}</p>
-                 </div>
-               </div>
-               <button onClick={() => handleDownload('chart-age', `Age_${periodType}_${year}.png`)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all absolute right-0 top-0 opacity-0 group-hover:opacity-100 border border-transparent hover:border-amber-200" title="Download Image">
-                 <Download size={18} strokeWidth={2.5}/>
-               </button>
             </div>
 
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                {/* Converted to layout="vertical" for horizontal bars */}
-                <BarChart layout="vertical" data={demographicsAgeData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={true} stroke="#E2E8F0" />
-                  <XAxis type="number" tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
-                  <YAxis dataKey="name" type="category" tick={{fill: '#475569', fontSize: 11, fontWeight: 700, letterSpacing: 1}} axisLine={{stroke: '#CBD5E1'}} tickLine={false} />
-                  <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={TOOLTIP_STYLE}/>
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={40} name="Patients" isAnimationActive={false}>
-                    {demographicsAgeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.ageLt15 : COLORS.ageGt15} />
-                    ))}
-                    {/* Positioned the label to the right of the horizontal bar */}
-                    <LabelList dataKey="value" position="right" fill="#475569" fontSize={12} fontWeight={800} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+            {/* PREDICTIVE CHART */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group" id="chart-predictive">
+                <div className="flex justify-between items-start mb-8">
+                    <div>
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><BrainCircuit size={18} className="text-blue-600"/> 24-Month Forecasting Model</h3>
+                        <p className="text-xs text-slate-500 font-medium mt-1">Multi-layered moving averages (Adaptive) for short-term reaction and long-term seasonality.</p>
+                    </div>
+                    <button onClick={() => handleDownload('chart-predictive', `Predictive_${year}.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"><Download size={18}/></button>
+                </div>
 
+                <div className="h-[400px] w-full">
+                    <ResponsiveContainer>
+                        <ComposedChart data={full24MonthData.slice(-13)} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                            <XAxis dataKey="display" tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 700}} axisLine={false} tickLine={false} />
+                            <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
+                            <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                            <Legend verticalAlign="top" align="right" wrapperStyle={{paddingBottom: '20px', fontSize: '11px', fontWeight: 'bold', color: '#1E293B'}} />
+                            
+                            {/* Actual Data */}
+                            <Bar dataKey="raw" name="Actual Cases" fill="#3B82F6" radius={[4,4,0,0]} barSize={20} isAnimationActive={false} />
+                            
+                            {/* SMA 12 - Seasonality (Can connect nulls to bridge gaps) */}
+                            <Line type="monotone" dataKey="sma12" name="12M SMA (Seasonality)" stroke="#94A3B8" strokeWidth={2} dot={false} strokeDasharray="5 5" isAnimationActive={false} connectNulls={true} />
+                            
+                            {/* SMA 6 - Trend */}
+                            <Line type="monotone" dataKey="sma6" name="6M SMA (Mid-Term)" stroke="#F59E0B" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
+                            
+                            {/* SMA 3 - Smoothing */}
+                            <Line type="monotone" dataKey="sma3" name="3M SMA (Short-Term)" stroke="#10B981" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
+                            
+                            {/* WMA 3 - Fast Signal */}
+                            <Line type="monotone" dataKey="wma3" name="3M WMA (Fast Signal)" stroke="#8B5CF6" strokeWidth={3} dot={{ r: 4, fill: '#8B5CF6', strokeWidth: 0 }} isAnimationActive={false} connectNulls={false} />
+
+                            {/* TRUE FORECAST LINE (Dotted Purple) */}
+                            <Line type="monotone" dataKey="forecast" name="Forecast Projection" stroke="#8B5CF6" strokeWidth={3} strokeDasharray="4 4" dot={{ r: 4, fill: '#8B5CF6' }} isAnimationActive={false} connectNulls={false} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
         </div>
       )}
     </div>

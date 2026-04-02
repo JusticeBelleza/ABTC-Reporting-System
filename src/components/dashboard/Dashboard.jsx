@@ -30,6 +30,13 @@ const getInitials = (name) => {
     : parts[0].substring(0, 2).toUpperCase();
 };
 
+const getRoleDisplayName = (role) => {
+    if (role === 'SYSADMIN') return 'System Admin';
+    if (role === 'admin') return 'Administrator';
+    if (role === 'user') return 'Facility Encoder';
+    return role || '';
+};
+
 function DashboardContent() {
   const { user, facilities, setFacilities, setFacilityBarangays, logout, globalSettings, setGlobalSettings, userProfile, setUserProfile } = useApp();
 
@@ -228,10 +235,11 @@ function DashboardContent() {
             <div onClick={() => setShowProfileModal(true)} className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 pr-1 py-1 bg-white border border-slate-200 rounded-full shadow-sm hover:border-slate-400 active:scale-95 transition-all duration-300 cursor-pointer group">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-black text-slate-800 leading-none truncate max-w-[120px]">{userProfile?.full_name || 'User'}</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{user.role}</p>
+                {/* --- DISPLAY CLEAN ROLE NAME HERE --- */}
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{getRoleDisplayName(user?.role)}</p>
               </div>
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900 flex items-center justify-center text-yellow-400 text-[9px] sm:text-[10px] font-black ring-2 ring-slate-100 group-hover:ring-yellow-400 transition-all">
-                {getInitials(userProfile?.full_name || user.email)}
+                {getInitials(userProfile?.full_name || user?.email)}
               </div>
             </div>
 
@@ -367,7 +375,6 @@ function DashboardContent() {
               <button onClick={() => setShowPrivacyPolicy(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Privacy</button>
               <button onClick={() => setShowTermsOfUse(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Terms</button>
               <button onClick={() => setShowLicense(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">License</button>
-              {/* Updated Link to target /files/User_Manual.pdf */}
               <a href="/images/abtc-guide.pdf" target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">User Manual</a>
               <span className="text-[10px] font-bold text-slate-500 tracking-widest cursor-default">ABTC-RS v.{packageInfo.version}</span>
             </div>

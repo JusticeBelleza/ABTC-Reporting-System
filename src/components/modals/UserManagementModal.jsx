@@ -106,6 +106,13 @@ export default function UserManagementModal({ onClose, facilities, client }) {
     return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   };
 
+  const getRoleDisplayName = (role) => {
+      if (role === 'SYSADMIN') return 'System Admin';
+      if (role === 'admin') return 'Administrator';
+      if (role === 'user') return 'Facility Encoder';
+      return role || 'Unknown';
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
       
@@ -233,7 +240,8 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                             <thead className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
                                 <tr>
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Assigned Facility</th>
-                                    <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 text-center w-28">Role</th>
+                                    {/* INCREASED WIDTH TO w-36 OR w-40 FOR ROLE */}
+                                    <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 text-center w-36">Role</th>
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Full Name & Designation</th>
                                     <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Contact Info</th>
                                     <th className="py-2.5 px-3 sm:px-4 text-center w-32">Actions</th>
@@ -246,8 +254,9 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                                             {u.facility_name || <span className="italic text-slate-400 font-medium">System Administration</span>}
                                         </td>
                                         <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 text-center align-middle">
-                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black border uppercase tracking-widest ${getRoleBadge(u.role)}`}>
-                                                {u.role === 'user' ? 'Encoder' : u.role}
+                                            {/* ADDED whitespace-nowrap SO IT DOESN'T BREAK */}
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black border uppercase tracking-widest whitespace-nowrap ${getRoleBadge(u.role)}`}>
+                                                {getRoleDisplayName(u.role)}
                                             </span>
                                         </td>
                                         <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 align-middle">

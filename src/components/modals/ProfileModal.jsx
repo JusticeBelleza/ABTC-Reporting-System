@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCog, X, Building2, Mail, Eye, EyeOff, Loader2, User, Briefcase, Phone, KeyRound, CheckCircle } from 'lucide-react';
+import { UserCog, X, Building2, Mail, Eye, EyeOff, Loader2, User, Briefcase, Phone, KeyRound, CheckCircle, Shield } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import ModalPortal from './ModalPortal';
@@ -52,7 +52,7 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [profile, setProfile] = useState({ full_name: '', designation: '', contact_number: '', email: '', facility_name: '' });
+  const [profile, setProfile] = useState({ full_name: '', designation: '', contact_number: '', email: '', facility_name: '', role: '' });
   
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -81,6 +81,13 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
   const strengthScore = calculateStrength(newPassword);
   const strengthColors = ['bg-slate-200', 'bg-rose-500', 'bg-amber-500', 'bg-yellow-400', 'bg-emerald-500', 'bg-emerald-600'];
   const strengthLabels = ['None', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+
+  const getRoleDisplayName = (role) => {
+      if (role === 'SYSADMIN') return 'System Admin';
+      if (role === 'admin') return 'Administrator';
+      if (role === 'user') return 'Facility Encoder';
+      return role || 'Loading...';
+  };
 
   const handlePreSubmit = (e) => {
     e.preventDefault();
@@ -165,11 +172,15 @@ export default function ProfileModal({ userId, onClose, isSelf = false }) {
               <div className="flex flex-col gap-3 p-4 bg-slate-50/80 border border-slate-200 rounded-xl shadow-sm">
                   <div className="flex items-center gap-3 text-slate-800 text-sm font-bold">
                     <div className="bg-white p-2 rounded-lg text-slate-400 shadow-sm border border-slate-200"><Building2 size={16} strokeWidth={2.5}/></div>
-                    {profile.facility_name || 'System Admin Access'}
+                    {profile.facility_name || 'System Administration'}
                   </div>
                   <div className="flex items-center gap-3 text-slate-500 text-xs font-medium">
                     <div className="bg-white p-2 rounded-lg text-slate-400 shadow-sm border border-slate-200"><Mail size={16} strokeWidth={2.5}/></div>
                     {profile.email}
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-500 text-xs font-medium">
+                    <div className="bg-white p-2 rounded-lg text-slate-400 shadow-sm border border-slate-200"><Shield size={16} strokeWidth={2.5}/></div>
+                    <span className="font-semibold text-slate-700">{getRoleDisplayName(profile.role)}</span>
                   </div>
               </div>
 
