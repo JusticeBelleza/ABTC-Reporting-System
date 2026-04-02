@@ -96,7 +96,7 @@ export default function MainReportTable({
                       return a.localeCompare(b);
                   });
 
-              const showAddControls = userRole !== 'admin' && !isConsolidated && !isAggregationMode && (reportStatus === 'Draft' || reportStatus === 'Rejected');
+              const showAddControls = userRole !== 'admin' && userRole !== 'SYSADMIN' && !isConsolidated && !isAggregationMode && (reportStatus === 'Draft' || reportStatus === 'Rejected');
               return (
                 <tr key="others-separator" className={hideClass} style={{ ...PDF_STYLES.rowEven, backgroundColor: '#E2E8F0' }}>
                   <td colSpan={26} style={{...PDF_STYLES.border, ...PDF_STYLES.cell, textAlign:'left', backgroundColor: '#E2E8F0', padding:'8px'}}>

@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Users, X, Loader2, Edit, Trash2, Building2, Mail, ShieldAlert } from 'lucide-react';
+import { Users, X, Loader2, Edit, Trash2, Building2, Mail, ShieldAlert, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import RegisterUserForm from '../auth/RegisterUserForm'; 
 import ProfileModal from './ProfileModal';
 import ModalPortal from './ModalPortal';
-import { useApp } from '../../context/AppContext'; // Import context for RBAC check
+import { useApp } from '../../context/AppContext';
 
 export default function UserManagementModal({ onClose, facilities, client }) {
-  // Extract currentUser from Context to enforce RBAC
   const { user: currentUser } = useApp();
   
   const [activeTab, setActiveTab] = useState('list'); 
@@ -17,6 +16,10 @@ export default function UserManagementModal({ onClose, facilities, client }) {
   const [editingUserId, setEditingUserId] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState(10);
 
   const effectiveClient = client || supabase;
 
@@ -56,8 +59,26 @@ export default function UserManagementModal({ onClose, facilities, client }) {
     setUserToDelete(null);
   };
 
+  // Pagination Logic
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(users.length / usersPerPage) || 1;
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const getRoleBadge = (role) => {
+    if (role === 'SYSADMIN') return 'bg-purple-50 text-purple-700 border-purple-200';
+    if (role === 'admin') return 'bg-slate-800 text-white border-slate-700';
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  };
+
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
       
       {/* Edit Profile Sub-Modal */}
       {editingUserId && <ProfileModal userId={editingUserId} onClose={() => { setEditingUserId(null); fetchUsers(); }} />}
@@ -65,7 +86,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
       {/* Delete Confirmation Sub-Modal */}
       {userToDelete && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                  <div className="flex flex-col items-center text-center">
                     <div className="bg-red-50 p-4 rounded-full mb-5 text-red-600 shadow-inner">
@@ -89,28 +110,32 @@ export default function UserManagementModal({ onClose, facilities, client }) {
       </ModalPortal>
       )}
 
-      {/* Main Modal Container */}
-      <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
+      {/* Main Modal Container (Matches Audit Logs Style) */}
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden relative border border-slate-200 animate-in zoom-in-95 duration-200">
         
-        {/* Header - Deep Slate Design */}
-        <div className="bg-slate-900 px-6 py-5 border-b border-slate-800 flex justify-between items-center relative overflow-hidden shrink-0">
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-slate-800 rounded-full opacity-50 blur-2xl pointer-events-none"></div>
-          <div className="flex items-center gap-3 relative z-10">
-              <div className="p-2 bg-slate-800/80 rounded-lg text-yellow-400 shadow-inner border border-slate-700">
-                  <Users size={20} strokeWidth={2.5} />
-              </div>
-              <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight leading-tight">User Management</h2>
-                  <p className="text-[10px] sm:text-xs font-medium text-slate-400 mt-0.5">Add, edit, or remove facility access</p>
-              </div>
+        {/* Dark Header - Compact Version */}
+        <div className="bg-slate-900 p-4 sm:p-5 border-b border-slate-800 shrink-0 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-800 p-2 rounded-lg text-yellow-400 shadow-inner border border-slate-700">
+              <Users size={18} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-white leading-none">User Management</h2>
+              <p className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-widest leading-none">
+                MANAGE PROVINCIAL AND FACILITY ACCESS
+              </p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-all active:scale-90 border border-slate-700 shadow-sm relative z-10">
-            <X size={18} strokeWidth={2.5}/>
+          <button 
+            onClick={onClose} 
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 active:scale-90 active:bg-slate-600 rounded-full transition-all duration-200"
+          >
+            <X size={18} strokeWidth={2.5} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex px-6 pt-3 border-b border-slate-100 gap-6 bg-slate-50 shrink-0">
+        <div className="flex px-6 pt-3 border-b border-slate-200 bg-white shrink-0 gap-6">
           <button 
               onClick={() => setActiveTab('list')} 
               className={`pb-3 text-sm font-bold transition-all duration-200 border-b-[3px] ${activeTab==='list' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
@@ -126,98 +151,134 @@ export default function UserManagementModal({ onClose, facilities, client }) {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-auto bg-white custom-scrollbar relative">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 flex flex-col relative custom-scrollbar">
           {activeTab === 'list' ? (
             loading ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-white/80 backdrop-blur-sm z-10">
-                    <Loader2 className="animate-spin mb-3 text-yellow-500" size={32} strokeWidth={2.5}/> 
-                    <p className="text-xs font-bold text-slate-600 tracking-wide uppercase">Loading users...</p>
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                    <Loader2 size={32} className="animate-spin mb-3 text-blue-500" />
+                    <p className="text-xs font-semibold">Loading user directory...</p>
+                </div>
+            ) : users.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed mx-2 sm:mx-0">
+                    <Users size={48} className="mb-4 opacity-20" />
+                    <p className="text-xs font-semibold text-slate-500">No users found.</p>
                 </div>
             ) : (
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-black tracking-widest sticky top-0 z-10">
-                  <tr>
-                      <th className="p-3 sm:p-4 pl-6">Facility & Role</th>
-                      <th className="p-3 sm:p-4 hidden sm:table-cell">Name & Contact</th>
-                      <th className="p-3 sm:p-4 hidden md:table-cell">Email Address</th>
-                      <th className="p-3 sm:p-4 text-right pr-6">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {users.map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50/80 transition-colors group">
-                      
-                      <td className="p-3 sm:p-4 pl-6 align-top sm:align-middle">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-slate-100 rounded-lg text-slate-400 shrink-0 hidden sm:block">
-                                <Building2 size={16} />
-                            </div>
-                            <div>
-                                <div className="font-bold text-slate-900 text-sm mb-1 group-hover:text-black transition-colors leading-tight">
-                                    {u.facility_name || <span className="italic text-slate-400">System Admin</span>}
-                                </div>
-                                <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider shadow-sm border ${u.role === 'SYSADMIN' ? 'bg-purple-700 text-white border-purple-600' : u.role === 'admin' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-700 border-slate-200'}`}>
-                                    {u.role}
-                                </span>
-
-                                {/* Mobile Only Content */}
-                                <div className="sm:hidden mt-2 space-y-1">
-                                    <div className="font-semibold text-slate-800 text-xs">{u.full_name || <span className="italic text-slate-400 font-normal">No name set</span>}</div>
-                                    <div className="text-[10px] text-slate-500 flex items-center gap-1.5"><Mail size={10}/> {u.email}</div>
-                                </div>
-                            </div>
-                        </div>
-                      </td>
-
-                      <td className="p-3 sm:p-4 hidden sm:table-cell align-middle">
-                        <div className="font-bold text-slate-800 text-sm">{u.full_name || <span className="italic text-slate-400 font-normal text-xs">No name set</span>}</div>
-                        <div className="text-[11px] text-slate-500 mt-1 font-medium bg-slate-100 inline-block px-1.5 py-0.5 rounded border border-slate-200">{u.designation || 'No Designation'}</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5 font-medium">{u.contact_number || '-'}</div>
-                      </td>
-
-                      <td className="p-3 sm:p-4 hidden md:table-cell align-middle font-medium text-slate-600 text-sm">
-                          {u.email}
-                      </td>
-
-                      <td className="p-3 sm:p-4 pr-6 text-right whitespace-nowrap align-top sm:align-middle">
-                        <div className="flex justify-end gap-1.5">
-                            <button 
-                                onClick={() => setEditingUserId(u.id)} 
-                                className="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 active:scale-90 transition-all shadow-sm" 
-                                title="Edit User Profile"
-                            >
-                                <Edit size={16} strokeWidth={2.5}/>
-                            </button>
-                            
-                            {/* RBAC: ONLY SYSADMIN CAN DELETE OTHER USERS */}
-                            {currentUser?.role === 'SYSADMIN' && u.id !== currentUser?.id && (
-                                <button 
-                                    onClick={() => initiateDelete(u)} 
-                                    className="p-2 bg-white border border-red-100 text-red-500 rounded-lg hover:bg-red-50 hover:text-red-700 hover:border-red-300 active:scale-90 transition-all shadow-sm" 
-                                    title="Delete User"
-                                >
-                                    <Trash2 size={16} strokeWidth={2.5}/>
-                                </button>
-                            )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  
-                  {users.length === 0 && !loading && (
-                      <tr>
-                          <td colSpan="4" className="p-12 text-center text-slate-500 text-sm">No users found.</td>
-                      </tr>
-                  )}
-                </tbody>
-              </table>
+                <div className="rounded-xl border border-slate-200 shadow-sm bg-white w-full overflow-hidden flex flex-col flex-1">
+                    <div className="overflow-x-auto w-full">
+                        <table className="w-full text-left border-collapse text-[10px] sm:text-[11px] min-w-[800px]">
+                            <thead className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                                <tr>
+                                    <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Assigned Facility</th>
+                                    <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 text-center w-28">Role</th>
+                                    <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Full Name & Designation</th>
+                                    <th className="py-2.5 px-3 sm:px-4 border-r border-slate-200 w-[25%]">Contact Info</th>
+                                    <th className="py-2.5 px-3 sm:px-4 text-center w-24">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {currentUsers.map((u) => (
+                                    <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0">
+                                        <td className="py-2.5 px-3 sm:px-4 font-bold text-slate-800 border-r border-slate-100 align-middle">
+                                            {u.facility_name || <span className="italic text-slate-400 font-medium">System Administration</span>}
+                                        </td>
+                                        <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 text-center align-middle">
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black border uppercase tracking-widest ${getRoleBadge(u.role)}`}>
+                                                {u.role === 'user' ? 'Encoder' : u.role}
+                                            </span>
+                                        </td>
+                                        <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 align-middle">
+                                            <div className="font-bold text-slate-700">{u.full_name || <span className="italic text-slate-400 font-normal">Not Set</span>}</div>
+                                            <div className="text-[9px] text-slate-500 mt-0.5">{u.designation || 'No Designation'}</div>
+                                        </td>
+                                        <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 align-middle font-medium text-slate-600">
+                                            <div>{u.email}</div>
+                                            <div className="text-[9px] text-slate-400 mt-0.5">{u.contact_number || '-'}</div>
+                                        </td>
+                                        <td className="py-2.5 px-3 sm:px-4 text-center align-middle">
+                                            <div className="flex justify-center gap-1.5">
+                                                <button 
+                                                    onClick={() => setEditingUserId(u.id)} 
+                                                    className="p-1.5 bg-white border border-slate-200 text-slate-500 rounded hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm active:scale-95"
+                                                    title="Edit User"
+                                                >
+                                                    <Edit size={14} strokeWidth={2.5}/>
+                                                </button>
+                                                {currentUser?.role === 'SYSADMIN' && u.id !== currentUser?.id && (
+                                                    <button 
+                                                        onClick={() => initiateDelete(u)} 
+                                                        className="p-1.5 bg-white border border-red-100 text-red-500 rounded hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all shadow-sm active:scale-95"
+                                                        title="Delete User"
+                                                    >
+                                                        <Trash2 size={14} strokeWidth={2.5}/>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             )
           ) : (
-            <div className="max-w-xl mx-auto py-8 px-4 sm:px-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <RegisterUserForm facilities={availableFacilities} client={effectiveClient} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
+            <div className="w-full max-w-2xl mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
+                  <div className="mb-6 text-center">
+                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Users className="text-slate-600" size={24} />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900">Register New User</h3>
+                      <p className="text-xs text-slate-500 mt-1">Create a new account and assign appropriate permissions.</p>
+                  </div>
+                  <RegisterUserForm facilities={availableFacilities} client={effectiveClient} onSuccess={() => { setActiveTab('list'); fetchUsers(); }} />
+              </div>
             </div>
           )}
         </div>
+
+        {/* Pagination Footer (Only visible on User Directory tab) */}
+        {!loading && activeTab === 'list' && users.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between px-6 sm:px-8 py-3 border-t border-slate-200 bg-white shrink-0 gap-4">
+            
+            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-medium text-slate-500">
+              <span>Show</span>
+              <select 
+                value={usersPerPage} 
+                onChange={(e) => { setUsersPerPage(Number(e.target.value)); setCurrentPage(1); }} 
+                className="bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:ring-2 focus:ring-slate-900/20 font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+              <span>users per page</span>
+            </div>
+
+            <div className="flex items-center gap-4 text-[10px] sm:text-xs font-medium text-slate-500">
+              <span>Page <strong className="text-slate-900">{currentPage}</strong> of <strong className="text-slate-900">{totalPages}</strong></span>
+              <div className="flex items-center gap-1.5">
+                <button 
+                  onClick={() => handlePageChange(currentPage - 1)} 
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+                >
+                  <ChevronLeft size={14} strokeWidth={2.5} />
+                </button>
+                <button 
+                  onClick={() => handlePageChange(currentPage + 1)} 
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+                >
+                  <ChevronRight size={14} strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+            
+          </div>
+        )}
+
       </div>
     </div>
   );
