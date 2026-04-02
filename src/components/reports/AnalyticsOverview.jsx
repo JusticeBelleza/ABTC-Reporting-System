@@ -68,7 +68,7 @@ export default function AnalyticsOverview({
 
   // --- DYNAMIC LOCATION TITLE ---
   const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
-  const locationTitle = isAdmin 
+  const locationTitleBase = isAdmin 
     ? "Cases by Municipality" 
     : (facilityType === 'Hospital' || facilityType === 'Clinic' ? "Cases by Municipality" : "Cases by Barangay");
 
@@ -138,7 +138,7 @@ export default function AnalyticsOverview({
           let calcRate = expectedReports > 0 ? Math.round((actualReports / expectedReports) * 100) : 0;
           setComplianceRate(Math.min(calcRate, 100));
 
-          // --- 2. BUILD CONTINUOUS 24-MONTH ARRAY ---
+          // --- 2. BUILD CONTINUOUS 24-MONTH ARRAY (100% SECURE MATH) ---
           const allMonthsRaw = [];
           [year - 1, year].forEach(y => {
              MONTHS.forEach((m) => {
@@ -147,12 +147,37 @@ export default function AnalyticsOverview({
                 let total = null; 
                 
                 if (hasData) {
-                    // INDESTRUCTIBLE PARSER: Directly reads columns to guarantee 100% mathematical accuracy (No JSON reading needed!)
-                    total = periodReports.reduce((sum, r) => {
-                        let rowSum = (Number(r.cat1) || 0) + (Number(r.cat2) || 0) + (Number(r.cat3) || 0);
-                        if (rowSum === 0) rowSum = Number(r.total_patients) || 0;
-                        if (rowSum === 0) rowSum = (Number(r.male) || 0) + (Number(r.female) || 0);
-                        return sum + rowSum;
+                    // Prevent duplicate submission rows from artificially inflating the total
+                    const uniqueReports = [];
+                    periodReports.forEach(r => {
+                        const existingIdx = uniqueReports.findIndex(ex => ex.facility === r.facility && ex.municipality === r.municipality);
+                        if (existingIdx === -1) {
+                            uniqueReports.push(r);
+                        } else if (new Date(r.created_at) > new Date(uniqueReports[existingIdx].created_at)) {
+                            uniqueReports[existingIdx] = r;
+                        }
+                    });
+
+                    total = uniqueReports.reduce((sum, r) => {
+                        const fName = String(r.facility || '').trim();
+                        const muniStr = String(r.municipality || '').trim();
+                        const type = facilityDetails?.[fName]?.type || 'RHU';
+                        const isHospital = type === 'Hospital' || type === 'Clinic';
+                        
+                        // SKIP dummy separator and total rows
+                        if (muniStr.toLowerCase().includes('total')) return sum;
+                        
+                        // MATHEMATICAL GUARDRAIL: Prevent double-counting for RHUs!
+                        // The database saves BOTH the individual barangays AND the rolled-up host municipality.
+                        // We strictly sum ONLY official Municipalities and 'Others:'. This mathematically skips all Barangays.
+                        const isMuniOrOthers = muniStr === 'Others:' || MUNICIPALITIES.some(mun => mun.toLowerCase() === muniStr.toLowerCase());
+                        if (!isHospital && !isMuniOrOthers) return sum;
+
+                        let rTotal = (Number(r.cat1) || 0) + (Number(r.cat2) || 0) + (Number(r.cat3) || 0);
+                        if (rTotal === 0) rTotal = Number(r.total_patients) || 0;
+                        if (rTotal === 0) rTotal = (Number(r.male) || 0) + (Number(r.female) || 0);
+
+                        return sum + rTotal;
                     }, 0);
                 }
                 allMonthsRaw.push({ year: y, month: m, raw: total, display: `${m.substring(0,3)} ${y}` });
@@ -302,33 +327,54 @@ export default function AnalyticsOverview({
   ], [grandTotals]);
 
   // --- RHU BARANGAY NAME CLEANUP ---
+  const isConsolidatedView = !isAdmin && facilityType !== 'Hospital' && facilityType !== 'Clinic' ? false : true;
+  
   const locationData = useMemo(() => {
     if (!data) return [];
     
-    // Find the Host Municipality for the logged-in user
     const hostMuni = MUNICIPALITIES.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
 
     return Object.entries(data)
       .filter(([name, row]) => {
           const lower = name.toLowerCase().trim();
-          // Filter out aggregate rows
-          if (lower.includes('total') || lower.includes('others:')) return false;
-          return Number(row.totalPatients) > 0;
+          // Filter out aggregate rows ONLY
+          // IMPORTANT: We do NOT filter out 'others:', so they remain visible on the chart!
+          if (lower === 'total' || lower.includes('grand total')) return false;
+          
+          // IF RHU: We MUST hide the Host Municipality's rolled-up row so the chart doesn't double count.
+          if (!isConsolidatedView && hostMuni) {
+              if (lower === hostMuni.toLowerCase()) return false;
+          }
+          
+          return (Number(row.totalPatients) || ((Number(row.cat1)||0)+(Number(row.cat2)||0)+(Number(row.cat3)||0))) > 0;
       })
       .map(([name, row]) => {
           let cleanName = name.trim();
+          let val = Number(row.totalPatients) || ((Number(row.cat1)||0)+(Number(row.cat2)||0)+(Number(row.cat3)||0));
           
-          // SMART CLEANUP: Only strip the HOST MUNICIPALITY from the label!
-          if (!isAdmin && facilityType !== 'Hospital' && facilityType !== 'Clinic' && hostMuni) {
+          // SMART CLEANUP: Strip out the Host Municipality name from barangay labels for cleaner UI
+          if (!isConsolidatedView && hostMuni) {
               const regex = new RegExp(`\\b${hostMuni}\\b`, 'ig');
-              cleanName = cleanName.replace(regex, '').replace(/^[-\s,]+|[-\s,]+$/g, '').trim();
+              let stripped = cleanName.replace(regex, '').replace(/^[-\s,]+|[-\s,]+$/g, '').trim();
+              
+              if (stripped !== '') cleanName = stripped;
           }
-          return { name: cleanName, value: Number(row.totalPatients) };
+          return { name: cleanName, value: val };
       })
-      // If stripping the Host Municipality leaves the name blank (e.g. "Pidigan" -> ""), completely remove that bar!
-      .filter(item => item.name !== '' && item.value > 0)
+      .reduce((acc, curr) => {
+          const existing = acc.find(item => item.name === curr.name);
+          if (existing) existing.value += curr.value;
+          else acc.push(curr);
+          return acc;
+      }, [])
       .sort((a, b) => b.value - a.value);
-  }, [data, isAdmin, facilityType, user]);
+  }, [data, isConsolidatedView, facilityType, user]);
+
+  // --- CHART TOTALS FOR (N=X) TITLES ---
+  const locationTotal = useMemo(() => locationData.reduce((sum, item) => sum + item.value, 0), [locationData]);
+  const categoryTotal = useMemo(() => categoryData.reduce((sum, item) => sum + item.value, 0), [categoryData]);
+  const sexTotal = useMemo(() => demographicsSexData.reduce((sum, item) => sum + item.value, 0), [demographicsSexData]);
+  const ageTotal = useMemo(() => demographicsAgeData.reduce((sum, item) => sum + item.value, 0), [demographicsAgeData]);
 
   const handleDownload = async (id, name) => {
     const el = document.getElementById(id);
@@ -472,33 +518,35 @@ export default function AnalyticsOverview({
               {/* Location Volume */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow flex flex-col" id="chart-location">
                   <div className="flex justify-between items-start mb-6 shrink-0">
-                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">{locationTitle}</h3>
+                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+                         {locationTitleBase} <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={locationTotal})</span>
+                     </h3>
                      <button onClick={() => handleDownload('chart-location', `Locations.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
                   </div>
-                  <div className="flex-1 w-full overflow-x-auto custom-scrollbar">
-                      <div style={{ minWidth: locationData.length > 10 ? `${locationData.length * 35}px` : '100%', height: '280px' }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                              <RechartsBarChart data={locationData} margin={{ top: 10, right: 10, left: -20, bottom: 85 }}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                                  <XAxis dataKey="name" angle={-90} textAnchor="end" dy={5} tick={{fontSize: 10, fill: '#475569'}} interval={0} />
-                                  <YAxis tick={{fontSize: 10}} />
-                                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
-                                  <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} isAnimationActive={false}>
-                                      <LabelList dataKey="value" content={renderDynamicBarLabel} />
-                                  </Bar>
-                              </RechartsBarChart>
-                          </ResponsiveContainer>
-                      </div>
+                  <div className="h-[280px] w-full mt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                          <RechartsBarChart data={locationData} margin={{ top: 10, right: 10, left: -20, bottom: 85 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                              <XAxis dataKey="name" angle={-90} textAnchor="end" dy={5} tick={{fontSize: 10, fill: '#475569', letterSpacing: '0.05em'}} interval={0} />
+                              <YAxis tick={{fontSize: 10}} />
+                              <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                              <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                                  <LabelList dataKey="value" content={renderDynamicBarLabel} />
+                              </Bar>
+                          </RechartsBarChart>
+                      </ResponsiveContainer>
                   </div>
               </div>
 
               {/* Exposure Category */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow" id="chart-cat">
                   <div className="flex justify-between items-start mb-6">
-                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Exposure Category</h3>
+                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+                         Exposure Category <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={categoryTotal})</span>
+                     </h3>
                      <button onClick={() => handleDownload('chart-cat', `Categories.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
                   </div>
-                  <div className="h-[280px]">
+                  <div className="h-[280px] mt-2">
                       <ResponsiveContainer>
                           <RechartsBarChart data={categoryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -514,9 +562,14 @@ export default function AnalyticsOverview({
                   </div>
               </div>
               
-              {/* Demographics */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow" id="chart-sex">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest text-center mb-4">Patient Sex</h3>
+              {/* Demographics Sex */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow" id="chart-sex">
+                  <div className="flex justify-between items-start mb-6">
+                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+                          Patient Sex <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={sexTotal})</span>
+                      </h3>
+                      <button onClick={() => handleDownload('chart-sex', `Patient_Sex.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+                  </div>
                   <div className="h-56">
                       <ResponsiveContainer>
                           <PieChart>
@@ -530,8 +583,14 @@ export default function AnalyticsOverview({
                   </div>
               </div>
               
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow" id="chart-age">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest text-center mb-4">Patient Age</h3>
+              {/* Demographics Age */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow" id="chart-age">
+                  <div className="flex justify-between items-start mb-6">
+                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+                          Patient Age <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={ageTotal})</span>
+                      </h3>
+                      <button onClick={() => handleDownload('chart-age', `Patient_Age.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+                  </div>
                   <div className="h-56">
                       <ResponsiveContainer>
                           <RechartsBarChart layout="vertical" data={demographicsAgeData} margin={{ left: 20, right: 40 }}>
@@ -557,14 +616,14 @@ export default function AnalyticsOverview({
 
             {/* THEMED SMART ALERTS PANEL */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 bg-slate-900 rounded-2xl p-6 shadow-lg border border-slate-800 text-white relative overflow-hidden">
-                    <div className="absolute right-0 top-0 opacity-20 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-                        <BrainCircuit size={200} className="text-slate-800"/>
+                <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
+                    <div className="absolute right-0 top-0 opacity-[0.03] pointer-events-none transform translate-x-1/4 -translate-y-1/4">
+                        <BrainCircuit size={200} className="text-slate-900"/>
                     </div>
                     
                     <div className="flex justify-between items-start mb-4 relative z-10">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-yellow-400 flex items-center gap-2"><Zap size={16}/> System Insights & Alerts</h3>
-                        <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest border ${riskLevel === 'HIGH' ? 'bg-red-500/20 border-red-500/50 text-red-400' : riskLevel === 'MODERATE' ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'}`}>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2"><Zap size={16} className="text-yellow-500"/> System Insights & Alerts</h3>
+                        <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest border ${riskLevel === 'HIGH' ? 'bg-red-50 text-red-600 border-red-200' : riskLevel === 'MODERATE' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
                             RISK LEVEL: {riskLevel}
                         </div>
                     </div>
@@ -572,22 +631,22 @@ export default function AnalyticsOverview({
                     <div className="space-y-3 relative z-10">
                         {smartAlerts.length > 0 ? smartAlerts.map((alert, i) => (
                             <div key={i} className={`p-4 rounded-xl flex items-start gap-3 border ${
-                                alert.type === 'critical' ? 'bg-red-500/20 border-red-500/50 text-red-100' :
-                                alert.type === 'warning' ? 'bg-amber-500/20 border-amber-500/50 text-amber-100' :
-                                alert.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100' :
-                                'bg-slate-800 border-slate-700 text-slate-300'
+                                alert.type === 'critical' ? 'bg-red-50 border-red-200 text-red-800' :
+                                alert.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+                                alert.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+                                'bg-slate-50 border-slate-200 text-slate-700'
                             }`}>
-                                {alert.type === 'critical' ? <AlertTriangle className="text-red-400 mt-0.5 shrink-0" size={18}/> :
-                                 alert.type === 'warning' ? <TrendingUp className="text-amber-400 mt-0.5 shrink-0" size={18}/> :
-                                 alert.type === 'success' ? <TrendingDown className="text-emerald-400 mt-0.5 shrink-0" size={18}/> :
-                                 <CheckCircle2 className="text-blue-400 mt-0.5 shrink-0" size={18}/>}
+                                {alert.type === 'critical' ? <AlertTriangle className="text-red-500 mt-0.5 shrink-0" size={18}/> :
+                                 alert.type === 'warning' ? <TrendingUp className="text-amber-500 mt-0.5 shrink-0" size={18}/> :
+                                 alert.type === 'success' ? <TrendingDown className="text-emerald-500 mt-0.5 shrink-0" size={18}/> :
+                                 <CheckCircle2 className="text-blue-500 mt-0.5 shrink-0" size={18}/>}
                                 <div>
-                                    <h4 className={`font-bold text-sm ${alert.type === 'info' ? 'text-white' : ''}`}>{alert.title}</h4>
-                                    <p className="text-xs opacity-80 mt-1">{alert.desc}</p>
+                                    <h4 className="font-bold text-sm text-slate-900">{alert.title}</h4>
+                                    <p className="text-xs opacity-90 mt-1">{alert.desc}</p>
                                 </div>
                             </div>
                         )) : (
-                            <div className="p-4 bg-slate-800 border border-slate-700 rounded-xl text-slate-400 text-sm font-medium">
+                            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm font-medium">
                                 Analyzing data trends. Need at least 2 consecutive months of records to generate reliable insights.
                             </div>
                         )}
@@ -627,8 +686,8 @@ export default function AnalyticsOverview({
                             {/* Actual Data */}
                             <Bar dataKey="raw" name="Actual Cases" fill="#3B82F6" radius={[4,4,0,0]} barSize={20} isAnimationActive={false} />
                             
-                            {/* SMA 12 - Seasonality (Can connect nulls to bridge gaps) */}
-                            <Line type="monotone" dataKey="sma12" name="12M SMA (Seasonality)" stroke="#94A3B8" strokeWidth={2} dot={false} strokeDasharray="5 5" isAnimationActive={false} connectNulls={true} />
+                            {/* SMA 12 - Seasonality (Jet Black) */}
+                            <Line type="monotone" dataKey="sma12" name="12M SMA (Seasonality)" stroke="#000000" strokeWidth={2} dot={false} strokeDasharray="5 5" isAnimationActive={false} connectNulls={true} />
                             
                             {/* SMA 6 - Trend */}
                             <Line type="monotone" dataKey="sma6" name="6M SMA (Mid-Term)" stroke="#F59E0B" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
@@ -639,8 +698,8 @@ export default function AnalyticsOverview({
                             {/* WMA 3 - Fast Signal */}
                             <Line type="monotone" dataKey="wma3" name="3M WMA (Fast Signal)" stroke="#8B5CF6" strokeWidth={3} dot={{ r: 4, fill: '#8B5CF6', strokeWidth: 0 }} isAnimationActive={false} connectNulls={false} />
 
-                            {/* TRUE FORECAST LINE (Dotted Purple) */}
-                            <Line type="monotone" dataKey="forecast" name="Forecast Projection" stroke="#8B5CF6" strokeWidth={3} strokeDasharray="4 4" dot={{ r: 4, fill: '#8B5CF6' }} isAnimationActive={false} connectNulls={false} />
+                            {/* TRUE FORECAST LINE (Dotted Red) */}
+                            <Line type="monotone" dataKey="forecast" name="Forecast Projection" stroke="#EF4444" strokeWidth={3} strokeDasharray="4 4" dot={{ r: 4, fill: '#EF4444' }} isAnimationActive={false} connectNulls={false} />
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>

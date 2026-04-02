@@ -51,7 +51,6 @@ export function useReportData({
   const reportStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
   const isConsolidatedView = adminViewMode === 'consolidated';
   
-  // FIX: Check isAdminUser instead of strictly 'admin'
   const activeFacilityName = isAdminUser 
     ? (isConsolidatedView ? 'PHO' : selectedFacility) 
     : userFacility;
@@ -94,7 +93,6 @@ export function useReportData({
     return [...new Set([...barangays, "Others:", ...MUNICIPALITIES])];
   }, [facilityBarangays, visibleOtherMunicipalities]);
 
-  // FIX: Check isAdminUser
   const currentRows = useMemo(() => 
     (isAdminUser && adminViewMode === 'dashboard') 
       ? [] 
@@ -102,7 +100,6 @@ export function useReportData({
     [activeFacilityName, isConsolidatedView, isAdminUser, adminViewMode, visibleOtherMunicipalities, getRowKeysForFacility]
   );
 
-  // FIX: Check isAdminUser
   const cohortRowsCat2 = useMemo(() => 
     (isAdminUser && adminViewMode === 'dashboard') 
       ? [] 
@@ -110,7 +107,6 @@ export function useReportData({
     [activeFacilityName, isConsolidatedView, isAdminUser, adminViewMode, visibleCat2, getRowKeysForFacility]
   );
 
-  // FIX: Check isAdminUser
   const cohortRowsCat3 = useMemo(() => 
     (isAdminUser && adminViewMode === 'dashboard') 
       ? [] 
@@ -158,7 +154,6 @@ export function useReportData({
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // FIX: Check isAdminUser
       const target = isAdminUser ? (isConsolidatedView ? null : selectedFacility) : userFacility;
       const fullRowKeys = getRowKeysForFacility(target || 'PHO Consolidated', isConsolidatedView, true, false, []);
       
@@ -259,7 +254,6 @@ export function useReportData({
   }, [isAdminUser, userFacility, year, month, quarter, periodType, adminViewMode, selectedFacility, activeTab, isConsolidatedView, facilityBarangays]); 
 
   useEffect(() => {
-    // FIX: Check isAdminUser
     if (isAdminUser) {
       if (adminViewMode === 'dashboard') fetchFacilityStatuses();
       else if (adminViewMode === 'consolidated' || (adminViewMode === 'review' && selectedFacility)) fetchData();
@@ -288,7 +282,6 @@ export function useReportData({
 
   const handleChange = (m, f, v) => {
     if (activeTab === 'main') {
-        // FIX: Check isAdminUser
         if (periodType !== 'Monthly' || isAdminUser || (reportStatus !== 'Draft' && reportStatus !== 'Rejected') || m === currentHostMunicipality || (f !== 'othersSpec' && f !== 'remarks' && v !== '' && Number(v) < 0)) return;
         
         setData(prev => {
@@ -314,7 +307,6 @@ export function useReportData({
             return n;
         });
     } else {
-        // FIX: Check isAdminUser
         if (isAdminUser || m === currentHostMunicipality) return;
         setCohortData(prev => {
             const n = { ...prev }; n[m] = { ...(n[m] || INITIAL_COHORT_ROW), [f]: v };
@@ -342,12 +334,10 @@ export function useReportData({
 
   const handleSave = async (newStatus, reason = null) => {
     if (periodType !== 'Monthly' && activeTab === 'main') { toast.error("Monthly only for Main Report"); return; }
-    // FIX: Check isAdminUser
     const target = isAdminUser ? selectedFacility : userFacility;
     if (!target) { toast.error("Error: Could not determine facility."); return false; }
     const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
     
-    // FIX: Check isAdminUser
     if (isAdminUser && (newStatus === 'Approved' || newStatus === 'Rejected') && currentStatus === 'Draft') {
         toast.error("Cannot approve or reject a report that has not been submitted.");
         return false;
@@ -416,20 +406,29 @@ export function useReportData({
   const confirmDeleteReport = async () => {
     try {
         const currentStatus = activeTab === 'main' ? reportStatuses.main : reportStatuses.cohort;
-        // FIX: Check isAdminUser
         if (isAdminUser && currentStatus === 'Draft') {
             toast.error("Cannot delete a report that has not been submitted.");
             return false;
         }
         const target = activeFacilityName; 
         const cleanYear = String(year).trim();
-        const currentMonthOrQuarter = periodType === 'Monthly' ? String(month).trim() : String(quarter).trim();
-        const type = activeTab === 'main' ? 'main' : 'cohort';
-        const { error: rpcError } = await supabase.rpc('delete_report_securely', { p_year: cleanYear, p_month: currentMonthOrQuarter, p_facility: target, p_type: type });
-        if (rpcError) throw rpcError;
+        const tableName = activeTab === 'main' ? 'abtc_reports' : 'abtc_cohort_reports';
+        
+        // FIX: Replaced faulty RPC with direct Supabase table delete query
+        let deleteQuery = supabase.from(tableName).delete().eq('year', cleanYear).eq('facility', target);
+        
+        if (periodType === 'Monthly') {
+            deleteQuery = deleteQuery.eq('month', String(month).trim());
+        } else if (periodType === 'Quarterly') {
+            deleteQuery = deleteQuery.in('month', getQuarterMonths(quarter));
+        }
+
+        const { error } = await deleteQuery;
+        if (error) throw error;
+        
         if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: 'Draft' }));
         else setReportStatuses(prev => ({ ...prev, cohort: 'Draft' }));
-        toast.success("Report data deleted"); 
+        toast.success("Report data deleted successfully."); 
         fetchData(); 
         return true;
     } catch(err) { toast.error(err.message); return false; }
