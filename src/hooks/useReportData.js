@@ -414,18 +414,44 @@ export function useReportData({
         const cleanYear = String(year).trim();
         const tableName = activeTab === 'main' ? 'abtc_reports' : 'abtc_cohort_reports';
         
-        // FIX: Replaced faulty RPC with direct Supabase table delete query
         let deleteQuery = supabase.from(tableName).delete().eq('year', cleanYear).eq('facility', target);
         
+        let periodStr = '';
         if (periodType === 'Monthly') {
             deleteQuery = deleteQuery.eq('month', String(month).trim());
+            periodStr = `${month} ${cleanYear}`;
         } else if (periodType === 'Quarterly') {
             deleteQuery = deleteQuery.in('month', getQuarterMonths(quarter));
+            periodStr = `${quarter} ${cleanYear}`;
+        } else {
+            periodStr = `Year ${cleanYear}`;
         }
 
         const { error } = await deleteQuery;
         if (error) throw error;
         
+        // --- BULLETPROOF AUDIT LOGGING ---
+        // Ensure user?.id is populated. If not, fall back to "System Action".
+        const currentUserId = user?.id || null;
+        const actorName = isAdminUser ? 'PHO Admin' : (user?.email || 'Facility User');
+        const reportTypeLabel = activeTab === 'main' ? 'Form 1 Report' : 'Cohort Report';
+
+        const auditPayload = {
+            facility_name: target,
+            action: 'DELETED',
+            report_type: reportTypeLabel,
+            period_info: periodStr,
+            actor_name: actorName
+        };
+
+        if (currentUserId) auditPayload.user_id = currentUserId;
+
+        const { error: auditError } = await supabase.from('audit_logs').insert([auditPayload]);
+
+        if (auditError) {
+            console.error("Audit log failed to insert:", auditError);
+        }
+
         if (activeTab === 'main') setReportStatuses(prev => ({ ...prev, main: 'Draft' }));
         else setReportStatuses(prev => ({ ...prev, cohort: 'Draft' }));
         toast.success("Report data deleted successfully."); 
