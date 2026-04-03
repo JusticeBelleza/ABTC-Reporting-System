@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    name: Run Vitest Suite
+    name: Run Vitest Analytics & Math Suite
     runs-on: ubuntu-latest
 
     steps:
@@ -22,13 +22,16 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Using a modern, stable version of Node
-          cache: 'npm'     # Makes future runs faster
+          node-version: 20 # Using a modern, stable version of Node (LTS)
+          cache: 'npm'     # Caches dependencies to make future runs much faster
 
-      # Step 3: Install all your dependencies (React, Recharts, Vitest, etc.)
+      # Step 3: Install dependencies using a "Clean Install" (Industry Standard for CI/CD)
+      # This strictly follows your package-lock.json so GitHub perfectly matches your laptop.
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      # Step 4: Run your bulletproof math tests!
+      # Step 4: Run the bulletproof math, forecasting, and UI data tests!
       - name: Run unit tests
+        # Vitest automatically detects the GitHub Actions CI environment 
+        # and runs in "single-run" mode instead of "watch" mode.
         run: npm run test
