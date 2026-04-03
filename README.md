@@ -1,137 +1,100 @@
-# 🚀 ABTC Reporting System
+# ABTC Reporting System
 
-The official Animal Bite Treatment Center reporting solution for the Abra Provincial Health Office.
+**The official Animal Bite Treatment Center reporting solution for the Abra Provincial Health Office.**
 
 ---
 
-## 📜 Intellectual Property & License Grant
+## ⚖️ Intellectual Property & License Grant
 
 ### Proprietary Software
-This software system is the independent intellectual property of Justice Belleza. It was designed, developed, and authored securely as a private initiative.
+This software system is the independent intellectual property of **Justice Belleza**. It was designed, developed, and authored securely as a private initiative.
 
 ### Institutional Grant
-This system is provided under a specialized Institutional License Grant to the Abra Provincial Health Office. It serves as the dedicated modernization platform for the province's public health data aggregation and epidemiological forecasting.
+This system is provided under a specialized **Institutional License Grant** to the **Abra Provincial Health Office**. It serves as the dedicated modernization platform for the province's public health data aggregation and epidemiological forecasting.
 
-**Note:** While the software is deployed for government use, ownership of the source code remains with the Developer, while ownership of the accumulated statistical data resides with the Provincial Health Office.
-
----
-
-## 📊 Executive Overview
-
-The ABTC Reporting System is a secure, web-based tool engineered to streamline data collection, enforce reporting compliance, and provide algorithmic trend forecasting for Animal Bite Treatment Centers (ABTCs) across the Province of Abra.
+> **Note:** While the software is deployed for government use, ownership of the source code remains with the Developer, while ownership of the accumulated statistical data resides with the Provincial Health Office.
 
 ---
 
-## 🧠 Core Philosophy: "Privacy-First"
+## 📖 Executive Overview
 
-To ensure strict compliance with RA 10173 (Data Privacy Act of 2012), the system operates on a Zero-Patient Data architecture. It strictly prohibits the input of patient names, addresses, or medical histories, focusing solely on public health metrics and statistical aggregation.
+The **ABTC Reporting System** is a secure, web-based tool engineered to streamline data collection, enforce reporting compliance, and provide algorithmic trend forecasting for Animal Bite Treatment Centers (ABTCs) across the Province of Abra.
+
+### Core Philosophy: "Privacy-First"
+To ensure strict compliance with **RA 10173 (Data Privacy Act of 2012)**, the system operates on a **Zero-Patient Data** architecture. It strictly prohibits the input of patient names, addresses, or medical histories, focusing solely on public health metrics and statistical aggregation.
 
 ---
 
 ## ✨ Key Features
 
 ### 📈 Predictive Analytics & Algorithmic Forecasting (NEW)
-
-**Algorithmic Trend Analysis:** Utilizes a custom multi-layered statistical engine (Adaptive Simple Moving Averages and Weighted Moving Averages) to calculate short-term reactions, mid-term baselines, and 12-month seasonality.
-
-**Smart Alert Engine:** Automatically scans real-time data to detect epidemiological threats. Triggers specific, color-coded alerts for Outbreak Anomalies, Sustained Risks, and Rising Trends based on user-defined sensitivity thresholds.
-
-**Forecast Error Tracking:** Transparently grades its own predictive accuracy using real-time MAE (Mean Absolute Error) and MAPE (Mean Absolute Percentage Error) calculations, ensuring health officers always know the confidence level of the data.
-
-**Dynamic "Snowball" YTD:** Employs strict, rolling Year-To-Date calculations that accurately track case accumulation month-by-month and quarter-by-quarter.
-
----
+* **Algorithmic Trend Analysis:** Utilizes a custom multi-layered statistical engine (Adaptive Simple Moving Averages and Weighted Moving Averages) to calculate short-term reactions, mid-term baselines, and 12-month seasonality.
+* **Smart Alert Engine:** Automatically scans real-time data to detect epidemiological threats. Triggers specific, color-coded alerts for **Outbreak Anomalies**, **Sustained Risks**, and **Rising Trends** based on user-defined sensitivity thresholds.
+* **Forecast Error Tracking:** Transparently grades its own predictive accuracy using real-time **MAE** (Mean Absolute Error) and **MAPE** (Mean Absolute Percentage Error) calculations, ensuring health officers always know the confidence level of the data.
+* **Dynamic "Snowball" YTD:** Employs strict, rolling Year-To-Date calculations that accurately track case accumulation month-by-month and quarter-by-quarter.
 
 ### 🛡️ Compliance, Security & Auditing
-
-**Zero PII Collection:** Eliminates privacy risks by rejecting Patient Personally Identifiable Information (PII).
-
-**Strict RBAC & Data Segregation:** Dedicated views and permissions for System Admins, Program Coordinators, and ABTC Staff. The system intelligently separates Municipal subtotals from Barangay records to mathematically guarantee zero double-counting across different administrative views.
-
-**Comprehensive Audit Trail:** Real-time tracking of system actions, report submissions, approvals, and rejections via a dedicated System Audit Log.
-
-**Smart Data Validation:** Built-in mathematical guardrails automatically cross-check demographic totals (e.g., Sex vs. Age, Total Animals vs. Washed) to prevent erroneous reporting.
-
----
+* **Zero PII Collection:** Eliminates privacy risks by rejecting Patient Personally Identifiable Information (PII).
+* **Strict RBAC & Data Segregation:** Dedicated views and permissions for System Admins, Program Coordinators, and ABTC Staff. The system intelligently separates Municipal subtotals from Barangay records to **mathematically guarantee zero double-counting** across different administrative views.
+* **Comprehensive Audit Trail:** Real-time tracking of system actions, report submissions, approvals, and rejections via a dedicated System Audit Log.
+* **Smart Data Validation:** Built-in mathematical guardrails automatically cross-check demographic totals (e.g., Sex vs. Age, Total Animals vs. Washed) to prevent erroneous reporting.
 
 ### ⚡ Offline Resilience & Performance
-
-**Real-Time Offline Detection:** Instantly alerts users when internet connectivity drops without interrupting their workflow.
-
-**Local Draft Saving:** Utilizes IndexedDB to securely save unsubmitted Form 1 and Cohort reports locally on the user's device when offline.
-
-**Background Auto-Sync:** Automatically pushes offline drafts to the cloud the moment internet connectivity is restored.
-
-**Scalable PDF Exporting:** Offloads heavy PDF generation to Background Web Workers, ensuring the main UI never freezes during complex document rendering.
-
----
+* **Real-Time Offline Detection:** Instantly alerts users when internet connectivity drops without interrupting their workflow.
+* **Local Draft Saving:** Utilizes IndexedDB to securely save unsubmitted Form 1 and Cohort reports locally on the user's device when offline.
+* **Background Auto-Sync:** Automatically pushes offline drafts to the cloud the moment internet connectivity is restored.
+* **Scalable PDF Exporting:** Offloads heavy PDF generation to Background Web Workers, ensuring the main UI never freezes during complex document rendering.
 
 ### 📊 Advanced Data Visualization
-
-**Provincial Compliance Matrix:** Dynamic leaderboards allowing admins to instantly track submission rates (Fully Compliant, Partially Compliant, Zero Submissions) across all municipalities.
-
-**Interactive Dashboards:** Sleek, dynamic charts (powered by Recharts) breaking down demographics, biting animals, and exposure categories with context-aware N = [Total] sample size badging.
-
-**Instant Chart Exporting:** One-click functionality to download analytics charts and forecasting models as high-resolution PNG images for presentations.
-
-**Automated Cohort Tracking:** Instant compilation of Category II and Category III patient outcomes across monthly, quarterly, and annual periods.
+* **Provincial Compliance Matrix:** Dynamic leaderboards allowing admins to instantly track submission rates (Fully Compliant, Partially Compliant, Zero Submissions) across all municipalities.
+* **Interactive Dashboards:** Sleek, dynamic charts (powered by Recharts) breaking down demographics, biting animals, and exposure categories with context-aware `N = [Total]` sample size badging.
+* **Instant Chart Exporting:** One-click functionality to download analytics charts and forecasting models as high-resolution PNG images for presentations.
+* **Automated Cohort Tracking:** Instant compilation of Category II and Category III patient outcomes across monthly, quarterly, and annual periods.
 
 ---
 
-## 🧩 Technical Stack
+## 🛠️ Technical Stack
 
 | Component | Technology Used |
-|----------|----------------|
-| Frontend Framework | React 19, Tailwind CSS |
-| Build Tool | Vite |
-| Backend & Auth | Supabase (PostgreSQL) |
-| Offline Storage | IndexedDB (Browser Native), Workbox (PWA) |
-| Data Visualization | Recharts, HTML-to-Image |
-| Statistical Engine | Custom JS Math Hooks (SMA, WMA, MAE, MAPE) |
-| Background Processing | Web Workers (PDF Generation) |
-| Hosting | Hostinger (Production Environment) |
+| :--- | :--- |
+| **Frontend Framework** | React 19, Tailwind CSS |
+| **Build Tool** | Vite |
+| **Backend & Auth** | Supabase (PostgreSQL) |
+| **Offline Storage** | IndexedDB (Browser Native), Workbox (PWA) |
+| **Data Visualization** | Recharts, HTML-to-Image |
+| **Statistical Engine** | Custom JS Math Hooks (SMA, WMA, MAE, MAPE) |
+| **Background Processing** | Web Workers (PDF Generation) |
+| **Hosting** | Hostinger (Production Environment) |
 
 ---
 
 ## 💻 System Requirements
 
+To ensure optimal performance for health facilities:
+
 ### For End-Users (ABTC Staff)
-
-Web Browser: Google Chrome, Microsoft Edge, or Firefox (Latest Versions). Internet Explorer is not supported.  
-
-Network: Intermittent internet is supported (Offline Draft mode available), but a stable connection is required for final cloud submission.  
-
-Device: Fully responsive design. Desktop/Laptop is recommended for dense data entry; Tablets and Mobile Phones are fully supported for dashboard viewing via the bottom navigation bar.
-
----
+* **Web Browser:** Google Chrome, Microsoft Edge, or Firefox (Latest Versions). *Internet Explorer is not supported.*
+* **Network:** Intermittent internet is supported (Offline Draft mode available), but a stable connection is required for final cloud submission.
+* **Device:** Fully responsive design. Desktop/Laptop is recommended for dense data entry; Tablets and Mobile Phones are fully supported for dashboard viewing via the bottom navigation bar.
 
 ### For Administrators
-
-Database Access: Requires authorized credentials for the Supabase project dashboard.  
-
-Environment: Node.js (v18+) for local maintenance or development.
+* **Database Access:** Requires authorized credentials for the Supabase project dashboard.
+* **Environment:** Node.js (v18+) for local maintenance or development.
 
 ---
 
-## ⚖️ Legal Documentation
+## 📄 Legal Documentation
 
 Usage of this system is governed by the following legally binding instruments:
 
-Privacy Policy: Establishes the strict non-collection of patient data and prescribes the handling of personnel information.  
-
-Terms of Use: Sets forth the guidelines for authorized ABTCs, including acceptable use provisions and prohibited acts.  
-
-License Agreement: Defines the Institutional License Grant, outlining ownership, succession rights, and the free-of-charge provision.
+* [**Privacy Policy**](PRIVACY.md): Establishes the strict non-collection of patient data and prescribes the handling of personnel information.
+* [**Terms of Use**](TERMS.md): Sets forth the guidelines for authorized ABTCs, including acceptable use provisions and prohibited acts.
+* [**Software License**](LICENSE.md): Defines the Institutional License Grant, outlining ownership, succession rights, and the free‑of‑charge provision. 
 
 ---
 
 ## 👨‍💻 Author & Contact
 
-Justice Belleza  
-Lead Developer & System Architect  
+**Justice Belleza** *Lead Developer & System Architect* **Email:** justice.belleza@icloud.com  
 
-Email: justice.belleza@icloud.com  
-
----
-
-© 2026 Justice Belleza. All Rights Reserved.
+&copy; 2026 Justice Belleza. All Rights Reserved.
