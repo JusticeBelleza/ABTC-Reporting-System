@@ -20,6 +20,9 @@ import AuditLogsModal from '../modals/AuditLogsModal';
 import ErrorBoundary from '../ErrorBoundary';
 import AnalyticsOverview from '../reports/AnalyticsOverview'; 
 
+// NEW: Import the EULA Modal
+import PostLoginEula from '../auth/PostLoginEula';
+
 import packageInfo from '../../../package.json';
 
 const getInitials = (name) => {
@@ -42,6 +45,41 @@ function DashboardContent() {
 
   // Helper boolean to check if the user is ANY type of admin
   const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
+
+  // ==========================================
+  // EULA / LEGAL CONSENT VERIFICATION
+  // ==========================================
+  const [needsConsent, setNeedsConsent] = useState(false);
+  const [checkingConsent, setCheckingConsent] = useState(true);
+
+  useEffect(() => {
+    async function verifyLegalConsent() {
+      if (!user) {
+        setCheckingConsent(false);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('eula_accepted_at')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        
+        // If the timestamp is null, they have never accepted it
+        if (!data?.eula_accepted_at) {
+          setNeedsConsent(true);
+        }
+      } catch (error) {
+        console.error('Error verifying EULA consent:', error);
+      } finally {
+        setCheckingConsent(false);
+      }
+    }
+
+    verifyLegalConsent();
+  }, [user]);
 
   // ==========================================
   // AUTO-LOGOUT / SESSION TIMEOUT LOGIC
@@ -202,8 +240,26 @@ function DashboardContent() {
     setIsDeletingFacility(false);
   };
 
+  // Show a professional loading spinner while verifying the database for EULA consent
+  if (checkingConsent) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-blue-600" size={32} strokeWidth={2.5} />
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">
+            Verifying Security Credentials...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 relative">
+      
+      {/* THE EULA BLOCKER */}
+      {needsConsent && <PostLoginEula onAcceptComplete={() => setNeedsConsent(false)} />}
+
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 no-print transition-all duration-300 shadow-sm shrink-0">
         <div className="max-w-[1600px] mx-auto px-4 md:px-8 h-16 flex items-center justify-between relative">
           
@@ -235,7 +291,6 @@ function DashboardContent() {
             <div onClick={() => setShowProfileModal(true)} className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 pr-1 py-1 bg-white border border-slate-200 rounded-full shadow-sm hover:border-slate-400 active:scale-95 transition-all duration-300 cursor-pointer group">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-black text-slate-800 leading-none truncate max-w-[120px]">{userProfile?.full_name || 'User'}</p>
-                {/* --- DISPLAY CLEAN ROLE NAME HERE --- */}
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{getRoleDisplayName(user?.role)}</p>
               </div>
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900 flex items-center justify-center text-yellow-400 text-[9px] sm:text-[10px] font-black ring-2 ring-slate-100 group-hover:ring-yellow-400 transition-all">
@@ -245,10 +300,8 @@ function DashboardContent() {
 
             <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner">
               
-              {/* ORDER: Bell | Audit | Settings | Logout */}
               <NotificationBell user={user} />
               
-              {/* BOTH ADMIN AND SYSADMIN GET LOGS */}
               {isAnyAdmin && (
                 <>
                   <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
@@ -283,7 +336,6 @@ function DashboardContent() {
               availableYears={availableYears} availableMonths={availableMonths}
            />
         ) : (
-          /* Check for BOTH admin and SYSADMIN here */
           isAnyAdmin && adminViewMode === 'dashboard' ? (
             <AdminDashboard 
               onViewConsolidated={() => setAdminViewMode('consolidated')}
@@ -310,7 +362,6 @@ function DashboardContent() {
           )
         )}
 
-        {/* Update SettingsModal to accept SYSADMIN */}
         {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} globalSettings={globalSettings} onSaveGlobal={setGlobalSettings} userProfile={userProfile} onSaveProfile={setUserProfile} isAdmin={isAnyAdmin} />}
         {showManageUsers && <UserManagementModal onClose={() => setShowManageUsers(false)} facilities={facilities} client={adminHelperClient} />}
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}

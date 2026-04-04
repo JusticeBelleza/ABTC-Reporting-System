@@ -34,6 +34,7 @@ For privacy concerns or to exercise rights under RA 10173, contact:
 **Antonio L. Valera, MD** Assistant Provincial Health Officer  
 Data Protection Officer, Abra Provincial Health Office
 
-### Section 6 - Data Retention Policy
+### Section 6 - Data Retention Policy & Ownership
+All statistical data, reports, and records encoded into the System remain the exclusive property of the Abra Provincial Health Office and the Reporting facilities.
 * **Statistical data** shall be retained indefinitely for historical public health analysis.
 * **Personnel data** shall be retained only while the account remains active. Upon resignation or termination of an authorized representative, personal contact details shall be deactivated and purged from the live system within thirty (30) days.

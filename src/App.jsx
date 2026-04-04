@@ -8,15 +8,25 @@ import { AppProvider, useApp } from './context/AppContext';
 import Login from './components/auth/Login';
 import UpdatePasswordForm from './components/auth/UpdatePasswordForm';
 import Dashboard from './components/dashboard/Dashboard';
-
 import MainReportTableV2 from './components/reports/MainReportTableV2';
+import OnboardingCarousel from './components/auth/OnboardingCarousel'; // <-- IMPORT CAROUSEL
 
 function AppContent() {
   const { session, loading, logout } = useApp();
   const [showPasswordUpdate, setShowPasswordUpdate] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false); // <-- ONBOARDING STATE
+
+  // Check if a new user needs to see the onboarding carousel
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem('abtc_has_seen_onboarding');
+    // Only show onboarding if they are NOT logged in, AND haven't seen it yet
+    if (!session && !hasSeenOnboarding && !loading) {
+      setShowOnboarding(true);
+    }
+  }, [session, loading]);
 
   useEffect(() => {
-    // Listen for Password Recovery events
+    // for Password Recovery events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setShowPasswordUpdate(true);
     });
@@ -40,12 +50,15 @@ function AppContent() {
   }, [session, logout]);
 
   // 1. Keep your loading UI exactly the same
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-zinc-900" size={20} /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-zinc-900" size={24} /></div>;
   
   // 2. Keep your password update UI exactly the same
   if (showPasswordUpdate) return <UpdatePasswordForm onComplete={() => setShowPasswordUpdate(false)} />;
   
-  // 3. Here is where the Router takes over!
+  // 3. ONBOARDING INTERCEPTOR: Show Carousel before they even reach the Login Route
+  if (showOnboarding) return <OnboardingCarousel onComplete={() => setShowOnboarding(false)} />;
+
+  // 4. Here is where the Router takes over!
   return (
     <Routes>
       {/* The Dashboard Route (Protected)
