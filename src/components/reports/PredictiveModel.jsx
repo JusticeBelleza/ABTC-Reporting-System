@@ -1,6 +1,6 @@
 import React from 'react';
 import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, Line } from 'recharts';
-import { BrainCircuit, Download, Calculator, X, TrendingUp, AlertTriangle, CheckCircle2, ActivitySquare, Info } from 'lucide-react';
+import { BrainCircuit, Download, Calculator, X, TrendingUp, AlertTriangle, CheckCircle2, ActivitySquare, Info, Target, Loader2 } from 'lucide-react';
 import ModalPortal from '../modals/ModalPortal';
 
 export default function PredictiveModel({
@@ -10,21 +10,22 @@ export default function PredictiveModel({
   modelMetrics = { accuracy: 0, mae: 0, mape: 0, validMonths: 0 } 
 }) {
   
-  // 1. Grab exactly the 13 months being displayed on the chart
   const chartDisplayData = full24MonthData.slice(-13);
   
-  // 2. Mathematically sum up ONLY the blue bars visible on the screen
   const exactChartTotal = chartDisplayData
     .filter(d => d.year === year) 
     .reduce((sum, d) => sum + (d.raw || 0), 0);
 
   const validDataCount = full24MonthData.filter(d => d.raw !== null).length;
   const hasEnoughData = validDataCount >= 3 && projectedNextMonth !== null;
+  
+  const isCalibratingAccuracy = modelMetrics.validMonths < 3 || parseFloat(modelMetrics.accuracy) <= 0;
 
   return (
     <>
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group" id="chart-predictive">
-          <div className="flex justify-between items-start mb-8">
+          
+          <div className="flex justify-between items-start mb-6">
               <div>
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <BrainCircuit size={18} className="text-blue-600"/> 
@@ -41,9 +42,33 @@ export default function PredictiveModel({
               </div>
           </div>
 
+          <div className="mb-6">
+              {isCalibratingAccuracy ? (
+                  <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Model Calibrating Historical Data...</span>
+                  </div>
+              ) : (
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-600 font-medium">
+                      <div className="flex items-center gap-1.5">
+                          <Target size={16} className="text-blue-600" />
+                          <span>Accuracy: <strong className="text-slate-900">{modelMetrics.accuracy}%</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                          <ActivitySquare size={16} className="text-slate-500" />
+                          <span>Mean Absolute Error: <strong className="text-slate-900">±{modelMetrics.mae}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                          <TrendingUp size={16} className="text-slate-500" />
+                          <span>Mean Absolute Percentage Error: <strong className="text-slate-900">{modelMetrics.mape}%</strong></span>
+                      </div>
+                  </div>
+              )}
+          </div>
+
           <div className="h-[400px] w-full">
               <ResponsiveContainer>
-                  <ComposedChart data={chartDisplayData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+                  <ComposedChart data={chartDisplayData} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                       <XAxis dataKey="display" tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 700}} axisLine={false} tickLine={false} />
                       <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
@@ -60,16 +85,30 @@ export default function PredictiveModel({
               </ResponsiveContainer>
           </div>
           
-          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-4">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><BrainCircuit size={14}/> Algorithmic Chart Interpretation</h4>
+          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><BrainCircuit size={14}/> Algorithmic Chart Interpretation</h4>
               
               {hasEnoughData ? (
-                  <p className="text-sm font-medium text-slate-700 leading-relaxed">
-                      Based on historical trends, the model projects <strong className="text-slate-900">{projectedNextMonth !== null ? projectedNextMonth : '--'} cases</strong> for the next reporting period. 
-                      Current case volume is classified as <strong className={`${riskLevel === 'HIGH' ? 'text-red-600' : riskLevel === 'MODERATE' ? 'text-amber-600' : 'text-emerald-600'}`}>{riskLevel || 'LOW'} RISK</strong>, 
-                      indicating that volume is {riskLevel === 'HIGH' ? 'significantly exceeding normal baselines (Outbreak Anomaly)' : riskLevel === 'MODERATE' ? 'accelerating faster than the short-term average (Rising Trend)' : 'stable and tracking within expected historical baselines'}. 
-                      Historically, this forecasting model has operated with an accuracy of <strong className="text-slate-900">{modelMetrics.accuracy}%</strong>.
-                  </p>
+                  <div className="text-sm font-medium text-slate-600 leading-relaxed">
+                      <p className="mb-2">
+                        Based on recent trajectory data, the mathematical model projects an estimated <strong className="text-slate-900">{projectedNextMonth !== null ? projectedNextMonth : '--'} cases</strong> for the upcoming reporting period. 
+                      </p>
+                      <p>
+                        Current case volume is classified as a <strong className={`px-1.5 py-0.5 rounded ${riskLevel === 'HIGH' ? 'bg-red-100 text-red-700' : riskLevel === 'MODERATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{riskLevel || 'LOW'} RISK</strong> event. This indicates that the active reporting volume is {riskLevel === 'HIGH' ? 'significantly exceeding normal baselines, suggesting a potential outbreak anomaly' : riskLevel === 'MODERATE' ? 'accelerating faster than the short-term average, indicating a rising trend' : 'stable and tracking normally within established historical baselines'}.
+                      </p>
+                      
+                      <div className="mt-3 pt-3 border-t border-slate-200/60">
+                        {isCalibratingAccuracy ? (
+                             <p className="text-[11px] text-slate-500 italic flex items-center gap-1.5">
+                                <Info size={12} className="text-blue-400"/> System Note: Overall predictive validation metrics are currently calibrating as the engine accumulates historical reporting data.
+                             </p>
+                        ) : (
+                             <p className="text-xs text-slate-700">
+                                Validation: The forecasting engine has cross-referenced these projections against historical trends with an established accuracy rate of <strong className="text-slate-900">{modelMetrics.accuracy}%</strong>.
+                             </p>
+                        )}
+                      </div>
+                  </div>
               ) : (
                   <p className="text-sm font-medium text-slate-500 italic leading-relaxed">
                       Gathering baseline data. The system requires at least 3 months of continuous approved reports to accurately calculate projections and establish trend baselines.
@@ -160,9 +199,10 @@ export default function PredictiveModel({
                                 <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 font-mono text-sm sm:text-base font-semibold text-slate-800 flex justify-center shadow-sm">
                                     SMA<sub>n</sub> = ( Case<sub>1</sub> + Case<sub>2</sub> + ... + Case<sub>n</sub> ) / n
                                 </div>
-                                <div className="mt-3 p-2.5 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 font-medium">
-                                    <strong>Example:</strong> If cases for Jan, Feb, and Mar are 10, 20, and 15:<br/>
-                                    SMA 3 for March = (10 + 20 + 15) / 3 = <strong>15 cases</strong>.
+                                <div className="mt-3 p-4 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-900 font-medium leading-relaxed shadow-sm">
+                                    <strong className="block mb-1">Step-by-Step Example:</strong> 
+                                    If your cases for the last 3 months were <strong>10</strong>, <strong>20</strong>, and <strong>15</strong>:<br/>
+                                    SMA = (10 + 20 + 15) ÷ 3 months = <strong>15 average cases</strong>.
                                 </div>
                             </div>
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -172,10 +212,12 @@ export default function PredictiveModel({
                                     <span>WMA<sub>3</sub> = [ (Case<sub>m-2</sub> × 1) + (Case<sub>m-1</sub> × 2) + (Case<sub>m</sub> × 3) ] / 6</span>
                                     <span className="text-[10px] sm:text-xs font-normal text-slate-400 mt-1 italic">Where Case<sub>m</sub> is the most recent month.</span>
                                 </div>
-                                <div className="mt-3 p-2.5 bg-purple-50 border border-purple-100 rounded-lg text-xs text-purple-800 font-medium">
-                                    <strong>Example:</strong> Using Jan=10, Feb=20, Mar=15, the WMA gives most weight to the newest month (Mar × 3).<br/>
-                                    WMA 3 = [(10 × 1) + (20 × 2) + (15 × 3)] / 6 = [10 + 40 + 45] / 6 = 15.8 ≈ <strong>16 cases</strong>.<br/>
-                                    <span className="text-[11px] italic opacity-80 mt-1 inline-block">*Notice how WMA is higher than SMA because it reacted to the recent spike. The system always rounds to the nearest whole patient.</span>
+                                <div className="mt-3 p-4 bg-purple-50 border border-purple-100 rounded-lg text-xs text-purple-900 font-medium leading-relaxed shadow-sm">
+                                    <strong className="block mb-1">Step-by-Step Example:</strong> 
+                                    Using those same cases (10, 20, 15), WMA multiplies the newest month by 3, the middle by 2, and the oldest by 1:<br/>
+                                    Step 1: (10 × 1) + (20 × 2) + (15 × 3) = 10 + 40 + 45 = <strong>95 total weighted cases</strong>.<br/>
+                                    Step 2: 95 ÷ 6 (the total weights added together) = 15.8 ≈ <strong>16 cases</strong>.<br/>
+                                    <span className="text-[11px] italic opacity-80 mt-2 block">*Notice the WMA (16) is slightly higher than the SMA (15) because it mathematically paid more attention to the recent spikes.</span>
                                 </div>
                             </div>
                         </div>
@@ -200,10 +242,28 @@ export default function PredictiveModel({
                                     MAPE = ( Σ | Actual - Forecast | / Actual ) / n × 100
                                 </div>
                             </div>
-                            <div className="mt-1 col-span-1 md:col-span-2 p-2.5 bg-emerald-50 border border-emerald-100 rounded-lg text-[10px] sm:text-xs text-emerald-800 font-medium">
-                                <strong>Example:</strong> If the model forecasted 15 cases, but actual cases were 20:<br/>
-                                • <strong>MAE (Count Error):</strong> | 20 - 15 | = <strong>5 cases off target</strong>.<br/>
-                                • <strong>MAPE (Percentage Error):</strong> (5 / 20) × 100 = <strong>25% margin of error</strong>.
+                            
+                            {/* REWRITTEN MAE/MAPE EXAMPLE */}
+                            <div className="mt-1 col-span-1 md:col-span-2 p-5 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-900 font-medium leading-relaxed shadow-sm">
+                                <strong className="block mb-3 text-sm text-emerald-950 flex items-center gap-2">How the Average is Calculated (2-Month Example):</strong>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                    <div className="bg-white p-3 rounded-lg border border-emerald-100">
+                                        <span className="underline decoration-emerald-300 underline-offset-2 font-bold mb-1 block">Month 1:</span> We predicted 50, but actual was 60.<br/>
+                                        • We missed by <strong>10 cases</strong>.<br/>
+                                        • % Error: 10/60 = <strong>16% error</strong>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-emerald-100">
+                                        <span className="underline decoration-emerald-300 underline-offset-2 font-bold mb-1 block">Month 2:</span> We predicted 40, but actual was 30.<br/>
+                                        • We missed by <strong>10 cases</strong>.<br/>
+                                        • % Error: 10/30 = <strong>33% error</strong>
+                                    </div>
+                                </div>
+                                <div className="pt-3 border-t border-emerald-200/60">
+                                    <div className="flex flex-col gap-1.5">
+                                        <span>• <strong>System MAE:</strong> (10 + 10) ÷ 2 months = <strong>±10 cases off target overall</strong>.</span>
+                                        <span>• <strong>System MAPE:</strong> (16% + 33%) ÷ 2 months = <strong>24.5% total margin of error</strong>.</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>

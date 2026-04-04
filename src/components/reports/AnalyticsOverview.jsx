@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Loader2, ShieldAlert, PieChart as PieChartIcon, TrendingUp, TrendingDown, Info, Calendar, User, BrainCircuit, Activity } from 'lucide-react';
+import { Loader2, ShieldAlert, PieChart as PieChartIcon, TrendingUp, TrendingDown, Info, Calendar, User, BrainCircuit, Activity, CheckCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useReportData } from '../../hooks/useReportData';
 import { QUARTERS, MONTHS, MUNICIPALITIES } from '../../lib/constants';
@@ -96,7 +96,6 @@ export default function AnalyticsOverview({
     facilityDetails, globalSettings
   });
 
-  // 1. HARDWIRE CURRENT TOTAL DIRECTLY TO THE BULLETPROOF CHART DATA
   const currentTotal = useMemo(() => {
       if (periodType === 'Monthly') {
           return full24MonthData.find(d => d.year === year && d.month === month)?.raw || 0;
@@ -109,7 +108,6 @@ export default function AnalyticsOverview({
       }
   }, [full24MonthData, periodType, year, month, quarter]);
 
-  // 2. HARDWIRE YTD DIRECTLY TO THE BULLETPROOF CHART DATA
   const calculatedYTD = useMemo(() => {
       if (periodType === 'Annual') return currentTotal;
       let targetMonths = [];
@@ -123,7 +121,6 @@ export default function AnalyticsOverview({
       return full24MonthData.filter(d => d.year === year && targetMonths.includes(d.month)).reduce((sum, d) => sum + (d.raw || 0), 0);
   }, [periodType, currentTotal, full24MonthData, month, quarter, year]);
 
-  // 3. SAFE COMPARISON WITH N/A FALLBACK
   const comparisonData = useMemo(() => {
       let prevTotal = 0;
       let label = `vs Last ${periodType === 'Monthly' ? 'Month' : periodType === 'Quarterly' ? 'Quarter' : 'Year'}`;
@@ -204,7 +201,7 @@ export default function AnalyticsOverview({
     table.sort((a, b) => b.value - a.value);
 
     return { chartData: chart, tableData: table, total };
-  }, [data, isConsolidatedView, facilityType, user, facilityBarangays]); // Removed hostMuni
+  }, [data, isConsolidatedView, facilityType, user, facilityBarangays]); 
 
   const locationData = locationInfo.chartData;
   const tableData = locationInfo.tableData;
@@ -228,7 +225,7 @@ export default function AnalyticsOverview({
       });
 
       return { male, female, ageLt15, ageGt15, cat1, cat2, cat3, dog, cat };
-  }, [data, isConsolidatedView, user]); // Removed hostMuni
+  }, [data, isConsolidatedView, user]);
 
   const demographicsSexData = useMemo(() => [{ name: 'Male', value: safeTotals.male }, { name: 'Female', value: safeTotals.female }], [safeTotals]);
   const demographicsAgeData = useMemo(() => [{ name: '< 15 Yrs', value: safeTotals.ageLt15 }, { name: '> 15 Yrs', value: safeTotals.ageGt15 }], [safeTotals]);
@@ -296,7 +293,7 @@ export default function AnalyticsOverview({
     });
 
     return res.sort((a, b) => b.value - a.value);
-  }, [data, safeTotals, facilityBarangays, user, isConsolidatedView]); // Removed hostMuni
+  }, [data, safeTotals, facilityBarangays, user, isConsolidatedView]); 
 
   const categoryTotal = useMemo(() => categoryData.reduce((sum, item) => sum + item.value, 0), [categoryData]);
   const sexTotal = useMemo(() => demographicsSexData.reduce((sum, item) => sum + item.value, 0), [demographicsSexData]);
@@ -312,6 +309,46 @@ export default function AnalyticsOverview({
 
   const hasAnyData = full24MonthData.some(d => d.year === year && d.raw !== null);
   const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : hasAnyData);
+
+  const renderDataCompletenessBanner = () => {
+    // Hide banner entirely if we are fully awaiting data
+    if (locationTotal === 0 && reportStatus === 'Draft') return null;
+    
+    const isComplete = isAdmin ? complianceRate === 100 : reportStatus === 'Approved';
+    
+    return (
+      <div className={`mb-6 p-4 rounded-xl border flex items-start sm:items-center gap-3 shadow-sm ${
+        isComplete 
+          ? 'bg-emerald-50/80 border-emerald-200/60' 
+          : 'bg-amber-50/80 border-amber-200/60'
+      }`}>
+        {isComplete ? (
+          <div className="bg-emerald-100 p-1.5 rounded-lg shrink-0 mt-0.5 sm:mt-0">
+             <CheckCircle size={18} className="text-emerald-600" strokeWidth={2.5}/>
+          </div>
+        ) : (
+          <div className="bg-amber-100 p-1.5 rounded-lg shrink-0 mt-0.5 sm:mt-0">
+             <ShieldAlert size={18} className="text-amber-600" strokeWidth={2.5}/>
+          </div>
+        )}
+        <div className="flex flex-col">
+          <h4 className={`text-sm font-bold ${isComplete ? 'text-emerald-900' : 'text-amber-900'}`}>
+            {isComplete ? 'Complete Verified Data' : 'Incomplete Data Warning'}
+          </h4>
+          <p className={`text-xs font-medium mt-0.5 ${isComplete ? 'text-emerald-700' : 'text-amber-700'}`}>
+            {isAdmin 
+              ? (isComplete 
+                  ? 'All authorized facilities have submitted approved reports for this period. Analytics reflect a highly accurate baseline.' 
+                  : `Only ${complianceRate}% of facilities have submitted approved reports. Analytics and predictive models may not reflect the actual provincial totals until all reports are in.`)
+              : (isComplete
+                  ? 'Your facility report has been approved and verified for this period.'
+                  : 'Your facility report is still pending or in draft. Analytics may be incomplete.')
+            }
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500 pb-12 w-full px-2 sm:px-4">
@@ -389,12 +426,20 @@ export default function AnalyticsOverview({
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* CURRENT PERIOD CASES */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity size={12}/> Current Period Cases</p>
                   <div className="flex items-end justify-between">
                       <h3 className="text-3xl font-black text-slate-900">{currentTotal}</h3>
                       <div className={`flex flex-col items-end`}>
-                          {comparisonData.isValid ? (
+                          {currentTotal === 0 ? (
+                              reportStatus !== 'Draft' ? (
+                                  <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg text-[10px] font-bold">VERIFIED ZERO</div>
+                              ) : (
+                                  <div className="bg-amber-50 text-amber-600 px-2 py-1 rounded-lg text-[10px] font-bold">AWAITING DATA</div>
+                              )
+                          ) : comparisonData.isValid ? (
                               <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold ${comparisonData.delta >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                                   {comparisonData.delta >= 0 ? <TrendingUp size={14}/> : <TrendingDown size={14}/>}
                                   {Math.abs(comparisonData.delta).toFixed(1)}%
@@ -402,21 +447,33 @@ export default function AnalyticsOverview({
                           ) : (
                               <div className="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-bold">N/A</div>
                           )}
-                          <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{comparisonData.label}</span>
+                          <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{currentTotal === 0 ? 'PENDING REPORT' : comparisonData.label}</span>
                       </div>
                   </div>
               </div>
               
+              {/* YEAR TO DATE */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar size={12}/> {periodType === 'Annual' ? 'Total Cases' : 'YTD Total'}</p>
                   <div className="flex items-end justify-between">
                       <h3 className="text-3xl font-black text-slate-900">
                           {calculatedYTD}
                       </h3>
-                      <div className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold">CASES IN {year}</div>
+                      <div className="flex flex-col items-end">
+                          {calculatedYTD === 0 ? (
+                              reportStatus !== 'Draft' ? (
+                                  <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg text-[10px] font-bold">VERIFIED ZERO</div>
+                              ) : (
+                                  <div className="bg-amber-50 text-amber-600 px-2 py-1 rounded-lg text-[10px] font-bold">AWAITING DATA</div>
+                              )
+                          ) : (
+                              <div className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold">CASES IN {year}</div>
+                          )}
+                      </div>
                   </div>
               </div>
 
+              {/* COMPLIANCE RATE */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><User size={12}/> Average Completion</p>
                   <div className="flex items-end justify-between">
@@ -431,16 +488,47 @@ export default function AnalyticsOverview({
               </div>
           </div>
 
-          <DemographicCharts 
-            locationTitleBase={locationTitleBase} locationTotal={locationTotal} locationData={locationData} tableData={tableData}
-            categoryTotal={categoryTotal} categoryData={categoryData} animalTotal={animalTotal} animalData={animalData}
-            sexTotal={sexTotal} demographicsSexData={demographicsSexData} ageTotal={ageTotal} demographicsAgeData={demographicsAgeData}
-            handleDownload={handleDownload} renderDynamicBarLabel={renderDynamicBarLabel} renderCustomizedLabel={renderCustomizedLabel}
-            COLORS={COLORS} TOOLTIP_STYLE={TOOLTIP_STYLE}
-          />
+          {/* EMPTY STATE FALLBACK OR CHARTS */}
+          {locationTotal === 0 ? (
+              reportStatus !== 'Draft' ? (
+                  <div className="h-96 flex flex-col items-center justify-center bg-emerald-50 rounded-2xl border border-emerald-200 border-dashed text-center p-6 animate-in fade-in zoom-in-95 duration-500">
+                      <div className="bg-emerald-100 p-5 rounded-full mb-4 text-emerald-600 shadow-sm">
+                          <CheckCircle size={40} strokeWidth={2.5} />
+                      </div>
+                      <h3 className="text-lg font-black text-emerald-900 tracking-tight">Zero Report Verified</h3>
+                      <p className="text-sm text-emerald-700 mt-1 max-w-md leading-relaxed font-medium">
+                          An official report was processed and approved for this period indicating zero (0) animal bite cases.
+                      </p>
+                  </div>
+              ) : (
+                  <div className="h-96 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 border-dashed text-center p-6 animate-in fade-in duration-500">
+                      <div className="bg-slate-50 p-5 rounded-full mb-4 text-slate-400">
+                          <PieChartIcon size={40} strokeWidth={1.5} />
+                      </div>
+                      <h3 className="text-lg font-black text-slate-900">
+                          Awaiting {periodType === 'Monthly' ? month : periodType === 'Quarterly' ? quarter : 'Yearly'} Data
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-1 max-w-md">
+                          No approved reports have been encoded for this period yet. Visualizations will automatically generate once data is submitted.
+                      </p>
+                  </div>
+              )
+          ) : (
+              <DemographicCharts 
+                locationTitleBase={locationTitleBase} locationTotal={locationTotal} locationData={locationData} tableData={tableData}
+                categoryTotal={categoryTotal} categoryData={categoryData} animalTotal={animalTotal} animalData={animalData}
+                sexTotal={sexTotal} demographicsSexData={demographicsSexData} ageTotal={ageTotal} demographicsAgeData={demographicsAgeData}
+                handleDownload={handleDownload} renderDynamicBarLabel={renderDynamicBarLabel} renderCustomizedLabel={renderCustomizedLabel}
+                COLORS={COLORS} TOOLTIP_STYLE={TOOLTIP_STYLE}
+              />
+          )}
+
         </div>
       ) : (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+            {/* RENDER THE DATA COMPLETENESS BANNER ONLY ON THE PREDICTIVE TAB */}
+            {renderDataCompletenessBanner()}
+            
             <SmartAlertsPanel riskLevel={riskLevel} smartAlerts={smartAlerts} projectedNextMonth={projectedNextMonth} modelMetrics={modelMetrics} />
             <PredictiveModel 
               year={year} full24MonthData={full24MonthData} handleDownload={handleDownload} showMathModal={showMathModal} setShowMathModal={setShowMathModal}

@@ -1,9 +1,8 @@
 import React from 'react';
-import { BrainCircuit, Zap, AlertTriangle, TrendingUp, TrendingDown, Info, ActivitySquare, Target } from 'lucide-react';
+import { BrainCircuit, Zap, AlertTriangle, TrendingUp, TrendingDown, Info, ActivitySquare, Target, Loader2 } from 'lucide-react';
 
 export default function SmartAlertsPanel({ riskLevel, smartAlerts, projectedNextMonth, modelMetrics }) {
   
-  // Design configuration for semantic alert types
   const getAlertStyle = (type) => {
       switch(type) {
           case 'critical': 
@@ -16,6 +15,9 @@ export default function SmartAlertsPanel({ riskLevel, smartAlerts, projectedNext
               return { wrapper: 'border-l-blue-500 bg-white border-y-slate-200 border-r-slate-200', icon: <Info className="text-blue-500 mt-0.5 shrink-0" size={18}/>, title: 'text-slate-800' };
       }
   };
+
+  // FIX: Added the safety net so if Accuracy is exactly 0.0, it falls back to Calibrating!
+  const isCalibratingAccuracy = modelMetrics.validMonths < 3 || Number(modelMetrics.accuracy) === 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -85,24 +87,33 @@ export default function SmartAlertsPanel({ riskLevel, smartAlerts, projectedNext
             </div>
             
             {/* Bottom Half: KPIs */}
-            <div className="bg-slate-900 p-5 text-white">
+            <div className="bg-slate-900 p-5 text-white flex flex-col justify-center">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                     <Target size={14} className="text-yellow-400"/> Model Accuracy
                 </p>
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner">
-                        <div className="text-lg font-black text-white">{modelMetrics.accuracy}%</div>
-                        <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Accuracy</div>
+                {isCalibratingAccuracy ? (
+                    <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700/50 shadow-inner flex flex-col items-center justify-center h-[76px]">
+                         <p className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                            <Loader2 size={14} className="animate-spin text-yellow-400" /> Calibrating
+                         </p>
+                         <p className="text-[9px] text-slate-500 mt-1">Awaiting historical data</p>
                     </div>
-                    <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner" title="Mean Absolute Error (Average cases off target)">
-                        <div className="text-lg font-black text-white">±{modelMetrics.mae}</div>
-                        <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">MAE</div>
+                ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner">
+                            <div className="text-lg font-black text-white">{modelMetrics.accuracy}%</div>
+                            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Accuracy</div>
+                        </div>
+                        <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner" title="Mean Absolute Error (Average cases off target)">
+                            <div className="text-lg font-black text-white">±{modelMetrics.mae}</div>
+                            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">MAE</div>
+                        </div>
+                        <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner" title="Mean Absolute Percentage Error">
+                            <div className="text-lg font-black text-white">{modelMetrics.mape}%</div>
+                            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">MAPE</div>
+                        </div>
                     </div>
-                    <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner" title="Mean Absolute Percentage Error">
-                        <div className="text-lg font-black text-white">{modelMetrics.mape}%</div>
-                        <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">MAPE</div>
-                    </div>
-                </div>
+                )}
             </div>
 
         </div>

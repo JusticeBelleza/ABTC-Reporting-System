@@ -71,13 +71,11 @@ export function useForecastingMetrics({
                 
                 if (hasData) {
                     total = periodReports.reduce((sum, r) => {
-                        // 1. Ignore overlapping quarterly/annual reports to prevent double counting in the chart
                         if (r.quarter && r.quarter.trim() !== '') return sum; 
                         const pType = String(r.periodType || r.period_type || r.report_type || r.period || '').toLowerCase();
                         if (pType === 'annual' || pType === 'quarterly') return sum;
 
                         const fName = String(r.facility || '').trim();
-                        // 2. Ignore PHO's consolidated saved reports (we only want raw RHU data)
                         if (isAdmin && (fName === 'PHO' || fName.toLowerCase().includes('provincial') || fName.toLowerCase().includes('admin'))) {
                             return sum;
                         }
@@ -86,12 +84,10 @@ export function useForecastingMetrics({
                         const lower = muni.toLowerCase();
                         if (lower === 'total' || lower.includes('grand total')) return sum;
 
-                        // 3. 🚨 THE FIX: Drop the facility's own subtotal row to prevent 2x counting!
                         const reportHostMuni = MUNICIPALITIES.find(mun => fName.toLowerCase().includes(mun.toLowerCase()));
                         const type = facilityDetails?.[fName]?.type || 'RHU';
                         const isHospital = type === 'Hospital' || type === 'Clinic';
                         
-                        // Strict role-based filtering
                         const isOfficialMuni = MUNICIPALITIES.some(mun => mun.toLowerCase() === lower);
                         if (isAdmin) {
                             if (!isOfficialMuni) return sum;
@@ -171,7 +167,8 @@ export function useForecastingMetrics({
               const calcMape = countForMape > 0 ? ((pctErrSum / countForMape) * 100).toFixed(1) : 0;
               const calcAcc = countForMape > 0 ? Math.max(0, 100 - calcMape).toFixed(1) : 0;
               
-              setModelMetrics({ mae: calcMae, mape: calcMape, accuracy: calcAcc, validMonths: countForMae });
+              // FIX: Now using countForMape so it only counts months with actual cases > 0 towards validity
+              setModelMetrics({ mae: calcMae, mape: calcMape, accuracy: calcAcc, validMonths: countForMape });
 
               const lastValid = processed24Months[lastValidIdx];
               predictedVal = lastValid.wma3 !== null ? lastValid.wma3 : (lastValid.sma3 !== null ? lastValid.sma3 : lastValid.raw);
