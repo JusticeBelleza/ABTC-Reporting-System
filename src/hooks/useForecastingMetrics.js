@@ -20,8 +20,14 @@ export function useForecastingMetrics({
     const fetchHistory = async () => {
       setLoadingHistory(true);
       try {
+        const { data: serverCompliance, error: complianceError } = await supabase.rpc('get_monthly_compliance_rate', { 
+            target_year: year, 
+            target_month: month 
+        });
+
         const query = supabase.from('abtc_reports').select('*').eq('status', 'Approved');
         if (!isAdmin) query.eq('facility', user?.facility);
+        
         const { data: reports, error } = await query;
 
         if (error) throw error;
@@ -38,24 +44,28 @@ export function useForecastingMetrics({
               }
           });
 
-          const targetFacilitiesCount = isAdmin ? facilities.length : 1;
-          let expectedReports = 0; let actualReports = 0;
-
-          if (periodType === 'Monthly') {
-              expectedReports = targetFacilitiesCount;
-              actualReports = new Set(reports.filter(r => Number(r.year) === year && r.month === month).map(r => r.facility)).size;
-          } else if (periodType === 'Quarterly') {
-              const qIdx = QUARTERS.indexOf(quarter);
-              const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
-              expectedReports = targetFacilitiesCount * 3; 
-              actualReports = new Set(reports.filter(r => Number(r.year) === year && targetMonths.includes(r.month)).map(r => `${r.facility}-${r.month}`)).size;
+          if (periodType === 'Monthly' && !complianceError && serverCompliance !== null) {
+              setComplianceRate(serverCompliance);
           } else {
-              expectedReports = targetFacilitiesCount * 12; 
-              actualReports = new Set(reports.filter(r => Number(r.year) === year).map(r => `${r.facility}-${r.month}`)).size;
-          }
+              const targetFacilitiesCount = isAdmin ? facilities.length : 1;
+              let expectedReports = 0; let actualReports = 0;
 
-          let calcRate = expectedReports > 0 ? Math.round((actualReports / expectedReports) * 100) : 0;
-          setComplianceRate(Math.min(calcRate, 100));
+              if (periodType === 'Monthly') {
+                  expectedReports = targetFacilitiesCount;
+                  actualReports = new Set(reports.filter(r => Number(r.year) === year && r.month === month).map(r => r.facility)).size;
+              } else if (periodType === 'Quarterly') {
+                  const qIdx = QUARTERS.indexOf(quarter);
+                  const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
+                  expectedReports = targetFacilitiesCount * 3; 
+                  actualReports = new Set(reports.filter(r => Number(r.year) === year && targetMonths.includes(r.month)).map(r => `${r.facility}-${r.month}`)).size;
+              } else {
+                  expectedReports = targetFacilitiesCount * 12; 
+                  actualReports = new Set(reports.filter(r => Number(r.year) === year).map(r => `${r.facility}-${r.month}`)).size;
+              }
+
+              let calcRate = expectedReports > 0 ? Math.round((actualReports / expectedReports) * 100) : 0;
+              setComplianceRate(Math.min(calcRate, 100));
+          }
 
           const allMonthsRaw = [];
           [year - 1, year].forEach(y => {
@@ -71,8 +81,8 @@ export function useForecastingMetrics({
                 
                 if (hasData) {
                     total = periodReports.reduce((sum, r) => {
-                        if (r.quarter && r.quarter.trim() !== '') return sum; 
-                        const pType = String(r.periodType || r.period_type || r.report_type || r.period || '').toLowerCase();
+                        // Hyper-Resilient Check: Looks in top-level AND JSON object
+                        const pType = String(r.periodType || r.period_type || r.data?.periodType || r.data?.period_type || '').toLowerCase();
                         if (pType === 'annual' || pType === 'quarterly') return sum;
 
                         const fName = String(r.facility || '').trim();
@@ -80,7 +90,7 @@ export function useForecastingMetrics({
                             return sum;
                         }
 
-                        const muni = String(r.municipality || '').trim();
+                        const muni = String(r.municipality || r.data?.municipality || '').trim();
                         const lower = muni.toLowerCase();
                         if (lower === 'total' || lower.includes('grand total')) return sum;
 
@@ -90,15 +100,21 @@ export function useForecastingMetrics({
                         
                         const isOfficialMuni = MUNICIPALITIES.some(mun => mun.toLowerCase() === lower);
                         if (isAdmin) {
-                            if (!isOfficialMuni) return sum;
+                            if (!isOfficialMuni && muni !== '') return sum;
                         } else {
                             if (!isHospital && reportHostMuni && lower === reportHostMuni.toLowerCase()) {
                                 return sum; 
                             }
                         }
 
-                        const dSex = (Number(r.male)||0) + (Number(r.female)||0);
-                        const dTot = Number(r.total_patients) || 0;
+                        // Hyper-Resilient Numbers Extraction
+                        const rMale = Number(r.male) || Number(r.data?.male) || 0;
+                        const rFemale = Number(r.female) || Number(r.data?.female) || 0;
+                        const rTot1 = Number(r.total_patients) || Number(r.totalPatients) || 0;
+                        const rTot2 = Number(r.data?.total_patients) || Number(r.data?.totalPatients) || 0;
+
+                        const dSex = rMale + rFemale;
+                        const dTot = Math.max(rTot1, rTot2);
                         const rTotal = Math.max(dSex, dTot);
 
                         return sum + rTotal;
@@ -167,7 +183,6 @@ export function useForecastingMetrics({
               const calcMape = countForMape > 0 ? ((pctErrSum / countForMape) * 100).toFixed(1) : 0;
               const calcAcc = countForMape > 0 ? Math.max(0, 100 - calcMape).toFixed(1) : 0;
               
-              // FIX: Now using countForMape so it only counts months with actual cases > 0 towards validity
               setModelMetrics({ mae: calcMae, mape: calcMape, accuracy: calcAcc, validMonths: countForMape });
 
               const lastValid = processed24Months[lastValidIdx];

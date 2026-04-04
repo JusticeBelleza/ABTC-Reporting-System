@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Loader2, ShieldAlert, PieChart as PieChartIcon, TrendingUp, TrendingDown, Info, Calendar, User, BrainCircuit, Activity, CheckCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { supabase } from '../../lib/supabase';
 import { useReportData } from '../../hooks/useReportData';
 import { QUARTERS, MONTHS, MUNICIPALITIES } from '../../lib/constants';
 
@@ -80,6 +81,23 @@ export default function AnalyticsOverview({
     return QUARTERS;
   }, [year, currentRealYear, currentQuarterIndex]);
 
+  const [serverYTD, setServerYTD] = useState(0);
+
+  useEffect(() => {
+    const fetchYTD = async () => {
+        if (periodType === 'Annual') {
+            const { data, error } = await supabase.rpc('get_ytd_total_cases', {
+                target_year: year,
+                target_facility: isAdmin ? null : user?.facility
+            });
+            if (!error && data !== null) {
+                setServerYTD(data);
+            }
+        }
+    };
+    fetchYTD();
+  }, [year, isAdmin, user?.facility, periodType]);
+
   const { data, loading, reportStatus } = useReportData({
     user, facilities, facilityBarangays, year, month, quarter, periodType,
     activeTab: 'main', cohortSubTab: 'cat2', 
@@ -109,7 +127,8 @@ export default function AnalyticsOverview({
   }, [full24MonthData, periodType, year, month, quarter]);
 
   const calculatedYTD = useMemo(() => {
-      if (periodType === 'Annual') return currentTotal;
+      if (periodType === 'Annual') return serverYTD;
+      
       let targetMonths = [];
       if (periodType === 'Monthly') {
           const idx = MONTHS.indexOf(month);
@@ -119,7 +138,7 @@ export default function AnalyticsOverview({
           targetMonths = MONTHS.slice(0, (qIdx * 3) + 3);
       }
       return full24MonthData.filter(d => d.year === year && targetMonths.includes(d.month)).reduce((sum, d) => sum + (d.raw || 0), 0);
-  }, [periodType, currentTotal, full24MonthData, month, quarter, year]);
+  }, [periodType, serverYTD, full24MonthData, month, quarter, year]);
 
   const comparisonData = useMemo(() => {
       let prevTotal = 0;
@@ -311,7 +330,6 @@ export default function AnalyticsOverview({
   const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : hasAnyData);
 
   const renderDataCompletenessBanner = () => {
-    // Hide banner entirely if we are fully awaiting data
     if (locationTotal === 0 && reportStatus === 'Draft') return null;
     
     const isComplete = isAdmin ? complianceRate === 100 : reportStatus === 'Approved';
@@ -425,9 +443,11 @@ export default function AnalyticsOverview({
         
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
 
+          {/* FIX: Banner Transferred to Overview */}
+          {renderDataCompletenessBanner()}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
-              {/* CURRENT PERIOD CASES */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity size={12}/> Current Period Cases</p>
                   <div className="flex items-end justify-between">
@@ -447,14 +467,17 @@ export default function AnalyticsOverview({
                           ) : (
                               <div className="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-bold">N/A</div>
                           )}
-                          <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{currentTotal === 0 ? 'PENDING REPORT' : comparisonData.label}</span>
+                          <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                              {currentTotal === 0 
+                                  ? (reportStatus !== 'Draft' ? 'OFFICIAL RECORD' : 'PENDING REPORT') 
+                                  : comparisonData.label}
+                          </span>
                       </div>
                   </div>
               </div>
               
-              {/* YEAR TO DATE */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar size={12}/> {periodType === 'Annual' ? 'Total Cases' : 'YTD Total'}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar size={12}/> {periodType === 'Annual' ? 'Total Cases YTD' : 'YTD Total'}</p>
                   <div className="flex items-end justify-between">
                       <h3 className="text-3xl font-black text-slate-900">
                           {calculatedYTD}
@@ -473,7 +496,6 @@ export default function AnalyticsOverview({
                   </div>
               </div>
 
-              {/* COMPLIANCE RATE */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><User size={12}/> Average Completion</p>
                   <div className="flex items-end justify-between">
@@ -488,7 +510,6 @@ export default function AnalyticsOverview({
               </div>
           </div>
 
-          {/* EMPTY STATE FALLBACK OR CHARTS */}
           {locationTotal === 0 ? (
               reportStatus !== 'Draft' ? (
                   <div className="h-96 flex flex-col items-center justify-center bg-emerald-50 rounded-2xl border border-emerald-200 border-dashed text-center p-6 animate-in fade-in zoom-in-95 duration-500">
@@ -526,9 +547,7 @@ export default function AnalyticsOverview({
         </div>
       ) : (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
-            {/* RENDER THE DATA COMPLETENESS BANNER ONLY ON THE PREDICTIVE TAB */}
-            {renderDataCompletenessBanner()}
-            
+            {/* The banner is now removed from here, only rendering on the main Overview! */}
             <SmartAlertsPanel riskLevel={riskLevel} smartAlerts={smartAlerts} projectedNextMonth={projectedNextMonth} modelMetrics={modelMetrics} />
             <PredictiveModel 
               year={year} full24MonthData={full24MonthData} handleDownload={handleDownload} showMathModal={showMathModal} setShowMathModal={setShowMathModal}
