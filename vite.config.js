@@ -33,16 +33,47 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // --- ADDED: BACKGROUND SYNC CONFIGURATION ---
+        runtimeCaching: [
+          {
+            // Match any request going to your Supabase REST API
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/,
+            handler: 'NetworkOnly', // Only try to use the network for database writes
+            method: 'POST', // Specifically queue POST (insert) requests
+            options: {
+              backgroundSync: {
+                name: 'abtc-offline-queue', // Name of the IndexedDB queue Workbox creates
+                options: {
+                  maxRetentionTime: 24 * 60, // Keep in queue for up to 24 hours
+                },
+              },
+            },
+          },
+          {
+            // Also match PATCH (update) requests for when they edit drafts
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/,
+            handler: 'NetworkOnly',
+            method: 'PATCH',
+            options: {
+              backgroundSync: {
+                name: 'abtc-offline-queue',
+                options: {
+                  maxRetentionTime: 24 * 60,
+                },
+              },
+            },
+          }
+        ]
       },
-      // --- FIX: TURN THIS OFF FOR LOCAL DEVELOPMENT ---
+      // --- TURN THIS OFF FOR LOCAL DEVELOPMENT ---
       devOptions: {
         enabled: false, 
         type: 'module',
       }
     })
   ],
-  // --- ADDED: Fix for Web Worker build formatting ---
+  // --- Fix for Web Worker build formatting ---
   worker: {
     format: 'es'
   }

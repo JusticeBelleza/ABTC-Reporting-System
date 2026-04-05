@@ -81,23 +81,6 @@ export default function AnalyticsOverview({
     return QUARTERS;
   }, [year, currentRealYear, currentQuarterIndex]);
 
-  const [serverYTD, setServerYTD] = useState(0);
-
-  useEffect(() => {
-    const fetchYTD = async () => {
-        if (periodType === 'Annual') {
-            const { data, error } = await supabase.rpc('get_ytd_total_cases', {
-                target_year: year,
-                target_facility: isAdmin ? null : user?.facility
-            });
-            if (!error && data !== null) {
-                setServerYTD(data);
-            }
-        }
-    };
-    fetchYTD();
-  }, [year, isAdmin, user?.facility, periodType]);
-
   const { data, loading, reportStatus } = useReportData({
     user, facilities, facilityBarangays, year, month, quarter, periodType,
     activeTab: 'main', cohortSubTab: 'cat2', 
@@ -114,6 +97,23 @@ export default function AnalyticsOverview({
     facilityDetails, globalSettings
   });
 
+  const calculatedYTD = useMemo(() => {
+      let targetMonths = MONTHS;
+      
+      if (periodType === 'Monthly') {
+          const idx = MONTHS.indexOf(month);
+          targetMonths = MONTHS.slice(0, idx + 1);
+      } else if (periodType === 'Quarterly') {
+          const qIdx = QUARTERS.indexOf(quarter);
+          targetMonths = MONTHS.slice(0, (qIdx * 3) + 3);
+      }
+      
+      return full24MonthData
+          .filter(d => d.year === year && targetMonths.includes(d.month))
+          .reduce((sum, d) => sum + (Number(d.raw) || 0), 0);
+          
+  }, [periodType, full24MonthData, month, quarter, year]);
+
   const currentTotal = useMemo(() => {
       if (periodType === 'Monthly') {
           return full24MonthData.find(d => d.year === year && d.month === month)?.raw || 0;
@@ -122,39 +122,48 @@ export default function AnalyticsOverview({
           const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
           return full24MonthData.filter(d => d.year === year && targetMonths.includes(d.month)).reduce((a, b) => a + (b.raw || 0), 0);
       } else {
-          return full24MonthData.filter(d => d.year === year).reduce((a, b) => a + (b.raw || 0), 0);
+          return calculatedYTD; 
       }
-  }, [full24MonthData, periodType, year, month, quarter]);
-
-  const calculatedYTD = useMemo(() => {
-      if (periodType === 'Annual') return serverYTD;
-      
-      let targetMonths = [];
-      if (periodType === 'Monthly') {
-          const idx = MONTHS.indexOf(month);
-          targetMonths = MONTHS.slice(0, idx + 1);
-      } else if (periodType === 'Quarterly') {
-          const qIdx = QUARTERS.indexOf(quarter);
-          targetMonths = MONTHS.slice(0, (qIdx * 3) + 3);
-      }
-      return full24MonthData.filter(d => d.year === year && targetMonths.includes(d.month)).reduce((sum, d) => sum + (d.raw || 0), 0);
-  }, [periodType, serverYTD, full24MonthData, month, quarter, year]);
+  }, [full24MonthData, periodType, year, month, quarter, calculatedYTD]);
 
   const comparisonData = useMemo(() => {
       let prevTotal = 0;
       let label = `vs Last ${periodType === 'Monthly' ? 'Month' : periodType === 'Quarterly' ? 'Quarter' : 'Year'}`;
       let isValid = false;
 
-      if (periodType === 'Monthly' && full24MonthData.length > 0) {
-          const mIdx = MONTHS.indexOf(month);
-          const prevMonth = mIdx === 0 ? MONTHS[11] : MONTHS[mIdx - 1];
-          const prevYearTarget = mIdx === 0 ? year - 1 : year;
-          
-          const prevMonthData = full24MonthData.find(d => d.month === prevMonth && d.year === prevYearTarget);
-          
-          if (prevMonthData && prevMonthData.raw !== null && prevMonthData.raw > 0) {
-              prevTotal = prevMonthData.raw;
-              isValid = true;
+      if (full24MonthData.length > 0) {
+          if (periodType === 'Monthly') {
+              const mIdx = MONTHS.indexOf(month);
+              const prevMonth = mIdx === 0 ? MONTHS[11] : MONTHS[mIdx - 1];
+              const prevYearTarget = mIdx === 0 ? year - 1 : year;
+              const prevMonthData = full24MonthData.find(d => d.month === prevMonth && d.year === prevYearTarget);
+              
+              if (prevMonthData && prevMonthData.raw !== null && prevMonthData.raw > 0) {
+                  prevTotal = prevMonthData.raw;
+                  isValid = true;
+              }
+          } 
+          else if (periodType === 'Quarterly') {
+              const qIdx = QUARTERS.indexOf(quarter);
+              let prevQIdx = qIdx === 0 ? 3 : qIdx - 1;
+              let prevYearTarget = qIdx === 0 ? year - 1 : year;
+              
+              const targetMonths = [MONTHS[prevQIdx*3], MONTHS[prevQIdx*3+1], MONTHS[prevQIdx*3+2]];
+              const prevData = full24MonthData.filter(d => d.year === prevYearTarget && targetMonths.includes(d.month));
+              const sum = prevData.reduce((a, b) => a + (Number(b.raw) || 0), 0);
+              
+              if (sum > 0) {
+                  prevTotal = sum;
+                  isValid = true;
+              }
+          }
+          else if (periodType === 'Annual') {
+              const prevData = full24MonthData.filter(d => d.year === year - 1);
+              const sum = prevData.reduce((a, b) => a + (Number(b.raw) || 0), 0);
+              if (sum > 0) {
+                  prevTotal = sum;
+                  isValid = true;
+              }
           }
       }
 
@@ -164,7 +173,35 @@ export default function AnalyticsOverview({
       }
 
       return { delta, label, isValid };
-  }, [full24MonthData, periodType, month, year, currentTotal]);
+  }, [full24MonthData, periodType, month, quarter, year, currentTotal]);
+
+  const yoyComparisonData = useMemo(() => {
+      let prevYoyTotal = 0;
+      let isValid = false;
+
+      if (full24MonthData.length > 0) {
+          if (periodType === 'Monthly') {
+              const prevData = full24MonthData.find(d => d.month === month && d.year === year - 1);
+              if (prevData && prevData.raw !== null && prevData.raw > 0) {
+                  prevYoyTotal = prevData.raw;
+                  isValid = true;
+              }
+          } else if (periodType === 'Quarterly') {
+              const qIdx = QUARTERS.indexOf(quarter);
+              const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
+              const prevData = full24MonthData.filter(d => d.year === year - 1 && targetMonths.includes(d.month));
+              const sum = prevData.reduce((a, b) => a + (Number(b.raw) || 0), 0);
+              if (sum > 0) { prevYoyTotal = sum; isValid = true; }
+          }
+      }
+
+      let delta = 0;
+      if (isValid && prevYoyTotal > 0) {
+          delta = ((currentTotal - prevYoyTotal) / prevYoyTotal) * 100;
+      }
+
+      return { delta, isValid };
+  }, [full24MonthData, periodType, month, quarter, year, currentTotal]);
 
   const isConsolidatedView = !isAdmin && facilityType !== 'Hospital' && facilityType !== 'Clinic' ? false : true;
   
@@ -443,7 +480,6 @@ export default function AnalyticsOverview({
         
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
 
-          {/* FIX: Banner Transferred to Overview */}
           {renderDataCompletenessBanner()}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -452,32 +488,63 @@ export default function AnalyticsOverview({
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity size={12}/> Current Period Cases</p>
                   <div className="flex items-end justify-between">
                       <h3 className="text-3xl font-black text-slate-900">{currentTotal}</h3>
-                      <div className={`flex flex-col items-end`}>
+                      
+                      {/* --- POLISHED UI FOR STACKED COMPARISONS --- */}
+                      <div className={`flex flex-col items-end gap-1.5`}>
                           {currentTotal === 0 ? (
-                              reportStatus !== 'Draft' ? (
-                                  <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg text-[10px] font-bold">VERIFIED ZERO</div>
-                              ) : (
-                                  <div className="bg-amber-50 text-amber-600 px-2 py-1 rounded-lg text-[10px] font-bold">AWAITING DATA</div>
-                              )
-                          ) : comparisonData.isValid ? (
-                              <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold ${comparisonData.delta >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                  {comparisonData.delta >= 0 ? <TrendingUp size={14}/> : <TrendingDown size={14}/>}
-                                  {Math.abs(comparisonData.delta).toFixed(1)}%
+                              <div className="flex flex-col items-end">
+                                  {reportStatus !== 'Draft' ? (
+                                      <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg text-[10px] font-bold">VERIFIED ZERO</div>
+                                  ) : (
+                                      <div className="bg-amber-50 text-amber-600 px-2 py-1 rounded-lg text-[10px] font-bold">AWAITING DATA</div>
+                                  )}
+                                  <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                                      {reportStatus !== 'Draft' ? 'OFFICIAL RECORD' : 'PENDING REPORT'}
+                                  </span>
                               </div>
                           ) : (
-                              <div className="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-bold">N/A</div>
+                              <div className="flex flex-col items-end gap-1">
+                                  
+                                  {/* 1. vs Last Month / Quarter */}
+                                  <div className="flex items-center gap-1.5 justify-end w-full">
+                                      {comparisonData.isValid ? (
+                                          <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${comparisonData.delta >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                              {comparisonData.delta >= 0 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+                                              {Math.abs(comparisonData.delta).toFixed(1)}%
+                                          </div>
+                                      ) : (
+                                          <span className="text-xs text-slate-300 font-bold">—</span>
+                                      )}
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider w-[130px] text-right whitespace-nowrap">
+                                          {comparisonData.label}
+                                      </span>
+                                  </div>
+
+                                  {/* 2. vs Last Year Month / Quarter */}
+                                  {periodType !== 'Annual' && (
+                                      <div className="flex items-center gap-1.5 justify-end w-full">
+                                          {yoyComparisonData.isValid ? (
+                                              <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${yoyComparisonData.delta >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                  {yoyComparisonData.delta >= 0 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+                                                  {Math.abs(yoyComparisonData.delta).toFixed(1)}%
+                                              </div>
+                                          ) : (
+                                              <span className="text-xs text-slate-300 font-bold">—</span>
+                                          )}
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider w-[130px] text-right whitespace-nowrap">
+                                              {periodType === 'Monthly' ? 'vs Same Month Last Yr' : 'vs Same Qtr Last Yr'}
+                                          </span>
+                                      </div>
+                                  )}
+                                  
+                              </div>
                           )}
-                          <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                              {currentTotal === 0 
-                                  ? (reportStatus !== 'Draft' ? 'OFFICIAL RECORD' : 'PENDING REPORT') 
-                                  : comparisonData.label}
-                          </span>
                       </div>
                   </div>
               </div>
               
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar size={12}/> {periodType === 'Annual' ? 'Total Cases YTD' : 'YTD Total'}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar size={12}/> {periodType === 'Annual' ? 'YTD TOTAL' : 'YTD Total'}</p>
                   <div className="flex items-end justify-between">
                       <h3 className="text-3xl font-black text-slate-900">
                           {calculatedYTD}
@@ -547,7 +614,6 @@ export default function AnalyticsOverview({
         </div>
       ) : (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
-            {/* The banner is now removed from here, only rendering on the main Overview! */}
             <SmartAlertsPanel riskLevel={riskLevel} smartAlerts={smartAlerts} projectedNextMonth={projectedNextMonth} modelMetrics={modelMetrics} />
             <PredictiveModel 
               year={year} full24MonthData={full24MonthData} handleDownload={handleDownload} showMathModal={showMathModal} setShowMathModal={setShowMathModal}

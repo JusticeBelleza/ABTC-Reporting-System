@@ -101,7 +101,7 @@ export default function FacilityDashboard({
         const draft = await getOfflineDraft(); 
         if (draft && navigator.onLine) {
             try {
-                toast.loading("🌐 Internet Restored! Auto-syncing offline data...", { id: 'offline-sync' });
+                toast.info("🌐 Connection restored! Auto-syncing offline report...", { duration: 4000 });
 
                 let payload = [];
                 if (draft.activeTab === 'main') {
@@ -111,13 +111,15 @@ export default function FacilityDashboard({
                         delete dbRow.reported_by;
                         dbRow.others_count = row.othersCount === '' ? null : toInt(row.othersCount);  
                         if (row.othersSpec) dbRow.others_spec = row.othersSpec;
-                        return { ...dbRow, municipality: m, status: 'Draft', remarks: row.remarks };
+                        
+                        return { ...dbRow, municipality: m, status: draft.intendedStatus || 'Draft', remarks: row.remarks };
                     }).filter(x => x !== null);
                 } else {
                     payload = Object.entries(draft.data).map(([m, row]) => {
                          const dbCohortRow = mapCohortRowToDb(row);
                          delete dbCohortRow.reported_by;
-                         return { ...dbCohortRow, municipality: m, status: 'Draft' };
+                         
+                         return { ...dbCohortRow, municipality: m, status: draft.intendedStatus || 'Draft' };
                     }).filter(x => x !== null);
                 }
 
@@ -131,17 +133,34 @@ export default function FacilityDashboard({
 
                 if (error) throw error;
 
+                // TRIGGER ADMIN NOTIFICATION BELL
+                if (draft.intendedStatus === 'Pending') {
+                    const periodText = draft.periodType === 'Monthly' ? draft.month : draft.periodType === 'Quarterly' ? draft.quarter : 'Annual';
+                    const reportType = draft.activeTab === 'main' ? 'Form 1' : 'Cohort';
+                    
+                    const { error: notifError } = await supabase.from('notifications').insert([{
+                        title: 'Report Auto-Synced',
+                        message: `${draft.facility} submitted their ${reportType} report for ${periodText} ${draft.year} via offline auto-sync.`,
+                        type: 'submission',
+                        is_read: false,
+                        facility: draft.facility
+                    }]);
+                    
+                    if (notifError) console.error("Notification Sync Error:", notifError);
+                }
+
                 await clearOfflineDraft(); 
-                toast.success("Offline data automatically synced to the server!", { id: 'offline-sync' });
+                toast.success("Offline data successfully synced to the server!", { duration: 5000 });
                 fetchData(); 
             } catch (err) {
-                toast.error("Auto-sync failed. Please save manually.", { id: 'offline-sync' });
+                console.error("Auto Sync Error:", err);
+                toast.error("Auto-sync failed. Please save manually.", { duration: 5000 });
             }
         }
     };
     
     window.addEventListener('online', checkOfflineDraft);
-    checkOfflineDraft(); 
+    checkOfflineDraft(); // Also check immediately on component mount
     return () => window.removeEventListener('online', checkOfflineDraft);
   }, [fetchData]);
 
@@ -274,18 +293,42 @@ export default function FacilityDashboard({
   };
   const [lblApproved, lblPending, lblRejected, lblCompletion] = getLabels();
 
-  // --- SUBMISSION GUARDRAIL & OFFLINE BLOCKER ---
+  // --- SUBMISSION GUARDRAIL & BACKGROUND SYNC ---
   const onSaveClick = async (status) => {
+    
+    // NEW: Role-Based Advanced Offline Handling
     if (!navigator.onLine) {
-        if (status === 'Draft') {
-            setShowDraftModal(true); 
-            return;
+        
+        if (isAnyAdmin) {
+            // ADMIN LOGIC: Strict blocking for approvals/rejections
+            if (status === 'Approved' || status === 'Rejected') {
+                 toast.error("📴 No Internet Connection! Admin approvals and rejections require an active connection.", { duration: 5000 });
+                 return;
+            }
         } else {
-            toast.error("📴 No Internet Connection! You cannot submit or approve reports while offline. Please use 'Save Draft' to save your work locally.", { duration: 5000 });
-            return;
+            // FACILITY LOGIC: Auto-sync queueing for submissions
+            if (status === 'Pending') {
+                toast.warning("📴 Offline Detected! Report will be securely queued on your device and will auto-submit when internet is restored.", { duration: 8000 });
+                
+                const offlinePayload = {
+                    facility: activeFacilityName, year, month, quarter, periodType,
+                    data: activeTab === 'main' ? data : cohortData, activeTab,
+                    timestamp: new Date().toISOString(),
+                    intendedStatus: 'Pending' 
+                };
+                await saveOfflineDraft(offlinePayload);
+                return; // Stop here so it doesn't open the normal submit modal
+            }
+
+            // Let Drafts proceed to the draft modal
+            if (status === 'Draft') {
+                setShowDraftModal(true); 
+                return;
+            }
         }
     }
 
+    // Normal Online Flow (or Offline Drafts passing through)
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
@@ -352,7 +395,8 @@ export default function FacilityDashboard({
         const offlinePayload = {
             facility: activeFacilityName, year, month, quarter, periodType,
             data: activeTab === 'main' ? data : cohortData, activeTab,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            intendedStatus: 'Draft' 
         };
         await saveOfflineDraft(offlinePayload);
         toast.warning("📴 Offline! Draft saved locally. It will automatically sync when internet is restored.", { duration: 8000 });
@@ -670,14 +714,19 @@ export default function FacilityDashboard({
 
         {/* --- OFFLINE WARNING BANNER --- */}
         {isOffline && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 sm:px-5 sm:py-4 rounded-xl mb-6 flex items-start sm:items-center gap-3 sm:gap-4 shadow-sm animate-in slide-in-from-top-4 no-print">
-                <div className="bg-amber-200/50 p-2 rounded-full shrink-0 mt-0.5 sm:mt-0">
-                    <WifiOff size={20} className="text-amber-700" strokeWidth={2.5} />
+            <div className={`px-4 py-3 sm:px-5 sm:py-4 rounded-xl mb-6 flex items-start sm:items-center gap-3 sm:gap-4 shadow-sm animate-in slide-in-from-top-4 no-print ${isAnyAdmin ? 'bg-rose-50 border border-rose-200 text-rose-900' : 'bg-amber-50 border border-amber-200 text-amber-900'}`}>
+                <div className={`p-2 rounded-full shrink-0 mt-0.5 sm:mt-0 ${isAnyAdmin ? 'bg-rose-200/50' : 'bg-amber-200/50'}`}>
+                    <WifiOff size={20} className={isAnyAdmin ? "text-rose-700" : "text-amber-700"} strokeWidth={2.5} />
                 </div>
                 <div className="flex-1">
-                    <p className="text-sm font-extrabold tracking-tight">You are currently offline.</p>
-                    <p className="text-xs sm:text-sm font-medium text-amber-800/80 mt-0.5">
-                        Don't panic! You can continue filling out the report. Click <strong className="text-amber-900">Save Draft</strong> below to securely store your work locally. It will auto-sync when your connection returns.
+                    <p className="text-sm font-extrabold tracking-tight">
+                        {isAnyAdmin ? "No Internet Connection!" : "You are currently offline."}
+                    </p>
+                    <p className={`text-xs sm:text-sm font-medium mt-0.5 ${isAnyAdmin ? 'text-rose-800/80' : 'text-amber-800/80'}`}>
+                        {isAnyAdmin 
+                            ? "Admin approvals and rejections require an active connection. Please reconnect to manage reports."
+                            : <span>Don't panic! You can continue working. Click <strong>Submit Report</strong> or <strong>Save Draft</strong> and it will securely queue on your device to auto-sync when your connection returns.</span>
+                        }
                     </p>
                 </div>
             </div>
