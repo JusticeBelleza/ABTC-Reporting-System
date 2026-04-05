@@ -25,51 +25,69 @@ export default function PredictiveModel({
     <>
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group" id="chart-predictive">
           
-          <div className="flex justify-between items-start mb-6">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
               <div>
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <BrainCircuit size={18} className="text-blue-600"/> 
-                      24-Month Forecasting Model & Error Tracking
+                      24-Month Forecasting Model & Analytics
                       <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 text-[10px] ml-1 flex items-center h-fit" title="Total actual cases currently displayed in this chart">
                           N = {exactChartTotal}
                       </span>
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-1">Multi-layered moving averages (Adaptive) for short-term reaction and long-term seasonality.</p>
               </div>
-              <div className="flex gap-2">
-                  <button onClick={() => setShowMathModal(true)} className="p-2 sm:px-3 sm:py-2 text-xs font-bold text-slate-500 bg-slate-50 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 rounded-xl transition-all flex items-center gap-1.5"><Calculator size={16} className="shrink-0"/><span className="hidden sm:inline">View Math & Formulas</span></button>
-                  <button onClick={() => handleDownload('chart-predictive', `Predictive_${year}.png`)} className="p-2 text-slate-400 border border-transparent hover:border-slate-200 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Download size={18}/></button>
+              <div className="flex gap-2 self-start">
+                  <button onClick={() => setShowMathModal(true)} className="p-2 sm:px-3 sm:py-2 text-xs font-bold text-slate-500 bg-slate-50 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 rounded-xl transition-all flex items-center gap-1.5 shadow-sm">
+                      <Calculator size={16} className="shrink-0"/>
+                      <span className="hidden sm:inline">View Math & Formulas</span>
+                  </button>
+                  <button onClick={() => handleDownload('chart-predictive', `Predictive_${year}.png`)} className="p-2 text-slate-400 bg-white border border-slate-200 hover:border-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm">
+                      <Download size={18}/>
+                  </button>
               </div>
           </div>
 
+          {/* Clean UI Metrics Section (Uniform Font Size) */}
           <div className="mb-6">
               {isCalibratingAccuracy ? (
-                  <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
+                  <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-sm font-medium text-amber-700 shadow-sm w-fit">
                       <Loader2 size={16} className="animate-spin" />
                       <span>Model Calibrating Historical Data...</span>
                   </div>
               ) : (
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-600 font-medium">
-                      <div className="flex items-center gap-1.5">
-                          <Target size={16} className="text-blue-600" />
-                          <span>Accuracy: <strong className="text-slate-900">{modelMetrics.accuracy}%</strong></span>
+                  <div className="flex flex-col md:flex-row md:flex-wrap gap-y-3 gap-x-8">
+                      {/* Metric 1 */}
+                      <div className="flex items-center gap-2 text-sm">
+                          <Target size={16} className="text-blue-500 shrink-0" />
+                          <span className="text-slate-600 font-medium">Derived from historical accuracy</span>
+                          <span className="font-bold text-slate-900">{modelMetrics.accuracy}%</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                          <ActivitySquare size={16} className="text-slate-500" />
-                          <span>Mean Absolute Error: <strong className="text-slate-900">±{modelMetrics.mae}</strong></span>
+                      
+                      {/* Metric 2 */}
+                      <div className="flex items-center gap-2 text-sm">
+                          <ActivitySquare size={16} className="text-slate-500 shrink-0" />
+                          <span className="text-slate-600 font-medium">Mean Absolute Error</span>
+                          <span className="font-bold text-slate-900">±{modelMetrics.mae} cases</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                          <TrendingUp size={16} className="text-slate-500" />
-                          <span>Mean Absolute Percentage Error: <strong className="text-slate-900">{modelMetrics.mape}%</strong></span>
+                      
+                      {/* Metric 3 */}
+                      <div className="flex items-center gap-2 text-sm">
+                          <TrendingUp size={16} className="text-slate-500 shrink-0" />
+                          <span className="text-slate-600 font-medium">Symmetric Mean Absolute Percentage Error</span>
+                          <span className="font-bold text-slate-900">{modelMetrics.mape}%</span>
                       </div>
                   </div>
               )}
           </div>
 
+          {/* Chart Area */}
           <div className="h-[400px] w-full">
               <ResponsiveContainer>
                   <ComposedChart data={chartDisplayData} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      {/* UPDATED GRIDLINES: Both horizontal and vertical lines turned on with a clean slate-200 color */}
+                      <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="#7398c9" />
+                      
                       <XAxis dataKey="display" tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 700}} axisLine={false} tickLine={false} />
                       <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
                       <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
@@ -85,6 +103,7 @@ export default function PredictiveModel({
               </ResponsiveContainer>
           </div>
           
+          {/* Chart Interpretation Footer */}
           <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><BrainCircuit size={14}/> Algorithmic Chart Interpretation</h4>
               
@@ -104,7 +123,7 @@ export default function PredictiveModel({
                              </p>
                         ) : (
                              <p className="text-xs text-slate-700">
-                                Validation: The forecasting engine has cross-referenced these projections against historical trends with an established accuracy rate of <strong className="text-slate-900">{modelMetrics.accuracy}%</strong>.
+                                Validation: The forecasting engine has cross-referenced these projections against historical trends with an established confidence rate of <strong className="text-slate-900">{modelMetrics.accuracy}%</strong>.
                              </p>
                         )}
                       </div>
@@ -117,6 +136,7 @@ export default function PredictiveModel({
           </div>
       </div>
 
+      {/* Mathematical Formulas Modal */}
       {showMathModal && (
         <ModalPortal>
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -136,7 +156,7 @@ export default function PredictiveModel({
                     </button>
                 </div>
                 
-                <div className="overflow-y-auto p-5 sm:p-6 space-y-8 custom-scrollbar">
+                <div className="overflow-y-auto p-5 sm:p-6 space-y-8 custom-scrollbar bg-white">
                     
                     <section>
                         <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
@@ -147,42 +167,42 @@ export default function PredictiveModel({
                                 <div className="w-4 h-4 rounded-sm bg-blue-500 shrink-0 mt-0.5 shadow-sm"></div>
                                 <div>
                                     <h5 className="font-bold text-xs text-slate-900 mb-0.5">Actual Cases</h5>
-                                    <p className="text-[11px] text-slate-600">The confirmed, true number of animal bite patients recorded and approved in the system for that specific month.</p>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed">The confirmed, true number of animal bite patients recorded and approved in the system for that specific month.</p>
                                 </div>
                             </div>
                             <div className="flex gap-3 items-start bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <div className="w-4 h-1 bg-emerald-500 shrink-0 mt-2 shadow-sm"></div>
                                 <div>
                                     <h5 className="font-bold text-xs text-slate-900 mb-0.5">3M SMA (Short-Term)</h5>
-                                    <p className="text-[11px] text-slate-600">The average cases over the last 3 months. It smooths out sudden, daily jumps to show you the immediate, active trend.</p>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed">The average cases over the last 3 months. It smooths out sudden, daily jumps to show you the immediate, active trend.</p>
                                 </div>
                             </div>
                             <div className="flex gap-3 items-start bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <div className="w-4 h-1.5 bg-purple-500 shrink-0 mt-1.5 shadow-sm"></div>
                                 <div>
                                     <h5 className="font-bold text-xs text-slate-900 mb-0.5">3M WMA (Fast Signal)</h5>
-                                    <p className="text-[11px] text-slate-600">An "early warning radar." It averages the last 3 months but multiplies the most recent month by 3. Because it reacts to sudden spikes faster than the SMA, the system uses this line to trigger <strong>Rising Trend</strong> alerts.</p>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed">An "early warning radar." It averages the last 3 months but multiplies the most recent month by 3. Because it reacts to sudden spikes faster than the SMA, the system uses this line to trigger <strong>Rising Trend</strong> alerts.</p>
                                 </div>
                             </div>
                             <div className="flex gap-3 items-start bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <div className="w-4 h-1 bg-amber-500 shrink-0 mt-2 shadow-sm"></div>
                                 <div>
                                     <h5 className="font-bold text-xs text-slate-900 mb-0.5">6M SMA (Mid-Term)</h5>
-                                    <p className="text-[11px] text-slate-600">The average cases over the last half-year. This serves as your standard baseline. If current cases spike massively above this orange line, the system triggers an <strong>Outbreak Anomaly</strong> alert.</p>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed">The average cases over the last half-year. This serves as your standard baseline. If current cases spike massively above this orange line, the system triggers an <strong>Outbreak Anomaly</strong> alert.</p>
                                 </div>
                             </div>
                             <div className="flex gap-3 items-start bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <div className="w-4 h-0.5 border-t-2 border-dashed border-black shrink-0 mt-2"></div>
                                 <div>
                                     <h5 className="font-bold text-xs text-slate-900 mb-0.5">12M SMA (Seasonality)</h5>
-                                    <p className="text-[11px] text-slate-600">The long-term average over the past full year. This line helps you see the "big picture" and accounts for annual seasonality (like cases always rising during summer).</p>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed">The long-term average over the past full year. This line helps you see the "big picture" and accounts for annual seasonality (like cases always rising during summer).</p>
                                 </div>
                             </div>
                             <div className="flex gap-3 items-start bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <div className="w-4 h-0.5 border-t-[3px] border-dashed border-red-500 shrink-0 mt-2"></div>
                                 <div>
                                     <h5 className="font-bold text-xs text-slate-900 mb-0.5">Forecast vs Actual</h5>
-                                    <p className="text-[11px] text-slate-600">The system’s predictions. On historical months, it shows what the model <em>guessed</em> would happen so you can compare it against the true blue bar. On the furthest right, it projects the expected cases for the next month.</p>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed">The system’s predictions. On historical months, it shows what the model <em>guessed</em> would happen so you can compare it against the true blue bar. On the furthest right, it projects the expected cases for the next month.</p>
                                 </div>
                             </div>
                         </div>
@@ -225,43 +245,44 @@ export default function PredictiveModel({
 
                     <section>
                         <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
-                            <TrendingUp size={16} className="text-blue-500"/> Forecast Error & Accuracy
+                            <TrendingUp size={16} className="text-blue-500"/> Forecast Error & Confidence
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col h-full">
-                                <h5 className="font-bold text-sm text-slate-900 mb-1">Mean Absolute Error (MAE)</h5>
-                                <p className="text-[11px] text-slate-600 mb-3 flex-1">Measures the average magnitude of errors in predictions without considering their direction. Represents the absolute number of cases the forecast is off by.</p>
+                                <h5 className="font-bold text-sm text-slate-900 mb-1">Avg. Case Variance (MAE)</h5>
+                                <p className="text-[11px] text-slate-600 mb-3 flex-1">Mean Absolute Error. Measures the average magnitude of errors in predictions without considering their direction. Represents the absolute number of cases the forecast is off by.</p>
                                 <div className="bg-white p-3 rounded-lg border border-slate-200 font-mono text-xs sm:text-sm font-semibold text-slate-800 text-center shadow-sm flex items-center justify-center min-h-[44px]">
                                     MAE = ( Σ | Actual - Forecast | ) / n
                                 </div>
                             </div>
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col h-full">
-                                <h5 className="font-bold text-sm text-slate-900 mb-1">Mean Absolute Percentage Error (MAPE)</h5>
-                                <p className="text-[11px] text-slate-600 mb-3 flex-1">Expresses forecast error as a percentage relative to actual cases. Overall System Accuracy is derived mathematically from this value (100% - MAPE).</p>
-                                <div className="bg-white p-3 rounded-lg border border-slate-200 font-mono text-xs sm:text-sm font-semibold text-slate-800 text-center shadow-sm flex items-center justify-center min-h-[44px]">
-                                    MAPE = ( Σ | Actual - Forecast | / Actual ) / n × 100
+                                <h5 className="font-bold text-sm text-slate-900 mb-1">Avg. Error Rate (sMAPE)</h5>
+                                <p className="text-[11px] text-slate-600 mb-3 flex-1">Symmetric Mean Absolute Percentage Error. Expresses error as a percentage. Uses a "symmetric" formula to safely handle zero-case periods without breaking. System Confidence is derived from this (100% - sMAPE).</p>
+                                <div className="bg-white p-3 rounded-lg border border-slate-200 font-mono text-xs sm:text-[13px] font-semibold text-slate-800 text-center shadow-sm flex items-center justify-center min-h-[44px]">
+                                    sMAPE = ( Σ [ 2 × |Act - For| / (|Act| + |For|) ] ) / n × 100
                                 </div>
                             </div>
                             
-                            {/* REWRITTEN MAE/MAPE EXAMPLE */}
                             <div className="mt-1 col-span-1 md:col-span-2 p-5 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-900 font-medium leading-relaxed shadow-sm">
                                 <strong className="block mb-3 text-sm text-emerald-950 flex items-center gap-2">How the Average is Calculated (2-Month Example):</strong>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                    <div className="bg-white p-3 rounded-lg border border-emerald-100">
-                                        <span className="underline decoration-emerald-300 underline-offset-2 font-bold mb-1 block">Month 1:</span> We predicted 50, but actual was 60.<br/>
-                                        • We missed by <strong>10 cases</strong>.<br/>
-                                        • % Error: 10/60 = <strong>16% error</strong>
+                                    <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+                                        <span className="underline decoration-emerald-300 underline-offset-2 font-bold mb-1 block text-slate-800">Month 1:</span> 
+                                        <span className="text-slate-600">Predicted 50, but Actual was 60.</span><br/>
+                                        <span className="text-slate-600">• We missed by <strong>10 cases</strong>.</span><br/>
+                                        <span className="text-slate-600">• % Error: (2×10) / (60+50) = <strong>18.1% error</strong></span>
                                     </div>
-                                    <div className="bg-white p-3 rounded-lg border border-emerald-100">
-                                        <span className="underline decoration-emerald-300 underline-offset-2 font-bold mb-1 block">Month 2:</span> We predicted 40, but actual was 30.<br/>
-                                        • We missed by <strong>10 cases</strong>.<br/>
-                                        • % Error: 10/30 = <strong>33% error</strong>
+                                    <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+                                        <span className="underline decoration-emerald-300 underline-offset-2 font-bold mb-1 block text-slate-800">Month 2:</span> 
+                                        <span className="text-slate-600">Predicted 40, but Actual was 30.</span><br/>
+                                        <span className="text-slate-600">• We missed by <strong>10 cases</strong>.</span><br/>
+                                        <span className="text-slate-600">• % Error: (2×10) / (30+40) = <strong>28.5% error</strong></span>
                                     </div>
                                 </div>
                                 <div className="pt-3 border-t border-emerald-200/60">
                                     <div className="flex flex-col gap-1.5">
-                                        <span>• <strong>System MAE:</strong> (10 + 10) ÷ 2 months = <strong>±10 cases off target overall</strong>.</span>
-                                        <span>• <strong>System MAPE:</strong> (16% + 33%) ÷ 2 months = <strong>24.5% total margin of error</strong>.</span>
+                                        <span>• <strong>Avg. Case Variance (MAE):</strong> (10 + 10) ÷ 2 months = <strong>±10 cases off target overall</strong>.</span>
+                                        <span>• <strong>Avg. Error Rate (sMAPE):</strong> (18.1% + 28.5%) ÷ 2 months = <strong>23.3% total margin of error</strong>.</span>
                                     </div>
                                 </div>
                             </div>
@@ -280,7 +301,7 @@ export default function PredictiveModel({
                                     <div className="font-mono text-xs sm:text-sm font-semibold bg-white border border-red-200 px-2.5 py-1.5 rounded inline-block text-red-800 mb-1.5">
                                         Condition: Actual Cases &gt; (SMA<sub>6</sub> × {OUTBREAK_SENSITIVITY})
                                     </div>
-                                    <p className="text-[11px] text-red-700">Triggers when current cases exceed the mid-term 6-month baseline by the threshold defined in settings (currently {(OUTBREAK_SENSITIVITY - 1) * 100}%).</p>
+                                    <p className="text-[11px] text-red-700 leading-relaxed">Triggers when current cases exceed the mid-term 6-month baseline by the threshold defined in settings (currently {(OUTBREAK_SENSITIVITY - 1) * 100}%).</p>
                                 </div>
                             </div>
                             
@@ -291,7 +312,7 @@ export default function PredictiveModel({
                                     <div className="font-mono text-xs sm:text-sm font-semibold bg-white border border-red-200 px-2.5 py-1.5 rounded inline-block text-red-800 mb-1.5">
                                         Condition: Rising Trend Active AND Current SMA<sub>6</sub> &gt; Previous SMA<sub>6</sub>
                                     </div>
-                                    <p className="text-[11px] text-red-700">Indicates a compounding threat. Triggers when the fast-signal detects a short-term acceleration at the exact same time that the mid-term 6-month baseline is actively expanding.</p>
+                                    <p className="text-[11px] text-red-700 leading-relaxed">Indicates a compounding threat. Triggers when the fast-signal detects a short-term acceleration at the exact same time that the mid-term 6-month baseline is actively expanding.</p>
                                 </div>
                             </div>
 
@@ -302,9 +323,10 @@ export default function PredictiveModel({
                                     <div className="font-mono text-xs sm:text-sm font-semibold bg-white border border-amber-200 px-2.5 py-1.5 rounded inline-block text-amber-800 mb-1.5">
                                         Condition: [ (WMA<sub>3</sub> - SMA<sub>3</sub>) / SMA<sub>3</sub> ] × 100 &gt; {TREND_SENSITIVITY}%
                                     </div>
-                                    <p className="text-[11px] text-amber-700">Triggers when the fast-signal WMA detects an acceleration in cases that exceeds the standard short-term average by the defined threshold (currently {TREND_SENSITIVITY}%).</p>
+                                    <p className="text-[11px] text-amber-700 leading-relaxed">Triggers when the fast-signal WMA detects an acceleration in cases that exceeds the standard short-term average by the defined threshold (currently {TREND_SENSITIVITY}%).</p>
                                 </div>
                             </div>
+                            
                             <div className="flex gap-3 items-start bg-emerald-50 p-3.5 rounded-xl border border-emerald-100">
                                 <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5"/>
                                 <div>
@@ -312,7 +334,7 @@ export default function PredictiveModel({
                                     <div className="font-mono text-xs sm:text-sm font-semibold bg-white border border-emerald-200 px-2.5 py-1.5 rounded inline-block text-emerald-800 mb-1.5">
                                         Condition: [ (WMA<sub>3</sub> - SMA<sub>3</sub>) / SMA<sub>3</sub> ] × 100 &lt; {TREND_SENSITIVITY}%
                                     </div>
-                                    <p className="text-[11px] text-emerald-700">Indicates that the current case volume is dropping or remaining stable within the normal expected variance. No immediate action is required.</p>
+                                    <p className="text-[11px] text-emerald-700 leading-relaxed">Indicates that the current case volume is dropping or remaining stable within the normal expected variance. No immediate action is required.</p>
                                 </div>
                             </div>
                         </div>

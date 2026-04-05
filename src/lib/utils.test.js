@@ -85,19 +85,35 @@ describe('Predictive Analytics Engine (Algorithm Validation)', () => {
         expect(wma3).toBe(16); 
     });
 
-    it('should accurately compute Error Metrics (MAE & MAPE)', () => {
+    it('should accurately compute Mean Absolute Error (MAE)', () => {
         const actual = 20;
         const forecast = 15;
 
         // MAE: Average absolute difference
         const mae = Math.abs(actual - forecast);
-        // MAPE: Percentage of error relative to actual
-        const mape = (mae / actual) * 100;
-        const accuracy = 100 - mape;
-
         expect(mae).toBe(5); // 5 cases off target
-        expect(mape).toBe(25); // 25% margin of error
-        expect(accuracy).toBe(75); // 75% system accuracy
+    });
+
+    it('should calculate Symmetric MAPE (sMAPE) safely, avoiding division-by-zero Infinity errors', () => {
+        // This simulates the exact mathematical block from useForecastingMetrics.js
+        const calculateSmapePercentage = (actual, forecast) => {
+            const denominator = Math.abs(actual) + Math.abs(forecast);
+            if (denominator === 0) return 0; // Perfect prediction of 0 cases = 0% error
+            return ((2 * Math.abs(actual - forecast)) / denominator) * 100;
+        };
+
+        // Scenario 1: Standard Prediction (Actual 20, Forecast 15)
+        // |20-15| = 5. Denom = 35. (10/35) * 100 = 28.57%
+        expect(calculateSmapePercentage(20, 15)).toBeCloseTo(28.57, 1);
+
+        // Scenario 2: Actual is 0 (Would cause 'Infinity' in old MAPE)
+        // |0-5| = 5. Denom = 5. (10/5) * 100 = 200%
+        // sMAPE safely caps the maximum possible error at 200%
+        expect(calculateSmapePercentage(0, 5)).toBe(200);
+
+        // Scenario 3: Perfect Zero (Actual is 0, Forecast is 0)
+        // Denominator is 0, so the fallback safely returns 0% error instead of NaN
+        expect(calculateSmapePercentage(0, 0)).toBe(0);
     });
 
     it('Smart Alerts: should trigger Outbreak Anomaly when threshold is crossed', () => {

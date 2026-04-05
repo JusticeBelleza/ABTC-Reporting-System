@@ -16,7 +16,7 @@ export default function SmartAlertsPanel({ riskLevel, smartAlerts, projectedNext
       }
   };
 
-  // FIX: Added the safety net so if Accuracy is exactly 0.0, it falls back to Calibrating!
+  // Safety net so if Accuracy is exactly 0.0, it falls back to Calibrating
   const isCalibratingAccuracy = modelMetrics.validMonths < 3 || Number(modelMetrics.accuracy) === 0;
 
   return (
@@ -48,7 +48,7 @@ export default function SmartAlertsPanel({ riskLevel, smartAlerts, projectedNext
                 {smartAlerts.length > 0 ? smartAlerts.map((alert, i) => {
                     const style = getAlertStyle(alert.type);
                     return (
-                        <div key={i} className={`p-4 rounded-lg flex items-start gap-3.5 border border-l-4 shadow-sm transition-all hover:shadow-md ${style.wrapper}`}>
+                        <div key={i} className={`p-4 rounded-xl flex items-start gap-3.5 border border-l-4 shadow-sm transition-all hover:shadow-md ${style.wrapper}`}>
                             {style.icon}
                             <div>
                                 <h4 className={`font-bold text-sm mb-0.5 ${style.title}`}>{alert.title}</h4>
@@ -57,7 +57,7 @@ export default function SmartAlertsPanel({ riskLevel, smartAlerts, projectedNext
                         </div>
                     );
                 }) : (
-                    <div className="p-5 bg-white border border-slate-200 border-dashed rounded-xl text-slate-500 text-sm font-medium flex items-center justify-center gap-2">
+                    <div className="p-5 bg-white border border-slate-200 border-dashed rounded-xl text-slate-500 text-sm font-medium flex items-center justify-center gap-2 shadow-sm">
                         <Info className="text-slate-400" size={16}/> Analyzing data trends. Need more historical baseline data.
                     </div>
                 )}
@@ -69,7 +69,7 @@ export default function SmartAlertsPanel({ riskLevel, smartAlerts, projectedNext
             
             {/* Top Half: Projection */}
             <div className="p-6 flex-1 flex flex-col items-center justify-center relative">
-                <div className="absolute top-4 left-4">
+                <div className="absolute top-5 left-5">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                         <ActivitySquare size={14} className="text-blue-500"/> Projection
                     </p>
@@ -86,31 +86,31 @@ export default function SmartAlertsPanel({ riskLevel, smartAlerts, projectedNext
                 </div>
             </div>
             
-            {/* Bottom Half: KPIs */}
-            <div className="bg-slate-900 p-5 text-white flex flex-col justify-center">
+            {/* Bottom Half: KPIs (Dark Mode) */}
+            <div className="bg-slate-900 p-5 text-white flex flex-col justify-center border-t border-slate-800">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    <Target size={14} className="text-yellow-400"/> Model Accuracy
+                    <Target size={14} className="text-blue-400"/> Model Confidence
                 </p>
                 {isCalibratingAccuracy ? (
-                    <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700/50 shadow-inner flex flex-col items-center justify-center h-[76px]">
+                    <div className="bg-slate-800/80 rounded-xl p-4 text-center border border-slate-700 shadow-inner flex flex-col items-center justify-center h-[76px]">
                          <p className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                            <Loader2 size={14} className="animate-spin text-yellow-400" /> Calibrating
+                            <Loader2 size={14} className="animate-spin text-blue-400" /> Calibrating
                          </p>
                          <p className="text-[9px] text-slate-500 mt-1">Awaiting historical data</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                        <div className="bg-slate-800/80 rounded-xl p-3 text-center border border-slate-700 shadow-inner" title="Historical prediction accuracy">
                             <div className="text-lg font-black text-white">{modelMetrics.accuracy}%</div>
-                            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Accuracy</div>
+                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Accuracy</div>
                         </div>
-                        <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner" title="Mean Absolute Error (Average cases off target)">
+                        <div className="bg-slate-800/80 rounded-xl p-3 text-center border border-slate-700 shadow-inner" title="Mean Absolute Error (Average cases off target)">
                             <div className="text-lg font-black text-white">±{modelMetrics.mae}</div>
-                            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">MAE</div>
+                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">MAE</div>
                         </div>
-                        <div className="bg-slate-800 rounded-lg p-3 text-center border border-slate-700/50 shadow-inner" title="Mean Absolute Percentage Error">
+                        <div className="bg-slate-800/80 rounded-xl p-3 text-center border border-slate-700 shadow-inner" title="Symmetric Mean Absolute Percentage Error">
                             <div className="text-lg font-black text-white">{modelMetrics.mape}%</div>
-                            <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">MAPE</div>
+                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">sMAPE</div>
                         </div>
                     </div>
                 )}

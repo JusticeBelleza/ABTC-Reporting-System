@@ -81,7 +81,6 @@ export function useForecastingMetrics({
                 
                 if (hasData) {
                     total = periodReports.reduce((sum, r) => {
-                        // Hyper-Resilient Check: Looks in top-level AND JSON object
                         const pType = String(r.periodType || r.period_type || r.data?.periodType || r.data?.period_type || '').toLowerCase();
                         if (pType === 'annual' || pType === 'quarterly') return sum;
 
@@ -107,7 +106,6 @@ export function useForecastingMetrics({
                             }
                         }
 
-                        // Hyper-Resilient Numbers Extraction
                         const rMale = Number(r.male) || Number(r.data?.male) || 0;
                         const rFemale = Number(r.female) || Number(r.data?.female) || 0;
                         const rTot1 = Number(r.total_patients) || Number(r.totalPatients) || 0;
@@ -155,11 +153,13 @@ export function useForecastingMetrics({
 
           const lastValidIdx = processed24Months.findLastIndex(d => d.raw !== null);
           let predictedVal = null;
-          let countForMae = 0;
+          
+          // --- NEW: sMAPE Error Calculation ---
+          let absErrSum = 0; 
+          let smapeSum = 0; 
+          let countForMetrics = 0;
           
           if (lastValidIdx !== -1) {
-              let absErrSum = 0; let pctErrSum = 0; let countForMape = 0;
-
               for (let i = 1; i <= lastValidIdx; i++) {
                   const prev = processed24Months[i - 1];
                   const currentActual = processed24Months[i].raw;
@@ -167,23 +167,33 @@ export function useForecastingMetrics({
 
                   if (predictedForCurrent !== null && predictedForCurrent !== undefined) {
                       processed24Months[i].forecast = predictedForCurrent;
+                      
                       if (currentActual !== null) {
                           const err = Math.abs(currentActual - predictedForCurrent);
                           absErrSum += err;
-                          countForMae++;
-                          if (currentActual > 0) {
-                              pctErrSum += (err / currentActual);
-                              countForMape++;
+                          
+                          // Symmetric MAPE (sMAPE) calculation safely handles Zeroes
+                          const denominator = Math.abs(currentActual) + Math.abs(predictedForCurrent);
+                          
+                          if (denominator === 0) {
+                              // Actual = 0, Forecast = 0. Perfect prediction! 0% error.
+                              smapeSum += 0;
+                          } else {
+                              // Standard sMAPE formula bounds the error between 0 and 200%
+                              const smape = (2 * err) / denominator;
+                              smapeSum += smape;
                           }
+                          countForMetrics++;
                       }
                   }
               }
 
-              const calcMae = countForMae > 0 ? (absErrSum / countForMae).toFixed(1) : 0;
-              const calcMape = countForMape > 0 ? ((pctErrSum / countForMape) * 100).toFixed(1) : 0;
-              const calcAcc = countForMape > 0 ? Math.max(0, 100 - calcMape).toFixed(1) : 0;
+              // Finalize metrics
+              const calcMae = countForMetrics > 0 ? (absErrSum / countForMetrics).toFixed(1) : 0;
+              const calcMape = countForMetrics > 0 ? ((smapeSum / countForMetrics) * 100).toFixed(1) : 0;
+              const calcAcc = countForMetrics > 0 ? Math.max(0, 100 - calcMape).toFixed(1) : 0;
               
-              setModelMetrics({ mae: calcMae, mape: calcMape, accuracy: calcAcc, validMonths: countForMape });
+              setModelMetrics({ mae: calcMae, mape: calcMape, accuracy: calcAcc, validMonths: countForMetrics });
 
               const lastValid = processed24Months[lastValidIdx];
               predictedVal = lastValid.wma3 !== null ? lastValid.wma3 : (lastValid.sma3 !== null ? lastValid.sma3 : lastValid.raw);
