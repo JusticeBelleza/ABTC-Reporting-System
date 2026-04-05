@@ -7,22 +7,30 @@ export default function AuditLogsModal({ onClose }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Pagination State
+  // --- Server-Side Pagination State ---
   const [currentPage, setCurrentPage] = useState(1);
   const [logsPerPage, setLogsPerPage] = useState(10);
+  const [totalLogsCount, setTotalLogsCount] = useState(0);
 
   useEffect(() => {
     const fetchLogs = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        // 1. Calculate the exact database range we need to fetch
+        const fromIndex = (currentPage - 1) * logsPerPage;
+        const toIndex = fromIndex + logsPerPage - 1;
+
+        // 2. Fetch data WITH count: 'exact', and use .range() instead of .limit()
+        const { data, count, error } = await supabase
           .from('audit_logs')
-          .select('*')
+          .select('*', { count: 'exact' }) // This gets the total database rows safely
           .order('created_at', { ascending: false })
-          .limit(500); 
+          .range(fromIndex, toIndex);      // This only downloads the rows for this page
 
         if (error) throw error;
+        
         setLogs(data || []);
+        if (count !== null) setTotalLogsCount(count);
       } catch (err) {
         console.error("Error fetching audit logs:", err);
       } finally {
@@ -31,14 +39,14 @@ export default function AuditLogsModal({ onClose }) {
     };
 
     fetchLogs();
-  }, []);
+  }, [currentPage, logsPerPage]); // Re-fetch whenever the user changes the page or the limit
 
   const getActionBadge = (action) => {
     switch (action) {
       case 'APPROVED': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
       case 'REJECTED': return 'bg-rose-50 text-rose-600 border-rose-200';
       case 'SUBMITTED': return 'bg-blue-50 text-blue-600 border-blue-200';
-      case 'DELETED': return 'bg-red-50 text-red-600 border-red-200'; // Added DELETED styling
+      case 'DELETED': return 'bg-red-50 text-red-600 border-red-200';
       default: return 'bg-slate-50 text-slate-600 border-slate-200';
     }
   };
@@ -48,11 +56,8 @@ export default function AuditLogsModal({ onClose }) {
     return 'Facility User';
   };
 
-  // Pagination Logic
-  const indexOfLastLog = currentPage * logsPerPage;
-  const indexOfFirstLog = indexOfLastLog - logsPerPage;
-  const currentLogs = logs.slice(indexOfFirstLog, indexOfLastLog);
-  const totalPages = Math.ceil(logs.length / logsPerPage) || 1;
+  // --- Calculate total pages safely based on Server Count ---
+  const totalPages = Math.ceil(totalLogsCount / logsPerPage) || 1;
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -114,7 +119,8 @@ export default function AuditLogsModal({ onClose }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {currentLogs.map((log) => (
+                      {/* Notice we are mapping through 'logs' now, not 'currentLogs', because 'logs' ONLY contains the 10 rows for this page! */}
+                      {logs.map((log) => (
                         <tr key={log.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0">
                           <td className="py-2.5 px-3 sm:px-4 font-bold text-slate-800 border-r border-slate-100">{log.facility_name}</td>
                           <td className="py-2.5 px-3 sm:px-4 border-r border-slate-100 text-center">
@@ -156,7 +162,7 @@ export default function AuditLogsModal({ onClose }) {
               </div>
 
               <div className="flex items-center gap-4 text-[10px] sm:text-xs font-medium text-slate-500">
-                <span>Page <strong className="text-slate-900">{currentPage}</strong> of <strong className="text-slate-900">{totalPages}</strong></span>
+                <span>Page <strong className="text-slate-900">{currentPage}</strong> of <strong className="text-slate-900">{totalPages}</strong> (Total Records: <strong className="text-slate-900">{totalLogsCount}</strong>)</span>
                 <div className="flex items-center gap-1.5">
                   <button 
                     onClick={() => handlePageChange(currentPage - 1)} 
@@ -167,7 +173,7 @@ export default function AuditLogsModal({ onClose }) {
                   </button>
                   <button 
                     onClick={() => handlePageChange(currentPage + 1)} 
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage >= totalPages}
                     className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
                   >
                     <ChevronRight size={14} strokeWidth={2.5} />
