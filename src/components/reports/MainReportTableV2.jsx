@@ -290,7 +290,8 @@ const Tab1Headers = () => (
 const Tab2Headers = () => (
   <>
     <tr>
-      <th rowSpan={5} style={STYLES.thLocation} className="sticky left-0 z-30 border-r border-r-[#94A3B8]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Barangay)</span><br/><span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Municipality/City)</span></th>
+      <th rowSpan={5} style={STYLES.thLocation} className="sticky left-0 z-30 border-r border-r-[#94A3B8]">LOCATION<br/>
+      <span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Barangay)</span><br/><span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Municipality/City)</span></th>
       <th colSpan={11} style={STYLES.thMain}>POST-EXPOSURE PROPHYLAXIS (PEP)</th>
     </tr>
     <tr><th colSpan={6} style={STYLES.thGroup}>PEP Completed**</th><th colSpan={5} style={STYLES.thGroup}>PEP Coverage</th></tr>
