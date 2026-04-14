@@ -11,15 +11,17 @@ export const useReportData = ({
 
   // Determine Active Facility
   const isConsolidatedView = adminViewMode === 'consolidated';
+  
+  // FIX: Make sure we check user?.facility instead of user?.facilityName!
   const activeFacilityName = isConsolidatedView 
       ? 'Consolidated' 
       : (user?.role === 'admin' || user?.role === 'SYSADMIN') && selectedFacility 
           ? selectedFacility 
-          : user?.facilityName;
+          : user?.facility; 
 
-  // Determine Host Municipality
-  const currentHostMunicipality = activeFacilityName && activeFacilityName !== 'Consolidated' && facilities.includes(activeFacilityName)
-      ? facilityBarangays[activeFacilityName]?.[0]?.municipality || ''
+  // Determine Host Municipality dynamically from the facility name
+  const currentHostMunicipality = activeFacilityName && activeFacilityName !== 'Consolidated'
+      ? activeFacilityName.replace(' RHU', '').replace(' Hospital', '').replace(' Clinic', '').trim()
       : '';
 
   // Fetch the Report Status from V2
@@ -27,6 +29,7 @@ export const useReportData = ({
     let isMounted = true;
 
     const fetchStatus = async () => {
+      // Don't try to fetch if we haven't loaded the user's facility yet
       if (!activeFacilityName || activeFacilityName === 'Consolidated') {
         if (isMounted) {
           setReportStatus('Not Submitted');
@@ -86,6 +89,16 @@ export const useReportData = ({
         .eq('facility', activeFacilityName);
 
       if (error) throw error;
+
+      // Also log the deletion to audit logs
+      const actorName = user?.fullName || user?.email || 'Facility User';
+      await supabase.from('audit_logs').insert([{
+         facility_name: activeFacilityName,
+         action: 'DELETED',
+         report_type: 'Form 1 Report',
+         period_info: `${activeFacilityName} - ${currentPeriod} ${year}`,
+         actor_name: actorName
+      }]);
 
       setReportStatus('Not Submitted');
       toast.success('Report successfully deleted.');

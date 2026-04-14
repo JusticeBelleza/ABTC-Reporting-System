@@ -28,10 +28,11 @@ export default function AdminDashboard({
   const [facilityOwners, setFacilityOwners] = useState({});
   
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, facility: null });
-  const [statusModal, setStatusModal] = useState({ isOpen: false, status: null, reportType: 'main' });
-  const [leaderboardModal, setLeaderboardModal] = useState({ isOpen: false, filter: null, reportType: 'main' });
+  const [statusModal, setStatusModal] = useState({ isOpen: false, status: null });
+  const [leaderboardModal, setLeaderboardModal] = useState({ isOpen: false, filter: null });
 
-  const [yearlyStats, setYearlyStats] = useState({ main: [], cohort: [] });
+  const [yearlyStats, setYearlyStats] = useState({ main: [] });
+  const [facilityStatuses, setFacilityStatuses] = useState({});
 
   const [modalPage, setModalPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
@@ -54,9 +55,9 @@ export default function AdminDashboard({
 
   useEffect(() => { setCardPage(1); }, [showArchived]);
 
-  const { facilityStatuses } = useReportData({
+  useReportData({
     user, facilities, facilityBarangays: facilityBarangays || {}, 
-    year, month, quarter, periodType, activeTab: 'main', adminViewMode: 'dashboard'
+    year, month, quarter, periodType, adminViewMode: 'dashboard'
   });
 
   const fetchFacilityMeta = async () => {
@@ -66,7 +67,6 @@ export default function AdminDashboard({
     } catch (err) { console.error("Error fetching facility meta", err); }
   };
 
-  // Abstracted to a reusable function so we can call it on mount and on custom events
   const fetchFacilityOwners = async () => {
     try {
       const { data } = await supabase.from('profiles').select('facility_name, full_name, email');
@@ -87,10 +87,8 @@ export default function AdminDashboard({
     } catch (error) { console.error("Error fetching facility owners:", error); }
   };
 
-  // Run on mount
   useEffect(() => { fetchFacilityOwners(); }, [facilities]); 
 
-  // Run when a custom event is fired (e.g., from UserManagementModal)
   useEffect(() => {
     const handleUserRegistered = () => fetchFacilityOwners();
     window.addEventListener('user_registered', handleUserRegistered);
@@ -99,17 +97,41 @@ export default function AdminDashboard({
 
   useEffect(() => { fetchFacilityMeta(); }, [facilities]);
 
+  // V2 Fetch Logic for Statuses & Leaderboards (FIXED created_at)
   useEffect(() => {
-    const fetchYearlyStats = async () => {
+    const fetchV2StatsAndStatuses = async () => {
         if (!year) return;
         try {
-            const { data: mainData } = await supabase.from('abtc_reports').select('facility, month, status').eq('year', year);
-            const { data: cohortData } = await supabase.from('abtc_cohort_reports').select('facility, month, status').eq('year', year);
-            setYearlyStats({ main: mainData || [], cohort: cohortData || [] });
-        } catch (error) { console.error("Error fetching yearly stats:", error); }
+            const { data: v2Data } = await supabase.from('abtc_reports_v2').select('facility, month, status').eq('year', year);
+            setYearlyStats({ main: v2Data || [] });
+
+            const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
+            const { data: currentPeriodData } = await supabase.from('abtc_reports_v2')
+                .select('facility, status, created_at')
+                .eq('year', year)
+                .eq('month', currentPeriod);
+            
+            const currentStatusMap = {};
+            if (currentPeriodData) {
+                currentPeriodData.forEach(row => {
+                    const fac = row.facility;
+                    if (!currentStatusMap[fac]) currentStatusMap[fac] = { status: 'Draft', lastUpdated: row.created_at };
+                    
+                    if (new Date(row.created_at) > new Date(currentStatusMap[fac].lastUpdated)) {
+                        currentStatusMap[fac].lastUpdated = row.created_at;
+                    }
+
+                    if (row.status === 'Approved') currentStatusMap[fac].status = 'Approved';
+                    else if (row.status === 'Pending' && currentStatusMap[fac].status !== 'Approved') currentStatusMap[fac].status = 'Pending';
+                    else if (row.status === 'Rejected' && currentStatusMap[fac].status === 'Draft') currentStatusMap[fac].status = 'Rejected';
+                });
+            }
+            setFacilityStatuses(currentStatusMap);
+
+        } catch (error) { console.error("Error fetching V2 stats:", error); }
     };
-    fetchYearlyStats();
-  }, [year]);
+    fetchV2StatsAndStatuses();
+  }, [year, month, quarter, periodType]);
 
   const requestAction = (e, facility, action) => {
     e.stopPropagation();
@@ -137,16 +159,7 @@ export default function AdminDashboard({
   });
 
   const mainStats = displayedFacilities.reduce((acc, f) => {
-    const status = facilityStatuses[f]?.main || 'Draft';
-    if (status === 'Approved') acc.approved++;
-    if (status === 'Pending') acc.pending++;
-    if (status === 'Rejected') acc.rejected++;
-    if (status !== 'Draft' && status !== 'View Only') acc.submitted++;
-    return acc;
-  }, { approved: 0, pending: 0, rejected: 0, submitted: 0 });
-
-  const cohortStats = displayedFacilities.reduce((acc, f) => {
-    const status = facilityStatuses[f]?.cohort || 'Draft';
+    const status = facilityStatuses[f]?.status || 'Draft';
     if (status === 'Approved') acc.approved++;
     if (status === 'Pending') acc.pending++;
     if (status === 'Rejected') acc.rejected++;
@@ -156,10 +169,9 @@ export default function AdminDashboard({
 
   const totalFacilities = displayedFacilities.length;
   const mainReportingRate = totalFacilities > 0 ? Math.round((mainStats.submitted / totalFacilities) * 100) : 0;
-  const cohortReportingRate = totalFacilities > 0 ? Math.round((cohortStats.submitted / totalFacilities) * 100) : 0;
 
-  const getFacilitiesByStatus = (statusType, reportType) => {
-    return displayedFacilities.filter(f => (facilityStatuses[f]?.[reportType] || 'Draft') === statusType);
+  const getFacilitiesByStatus = (statusType) => {
+    return displayedFacilities.filter(f => (facilityStatuses[f]?.status || 'Draft') === statusType);
   };
 
   const getTargetMonths = () => {
@@ -171,9 +183,9 @@ export default function AdminDashboard({
   };
   const targetMonths = getTargetMonths();
 
-  const buildMatrix = (reportType) => {
+  const buildMatrix = () => {
       const dedupedStats = {};
-      yearlyStats[reportType].forEach(r => {
+      yearlyStats.main.forEach(r => {
           const key = `${r.facility}_${r.month}`;
           if (!dedupedStats[key] || r.status === 'Approved') dedupedStats[key] = r;
       });
@@ -198,8 +210,7 @@ export default function AdminDashboard({
       }).sort((a, b) => b.complianceRate - a.complianceRate || a.facility.localeCompare(b.facility));
   };
 
-  const mainMatrix = buildMatrix('main');
-  const cohortMatrix = buildMatrix('cohort');
+  const mainMatrix = buildMatrix();
 
   const getAggregates = (matrix) => {
       if (matrix.length === 0) return { full: 0, partial: 0, zero: 0, rate: 0 };
@@ -213,17 +224,15 @@ export default function AdminDashboard({
   };
 
   const mainAgg = getAggregates(mainMatrix);
-  const cohortAgg = getAggregates(cohortMatrix);
 
   const getFilteredMatrix = () => {
-      const matrix = leaderboardModal.reportType === 'main' ? mainMatrix : cohortMatrix;
-      if (leaderboardModal.filter === 'full') return matrix.filter(m => m.isFully);
-      if (leaderboardModal.filter === 'partial') return matrix.filter(m => m.isPartial);
-      if (leaderboardModal.filter === 'zero') return matrix.filter(m => m.isZero);
-      return matrix; 
+      if (leaderboardModal.filter === 'full') return mainMatrix.filter(m => m.isFully);
+      if (leaderboardModal.filter === 'partial') return mainMatrix.filter(m => m.isPartial);
+      if (leaderboardModal.filter === 'zero') return mainMatrix.filter(m => m.isZero);
+      return mainMatrix; 
   };
 
-  const modalFacilities = statusModal.isOpen ? getFacilitiesByStatus(statusModal.status, statusModal.reportType) : [];
+  const modalFacilities = statusModal.isOpen ? getFacilitiesByStatus(statusModal.status) : [];
   const totalModalPages = Math.ceil(modalFacilities.length / ITEMS_PER_PAGE);
   const paginatedModalFacilities = modalFacilities.slice((modalPage - 1) * ITEMS_PER_PAGE, modalPage * ITEMS_PER_PAGE);
 
@@ -268,12 +277,12 @@ export default function AdminDashboard({
                                 </div>
                                 <div className="overflow-hidden">
                                     <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
-                                        {statusModal.reportType === 'cohort' ? 'Cohort' : 'Form 1'} - {statusModal.status}
+                                        Form 1 - {statusModal.status}
                                     </h3>
                                     <p className="text-xs font-medium text-slate-500">{month} {year}</p>
                                 </div>
                             </div>
-                            <button onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
+                            <button onClick={() => setStatusModal({ isOpen: false, status: null })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                                 <X size={20} />
                             </button>
                         </div>
@@ -294,8 +303,8 @@ export default function AdminDashboard({
                                             <div 
                                                 key={f} 
                                                 onClick={() => { 
-                                                    localStorage.setItem('adminTargetTab', statusModal.reportType === 'cohort' ? 'cohort' : 'main');
-                                                    setStatusModal({ isOpen: false, status: null, reportType: 'main' }); 
+                                                    localStorage.setItem('adminTargetTab', 'main');
+                                                    setStatusModal({ isOpen: false, status: null }); 
                                                     onSelectFacility(f); 
                                                 }} 
                                                 className="group px-4 py-3.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all"
@@ -344,7 +353,7 @@ export default function AdminDashboard({
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => setLeaderboardModal({ isOpen: false, filter: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
+                            <button onClick={() => setLeaderboardModal({ isOpen: false, filter: null })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                                 <X size={20} />
                             </button>
                         </div>
@@ -536,7 +545,7 @@ export default function AdminDashboard({
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {periodType === 'Monthly' ? (
                       <>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                                 <CheckCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -545,7 +554,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainStats.approved}</p>
                             </div>
                         </div>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                                 <Clock size={20} strokeWidth={2.5} />
                             </div>
@@ -554,7 +563,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainStats.pending}</p>
                             </div>
                         </div>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'main' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
+                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">
                                 <XCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -575,7 +584,7 @@ export default function AdminDashboard({
                       </>
                   ) : (
                       <>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'full', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'full' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                                 <CheckCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -584,7 +593,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainAgg.full}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'partial', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'partial' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                                 <Clock size={20} strokeWidth={2.5} />
                             </div>
@@ -593,7 +602,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainAgg.partial}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'zero', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'zero' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">
                                 <XCircle size={20} strokeWidth={2.5} />
                             </div>
@@ -602,7 +611,7 @@ export default function AdminDashboard({
                                 <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{mainAgg.zero}</p>
                             </div>
                         </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'all', reportType: 'main' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
+                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'all' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
                             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all">
                                 <TrendingUp size={20} strokeWidth={2.5} />
                             </div>
@@ -615,102 +624,14 @@ export default function AdminDashboard({
                   )}
               </div>
             </div>
-
-            <div>
-              <h3 className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">
-                 Cohort Report Overview ({currentDisplayPeriod} {year})
-              </h3>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  {periodType === 'Monthly' ? (
-                      <>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                                <CheckCircle size={20} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Approved</p>
-                                <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortStats.approved}</p>
-                            </div>
-                        </div>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                                <Clock size={20} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Pending</p>
-                                <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortStats.pending}</p>
-                            </div>
-                        </div>
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'cohort' }); setModalPage(1); }} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">
-                                <XCircle size={20} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Rejected</p>
-                                <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortStats.rejected}</p>
-                            </div>
-                        </div>
-                        <div className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md group">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all">
-                                <TrendingUp size={20} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Compliance Rate</p>
-                                <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortReportingRate}%</p>
-                            </div>
-                        </div>
-                      </>
-                  ) : (
-                      <>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'full', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                                <CheckCircle size={20} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Fully Compliant</p>
-                                <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortAgg.full}</p>
-                            </div>
-                        </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'partial', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                                <Clock size={20} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Partially Compliant</p>
-                                <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortAgg.partial}</p>
-                            </div>
-                        </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'zero', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">
-                                <XCircle size={20} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Zero Submissions</p>
-                                <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortAgg.zero}</p>
-                            </div>
-                        </div>
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'all', reportType: 'cohort' })} className="bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md cursor-pointer group active:scale-[0.98] transition-all">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all">
-                                <TrendingUp size={20} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Average Compliance</p>
-                                <p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{cohortAgg.rate}%</p>
-                            </div>
-                        </div>
-                      </>
-                  )}
-              </div>
-            </div>
           </div>
         )}
 
         {/* Facility Cards Grid with Pagination */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {paginatedCards.map((f) => {
-            const statusObj = facilityStatuses[f] || { main: 'Draft', cohort: 'Draft', lastUpdated: null };
-            const main = statusObj.main;
-            const cohort = statusObj.cohort;
+            const statusObj = facilityStatuses[f] || { status: 'Draft', lastUpdated: null };
+            const main = statusObj.status;
             const lastUpdated = statusObj.lastUpdated;
 
             const meta = facilityMeta.find((m) => m.name === f);
@@ -755,10 +676,6 @@ export default function AdminDashboard({
                     <div className="flex items-center gap-1.5 sm:gap-2">
                         <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Form 1</span>
                         {periodType === 'Monthly' ? <StatusBadge status={main} /> : renderFractionBadge(f, mainMatrix)}
-                    </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                        <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cohort</span>
-                        {periodType === 'Monthly' ? <StatusBadge status={cohort} /> : renderFractionBadge(f, cohortMatrix)}
                     </div>
                   </div>
                 </div>

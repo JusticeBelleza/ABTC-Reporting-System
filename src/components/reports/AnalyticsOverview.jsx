@@ -1,9 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Loader2, ShieldAlert, PieChart as PieChartIcon, TrendingUp, TrendingDown, Info, Calendar, User, BrainCircuit, Activity, CheckCircle } from 'lucide-react';
+import { Loader2, ShieldAlert, PieChart as PieChartIcon, TrendingUp, TrendingDown, Calendar, User, BrainCircuit, Activity, CheckCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
-import { useReportData } from '../../hooks/useReportData';
-import { QUARTERS, MONTHS, MUNICIPALITIES } from '../../lib/constants';
+import { QUARTERS, MONTHS } from '../../lib/constants';
 
 import { useForecastingMetrics } from '../../hooks/useForecastingMetrics';
 import DemographicCharts from './DemographicCharts';
@@ -19,13 +18,8 @@ const COLORS = {
 };
 
 const TOOLTIP_STYLE = {
-  borderRadius: '16px',
-  border: '1px solid #E2E8F0',
-  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-  padding: '12px 16px',
-  fontWeight: '700',
-  color: '#0F172A',
-  backgroundColor: 'rgba(255, 255, 255, 0.98)'
+  borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+  padding: '12px 16px', fontWeight: '700', color: '#0F172A', backgroundColor: 'rgba(255, 255, 255, 0.98)'
 };
 
 const RADIAN = Math.PI / 180;
@@ -71,6 +65,16 @@ export default function AnalyticsOverview({
 
   const [activeSubTab, setActiveSubTab] = useState('overview');
   const [showMathModal, setShowMathModal] = useState(false);
+  const [dbMunicipalities, setDbMunicipalities] = useState([]);
+
+  // Fetch dbMunicipalities
+  useEffect(() => {
+      const getMunis = async () => {
+          const { data } = await supabase.from('populations').select('municipality').not('municipality', 'is', null);
+          if (data) setDbMunicipalities(Array.from(new Set(data.map(d => d.municipality))));
+      };
+      getMunis();
+  }, []);
 
   const currentDate = useMemo(() => new Date(), []);
   const currentRealYear = currentDate.getFullYear();
@@ -81,15 +85,47 @@ export default function AnalyticsOverview({
     return QUARTERS;
   }, [year, currentRealYear, currentQuarterIndex]);
 
-  const { data, loading, reportStatus } = useReportData({
-    user, facilities, facilityBarangays, year, month, quarter, periodType,
-    activeTab: 'main', cohortSubTab: 'cat2', 
-    adminViewMode: isAdmin ? 'consolidated' : 'dashboard', 
-    selectedFacility: null
-  });
+  // V2 Fetch Logic directly inside Overview for chart processing
+  const [v2Data, setV2Data] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [reportStatus, setReportStatus] = useState('Not Submitted');
+
+  useEffect(() => {
+      const fetchV2Analytics = async () => {
+          setLoading(true);
+          try {
+              let query = supabase.from('abtc_reports_v2').select('*').eq('year', year);
+              
+              if (periodType === 'Monthly') query = query.eq('month', month);
+              else if (periodType === 'Quarterly') {
+                  const qIdx = QUARTERS.indexOf(quarter);
+                  query = query.in('month', [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]]);
+              }
+
+              if (isAdmin) query = query.eq('status', 'Approved');
+              else query = query.eq('facility', user?.facility);
+
+              const { data, error } = await query;
+              if (error) throw error;
+              
+              setV2Data(data || []);
+              
+              if (!isAdmin && data && data.length > 0) {
+                  setReportStatus(data[0].status || 'Draft');
+              } else {
+                  setReportStatus('Draft'); // Or Approved if viewing as admin
+              }
+          } catch (err) {
+              console.error("V2 Analytics Fetch Error:", err);
+          } finally {
+              setLoading(false);
+          }
+      };
+      fetchV2Analytics();
+  }, [year, month, quarter, periodType, isAdmin, user?.facility]);
 
   const {
-    historicalData, full24MonthData, loadingHistory, smartAlerts,
+    full24MonthData, loadingHistory, smartAlerts,
     complianceRate, riskLevel, projectedNextMonth, modelMetrics
   } = useForecastingMetrics({
     year, month, quarter, periodType, facilities, user, isAdmin,
@@ -99,189 +135,113 @@ export default function AnalyticsOverview({
 
   const calculatedYTD = useMemo(() => {
       let targetMonths = MONTHS;
-      
-      if (periodType === 'Monthly') {
-          const idx = MONTHS.indexOf(month);
-          targetMonths = MONTHS.slice(0, idx + 1);
-      } else if (periodType === 'Quarterly') {
-          const qIdx = QUARTERS.indexOf(quarter);
-          targetMonths = MONTHS.slice(0, (qIdx * 3) + 3);
-      }
+      if (periodType === 'Monthly') targetMonths = MONTHS.slice(0, MONTHS.indexOf(month) + 1);
+      else if (periodType === 'Quarterly') targetMonths = MONTHS.slice(0, (QUARTERS.indexOf(quarter) * 3) + 3);
       
       return full24MonthData
           .filter(d => d.year === year && targetMonths.includes(d.month))
           .reduce((sum, d) => sum + (Number(d.raw) || 0), 0);
-          
   }, [periodType, full24MonthData, month, quarter, year]);
 
   const currentTotal = useMemo(() => {
-      if (periodType === 'Monthly') {
-          return full24MonthData.find(d => d.year === year && d.month === month)?.raw || 0;
-      } else if (periodType === 'Quarterly') {
-          const qIdx = QUARTERS.indexOf(quarter);
-          const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
+      if (periodType === 'Monthly') return full24MonthData.find(d => d.year === year && d.month === month)?.raw || 0;
+      if (periodType === 'Quarterly') {
+          const targetMonths = [MONTHS[QUARTERS.indexOf(quarter)*3], MONTHS[QUARTERS.indexOf(quarter)*3+1], MONTHS[QUARTERS.indexOf(quarter)*3+2]];
           return full24MonthData.filter(d => d.year === year && targetMonths.includes(d.month)).reduce((a, b) => a + (b.raw || 0), 0);
-      } else {
-          return calculatedYTD; 
       }
+      return calculatedYTD; 
   }, [full24MonthData, periodType, year, month, quarter, calculatedYTD]);
 
   const comparisonData = useMemo(() => {
-      let prevTotal = 0;
-      let label = `vs Last ${periodType === 'Monthly' ? 'Month' : periodType === 'Quarterly' ? 'Quarter' : 'Year'}`;
+      let prevTotal = 0; let label = `vs Last ${periodType === 'Monthly' ? 'Month' : periodType === 'Quarterly' ? 'Quarter' : 'Year'}`;
       let isValid = false;
 
       if (full24MonthData.length > 0) {
           if (periodType === 'Monthly') {
               const mIdx = MONTHS.indexOf(month);
-              const prevMonth = mIdx === 0 ? MONTHS[11] : MONTHS[mIdx - 1];
-              const prevYearTarget = mIdx === 0 ? year - 1 : year;
-              const prevMonthData = full24MonthData.find(d => d.month === prevMonth && d.year === prevYearTarget);
-              
-              if (prevMonthData && prevMonthData.raw !== null && prevMonthData.raw > 0) {
-                  prevTotal = prevMonthData.raw;
-                  isValid = true;
-              }
-          } 
-          else if (periodType === 'Quarterly') {
+              const prevMonthData = full24MonthData.find(d => d.month === (mIdx === 0 ? MONTHS[11] : MONTHS[mIdx - 1]) && d.year === (mIdx === 0 ? year - 1 : year));
+              if (prevMonthData && prevMonthData.raw > 0) { prevTotal = prevMonthData.raw; isValid = true; }
+          } else if (periodType === 'Quarterly') {
               const qIdx = QUARTERS.indexOf(quarter);
-              let prevQIdx = qIdx === 0 ? 3 : qIdx - 1;
-              let prevYearTarget = qIdx === 0 ? year - 1 : year;
-              
+              const prevQIdx = qIdx === 0 ? 3 : qIdx - 1;
               const targetMonths = [MONTHS[prevQIdx*3], MONTHS[prevQIdx*3+1], MONTHS[prevQIdx*3+2]];
-              const prevData = full24MonthData.filter(d => d.year === prevYearTarget && targetMonths.includes(d.month));
-              const sum = prevData.reduce((a, b) => a + (Number(b.raw) || 0), 0);
-              
-              if (sum > 0) {
-                  prevTotal = sum;
-                  isValid = true;
-              }
-          }
-          else if (periodType === 'Annual') {
-              const prevData = full24MonthData.filter(d => d.year === year - 1);
-              const sum = prevData.reduce((a, b) => a + (Number(b.raw) || 0), 0);
-              if (sum > 0) {
-                  prevTotal = sum;
-                  isValid = true;
-              }
+              const sum = full24MonthData.filter(d => d.year === (qIdx === 0 ? year - 1 : year) && targetMonths.includes(d.month)).reduce((a, b) => a + (Number(b.raw) || 0), 0);
+              if (sum > 0) { prevTotal = sum; isValid = true; }
+          } else if (periodType === 'Annual') {
+              const sum = full24MonthData.filter(d => d.year === year - 1).reduce((a, b) => a + (Number(b.raw) || 0), 0);
+              if (sum > 0) { prevTotal = sum; isValid = true; }
           }
       }
-
-      let delta = 0;
-      if (isValid && prevTotal > 0) {
-          delta = ((currentTotal - prevTotal) / prevTotal) * 100;
-      }
-
+      let delta = isValid && prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
       return { delta, label, isValid };
   }, [full24MonthData, periodType, month, quarter, year, currentTotal]);
 
   const yoyComparisonData = useMemo(() => {
-      let prevYoyTotal = 0;
-      let isValid = false;
-
+      let prevYoyTotal = 0; let isValid = false;
       if (full24MonthData.length > 0) {
           if (periodType === 'Monthly') {
               const prevData = full24MonthData.find(d => d.month === month && d.year === year - 1);
-              if (prevData && prevData.raw !== null && prevData.raw > 0) {
-                  prevYoyTotal = prevData.raw;
-                  isValid = true;
-              }
+              if (prevData && prevData.raw > 0) { prevYoyTotal = prevData.raw; isValid = true; }
           } else if (periodType === 'Quarterly') {
-              const qIdx = QUARTERS.indexOf(quarter);
-              const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
-              const prevData = full24MonthData.filter(d => d.year === year - 1 && targetMonths.includes(d.month));
-              const sum = prevData.reduce((a, b) => a + (Number(b.raw) || 0), 0);
+              const targetMonths = [MONTHS[QUARTERS.indexOf(quarter)*3], MONTHS[QUARTERS.indexOf(quarter)*3+1], MONTHS[QUARTERS.indexOf(quarter)*3+2]];
+              const sum = full24MonthData.filter(d => d.year === year - 1 && targetMonths.includes(d.month)).reduce((a, b) => a + (Number(b.raw) || 0), 0);
               if (sum > 0) { prevYoyTotal = sum; isValid = true; }
           }
       }
-
-      let delta = 0;
-      if (isValid && prevYoyTotal > 0) {
-          delta = ((currentTotal - prevYoyTotal) / prevYoyTotal) * 100;
-      }
-
+      let delta = isValid && prevYoyTotal > 0 ? ((currentTotal - prevYoyTotal) / prevYoyTotal) * 100 : 0;
       return { delta, isValid };
   }, [full24MonthData, periodType, month, quarter, year, currentTotal]);
 
-  const isConsolidatedView = !isAdmin && facilityType !== 'Hospital' && facilityType !== 'Clinic' ? false : true;
-  
+  // Transform V2 Flat Data into Chart Arrays
   const locationInfo = useMemo(() => {
-    if (!data) return { chartData: [], tableData: [], total: 0 };
+    if (!v2Data || v2Data.length === 0) return { chartData: [], tableData: [], total: 0 };
     
-    const hostMuni = MUNICIPALITIES.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
-    const officialBarangays = facilityBarangays[user?.facility] || [];
-
-    const chart = []; const table = []; let total = 0;
-
-    Object.entries(data).forEach(([name, row]) => {
-        const lower = name.toLowerCase().trim();
-        if (lower === 'total' || lower.includes('grand total')) return;
-        if (!isConsolidatedView && hostMuni && lower === hostMuni.toLowerCase()) return;
+    const chartMap = {}; const tableMap = {}; let total = 0;
+    const isConsolidatedView = isAdmin;
+    const hostMuni = dbMunicipalities.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
+    
+    v2Data.forEach(row => {
+        if (!row.location_name || row.location_name.includes('Outside Catchment')) return;
         
-        const sex = (Number(row.male)||0) + (Number(row.female)||0);
-        const tot = Number(row.totalPatients) || 0;
-        const val = Math.max(sex, tot);
-
-        if (val > 0) {
-            let cleanName = name.trim();
-            let isBarangay = true;
-
-            if (!isConsolidatedView) {
-                if (officialBarangays.includes(name)) {
-                    isBarangay = true;
-                    if (hostMuni) {
-                        const regex = new RegExp(`\\b${hostMuni}\\b`, 'ig');
-                        let stripped = cleanName.replace(regex, '').replace(/^[-\s,]+|[-\s,]+$/g, '').trim();
-                        if (stripped !== '') cleanName = stripped;
-                    }
-                } else {
-                    isBarangay = false; 
-                }
-            }
-
-            total += val;
-
-            if (isBarangay) {
-                const existing = chart.find(item => item.name === cleanName);
-                if (existing) existing.value += val;
-                else chart.push({ name: cleanName, value: val });
+        const num = (v) => Number(v) || 0;
+        const cases = num(row.cat1) + num(row.cat2_elig_pri) + num(row.cat2_elig_boost) + num(row.cat2_non_elig) + num(row.cat3_elig_pri) + num(row.cat3_elig_boost) + num(row.cat3_non_elig);
+        
+        if (cases > 0) {
+            total += cases;
+            
+            // If admin or viewing hospitals, chart is municipalities. If RHU, chart is barangays.
+            if (isConsolidatedView || facilityType === 'Hospital') {
+               chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
             } else {
-                const existing = table.find(item => item.name === cleanName);
-                if (existing) existing.value += val;
-                else table.push({ name: cleanName, value: val });
+               if (dbMunicipalities.includes(row.location_name) && row.location_name !== hostMuni) {
+                   tableMap[row.location_name] = (tableMap[row.location_name] || 0) + cases;
+               } else {
+                   chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
+               }
             }
         }
     });
 
-    chart.sort((a, b) => a.name.localeCompare(b.name));
-    table.sort((a, b) => b.value - a.value);
+    const chart = Object.entries(chartMap).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name));
+    const table = Object.entries(tableMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
     return { chartData: chart, tableData: table, total };
-  }, [data, isConsolidatedView, facilityType, user, facilityBarangays]); 
-
-  const locationData = locationInfo.chartData;
-  const tableData = locationInfo.tableData;
-  const locationTotal = locationInfo.total;
+  }, [v2Data, isAdmin, facilityType, dbMunicipalities, user]);
 
   const safeTotals = useMemo(() => {
-      let male = 0, female = 0, ageLt15 = 0, ageGt15 = 0, cat1 = 0, cat2 = 0, cat3 = 0, dog = 0, cat = 0;
-      if (!data) return { male, female, ageLt15, ageGt15, cat1, cat2, cat3, dog, cat };
-      
-      const hostMuni = MUNICIPALITIES.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
-
-      Object.entries(data).forEach(([name, row]) => {
-          const lower = name.toLowerCase().trim();
-          if (lower === 'total' || lower.includes('grand total')) return;
-          if (!isConsolidatedView && hostMuni && lower === hostMuni.toLowerCase()) return;
-
-          male += Number(row.male) || 0; female += Number(row.female) || 0;
-          ageLt15 += Number(row.ageLt15) || 0; ageGt15 += Number(row.ageGt15) || 0;
-          cat1 += Number(row.cat1) || 0; cat2 += Number(row.cat2) || 0; cat3 += Number(row.cat3) || 0;
-          dog += Number(row.dog) || 0; cat += Number(row.cat) || 0;
+      let sums = { male: 0, female: 0, ageLt15: 0, ageGt15: 0, cat1: 0, cat2: 0, cat3: 0, dog: 0, cat: 0, others: 0 };
+      v2Data.forEach(r => {
+          if (r.location_name.includes('Outside Catchment')) return;
+          const n = (v) => Number(v) || 0;
+          sums.male += n(r.male); sums.female += n(r.female);
+          sums.ageLt15 += n(r.age_under_15); sums.ageGt15 += n(r.age_over_15);
+          sums.cat1 += n(r.cat1);
+          sums.cat2 += n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
+          sums.cat3 += n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
+          sums.dog += n(r.type_dog); sums.cat += n(r.type_cat); sums.others += n(r.type_others);
       });
-
-      return { male, female, ageLt15, ageGt15, cat1, cat2, cat3, dog, cat };
-  }, [data, isConsolidatedView, user]);
+      return sums;
+  }, [v2Data]);
 
   const demographicsSexData = useMemo(() => [{ name: 'Male', value: safeTotals.male }, { name: 'Female', value: safeTotals.female }], [safeTotals]);
   const demographicsAgeData = useMemo(() => [{ name: '< 15 Yrs', value: safeTotals.ageLt15 }, { name: '> 15 Yrs', value: safeTotals.ageGt15 }], [safeTotals]);
@@ -295,61 +255,9 @@ export default function AnalyticsOverview({
     const res = [];
     if (safeTotals.dog > 0) res.push({ name: 'Dog', value: safeTotals.dog, fill: COLORS.dog });
     if (safeTotals.cat > 0) res.push({ name: 'Cat', value: safeTotals.cat, fill: COLORS.cat });
-
-    const otherMap = {};
-    const hostMuni = MUNICIPALITIES.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
-
-    Object.entries(data || {}).forEach(([key, row]) => {
-        const lower = key.toLowerCase().trim();
-        if (lower === 'total' || lower.includes('grand total')) return;
-        if (!isConsolidatedView && hostMuni && lower === hostMuni.toLowerCase()) return;
-
-        if (key === 'Others:' || MUNICIPALITIES.includes(key) || facilityBarangays[user?.facility]?.includes(key)) {
-            const specStr = row.othersSpec || '';
-            const count = Number(row.othersCount) || 0;
-            if (count > 0) {
-                if (specStr.trim()) {
-                    const parts = specStr.split(/[,;]/).map(s => s.trim()).filter(Boolean);
-                    let parsedCountTotal = 0;
-                    parts.forEach(part => {
-                        let name = null; let val = 0;
-                        const match1 = part.match(/^(\d+)\s*[-:]?\s*([a-zA-Z\s\(\)]+)$/);
-                        if (match1) { val = parseInt(match1[1], 10); name = match1[2].trim(); } 
-                        else {
-                            const match2 = part.match(/^([a-zA-Z\s\(\)]+)\s*[-:]?\s*(\d+)$/);
-                            if (match2) { name = match2[1].trim(); val = parseInt(match2[2], 10); }
-                        }
-                        if (name && val > 0) {
-                            let cleanName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-                            if (cleanName.endsWith('s') && cleanName.length > 3) cleanName = cleanName.slice(0, -1);
-                            otherMap[cleanName] = (otherMap[cleanName] || 0) + val;
-                            parsedCountTotal += val;
-                        }
-                    });
-                    if (parts.length === 1 && parsedCountTotal === 0) {
-                        let name = parts[0].replace(/[\d\s:-]+/g, '').trim(); 
-                        if(name) {
-                            let cleanName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-                            if (cleanName.endsWith('s') && cleanName.length > 3) cleanName = cleanName.slice(0, -1);
-                            otherMap[cleanName] = (otherMap[cleanName] || 0) + count;
-                        } else { otherMap['Other (Unspecified)'] = (otherMap['Other (Unspecified)'] || 0) + count; }
-                    } else if (parsedCountTotal < count) {
-                        const remainder = count - parsedCountTotal;
-                        otherMap['Other (Unspecified)'] = (otherMap['Other (Unspecified)'] || 0) + remainder;
-                    }
-                } else { otherMap['Other (Unspecified)'] = (otherMap['Other (Unspecified)'] || 0) + count; }
-            }
-        }
-    });
-
-    const extraColors = ['#14B8A6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#64748B'];
-    let colorIdx = 0;
-    Object.entries(otherMap).forEach(([name, value]) => {
-        if (value > 0) { res.push({ name, value, fill: extraColors[colorIdx % extraColors.length] }); colorIdx++; }
-    });
-
+    if (safeTotals.others > 0) res.push({ name: 'Others', value: safeTotals.others, fill: COLORS.other });
     return res.sort((a, b) => b.value - a.value);
-  }, [data, safeTotals, facilityBarangays, user, isConsolidatedView]); 
+  }, [safeTotals]);
 
   const categoryTotal = useMemo(() => categoryData.reduce((sum, item) => sum + item.value, 0), [categoryData]);
   const sexTotal = useMemo(() => demographicsSexData.reduce((sum, item) => sum + item.value, 0), [demographicsSexData]);
@@ -367,37 +275,19 @@ export default function AnalyticsOverview({
   const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : hasAnyData);
 
   const renderDataCompletenessBanner = () => {
-    if (locationTotal === 0 && reportStatus === 'Draft') return null;
-    
+    if (locationInfo.total === 0 && reportStatus === 'Draft') return null;
     const isComplete = isAdmin ? complianceRate === 100 : reportStatus === 'Approved';
-    
     return (
-      <div className={`mb-6 p-4 rounded-xl border flex items-start sm:items-center gap-3 shadow-sm ${
-        isComplete 
-          ? 'bg-emerald-50/80 border-emerald-200/60' 
-          : 'bg-amber-50/80 border-amber-200/60'
-      }`}>
-        {isComplete ? (
-          <div className="bg-emerald-100 p-1.5 rounded-lg shrink-0 mt-0.5 sm:mt-0">
-             <CheckCircle size={18} className="text-emerald-600" strokeWidth={2.5}/>
-          </div>
-        ) : (
-          <div className="bg-amber-100 p-1.5 rounded-lg shrink-0 mt-0.5 sm:mt-0">
-             <ShieldAlert size={18} className="text-amber-600" strokeWidth={2.5}/>
-          </div>
-        )}
+      <div className={`mb-6 p-4 rounded-xl border flex items-start sm:items-center gap-3 shadow-sm ${isComplete ? 'bg-emerald-50/80 border-emerald-200/60' : 'bg-amber-50/80 border-amber-200/60'}`}>
+        <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 sm:mt-0 ${isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+             {isComplete ? <CheckCircle size={18} strokeWidth={2.5}/> : <ShieldAlert size={18} strokeWidth={2.5}/>}
+        </div>
         <div className="flex flex-col">
-          <h4 className={`text-sm font-bold ${isComplete ? 'text-emerald-900' : 'text-amber-900'}`}>
-            {isComplete ? 'Complete Verified Data' : 'Incomplete Data Warning'}
-          </h4>
+          <h4 className={`text-sm font-bold ${isComplete ? 'text-emerald-900' : 'text-amber-900'}`}>{isComplete ? 'Complete Verified Data' : 'Incomplete Data Warning'}</h4>
           <p className={`text-xs font-medium mt-0.5 ${isComplete ? 'text-emerald-700' : 'text-amber-700'}`}>
             {isAdmin 
-              ? (isComplete 
-                  ? 'All authorized facilities have submitted approved reports for this period. Analytics reflect a highly accurate baseline.' 
-                  : `Only ${complianceRate}% of facilities have submitted approved reports. Analytics and predictive models may not reflect the actual provincial totals until all reports are in.`)
-              : (isComplete
-                  ? 'Your facility report has been approved and verified for this period.'
-                  : 'Your facility report is still pending or in draft. Analytics may be incomplete.')
+              ? (isComplete ? 'All authorized facilities have submitted approved reports for this period. Analytics reflect a highly accurate baseline.' : `Only ${complianceRate}% of facilities have submitted approved reports. Analytics and predictive models may not reflect the actual provincial totals until all reports are in.`)
+              : (isComplete ? 'Your facility report has been approved and verified for this period.' : 'Your facility report is still pending or in draft. Analytics may be incomplete.')
             }
           </p>
         </div>
@@ -489,7 +379,6 @@ export default function AnalyticsOverview({
                   <div className="flex items-end justify-between">
                       <h3 className="text-3xl font-black text-slate-900">{currentTotal}</h3>
                       
-                      {/* --- POLISHED UI FOR STACKED COMPARISONS --- */}
                       <div className={`flex flex-col items-end gap-1.5`}>
                           {currentTotal === 0 ? (
                               <div className="flex flex-col items-end">
@@ -505,7 +394,6 @@ export default function AnalyticsOverview({
                           ) : (
                               <div className="flex flex-col items-end gap-1">
                                   
-                                  {/* 1. vs Last Month / Quarter */}
                                   <div className="flex items-center gap-1.5 justify-end w-full">
                                       {comparisonData.isValid ? (
                                           <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${comparisonData.delta >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
@@ -520,7 +408,6 @@ export default function AnalyticsOverview({
                                       </span>
                                   </div>
 
-                                  {/* 2. vs Last Year Month / Quarter */}
                                   {periodType !== 'Annual' && (
                                       <div className="flex items-center gap-1.5 justify-end w-full">
                                           {yoyComparisonData.isValid ? (
@@ -577,7 +464,7 @@ export default function AnalyticsOverview({
               </div>
           </div>
 
-          {locationTotal === 0 ? (
+          {locationInfo.total === 0 ? (
               reportStatus !== 'Draft' ? (
                   <div className="h-96 flex flex-col items-center justify-center bg-emerald-50 rounded-2xl border border-emerald-200 border-dashed text-center p-6 animate-in fade-in zoom-in-95 duration-500">
                       <div className="bg-emerald-100 p-5 rounded-full mb-4 text-emerald-600 shadow-sm">
@@ -603,7 +490,7 @@ export default function AnalyticsOverview({
               )
           ) : (
               <DemographicCharts 
-                locationTitleBase={locationTitleBase} locationTotal={locationTotal} locationData={locationData} tableData={tableData}
+                locationTitleBase={locationTitleBase} locationTotal={locationInfo.total} locationData={locationInfo.chartData} tableData={locationInfo.tableData}
                 categoryTotal={categoryTotal} categoryData={categoryData} animalTotal={animalTotal} animalData={animalData}
                 sexTotal={sexTotal} demographicsSexData={demographicsSexData} ageTotal={ageTotal} demographicsAgeData={demographicsAgeData}
                 handleDownload={handleDownload} renderDynamicBarLabel={renderDynamicBarLabel} renderCustomizedLabel={renderCustomizedLabel}

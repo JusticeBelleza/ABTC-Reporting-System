@@ -1,134 +1,172 @@
 import React, { useState } from 'react';
 
 // ==========================================
-// V1 CLASSIC UI & COLOR SYSTEM
+// V2 ENTERPRISE COMPACT UI (EXACT FIT)
 // ==========================================
-const BORDER_COLOR = '#94A3B8';
-const HEADER_BG = '#E2E8F0';    
-const TOTAL_BG = '#E2E8F0';     
-const GRAND_TOTAL_BG = '#E2E8F0';
-const TEXT_COLOR = '#1E293B';
-const DASHBOARD_NAVY = '#0F172A';
-const DASHBOARD_YELLOW = '#EAB308'; 
+const BORDER_COLOR = '#CBD5E1'; 
+const HEADER_BG = '#F8FAFC';    
+const TOTAL_BG = '#F1F5F9';     
+const GRAND_TOTAL_BG = '#E2E8F0'; 
+const TEXT_COLOR = '#334155';
 
 const STYLES = {
-  thMain: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: TEXT_COLOR, fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '8px 4px', fontSize: '11px', letterSpacing: '0.05em' },
-  thGroup: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: TEXT_COLOR, fontWeight: '700', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '11px' },
-  thLeaf: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: TEXT_COLOR, fontWeight: '600', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px', lineHeight: '1.2' },
-  thLocation: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: TEXT_COLOR, fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', minWidth: '180px', fontSize: '11px', padding: '8px 12px' },
-  thPop: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: TEXT_COLOR, fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', minWidth: '75px', fontSize: '10px' },
-  thTotal: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: TOTAL_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px', minWidth: '70px', width: '70px' },
-  thGrandTotal: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: GRAND_TOTAL_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px', minWidth: '90px', width: '90px' },
+  thMain: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '6px 2px', fontSize: '11px', letterSpacing: '0.02em' },
+  thGroup: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#1E293B', fontWeight: '700', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px' },
+  thLeaf: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#475569', fontWeight: '600', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '9.5px', lineHeight: '1.1' },
+  thLocation: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'left', verticalAlign: 'middle', minWidth: '120px', width: '15%', fontSize: '11px', padding: '6px 10px' },
+  thPop: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', fontSize: '10px', width: '5%' },
+  thTotal: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: TOTAL_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px' },
+  thGrandTotal: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: GRAND_TOTAL_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px' },
   tdData: { border: `1px solid ${BORDER_COLOR}`, padding: 0, backgroundColor: '#ffffff', verticalAlign: 'middle' },
-  tdTotal: { border: `1px solid ${BORDER_COLOR}`, padding: '4px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', fontWeight: '700', backgroundColor: TOTAL_BG, color: '#0F172A' },
+  tdTotal: { border: `1px solid ${BORDER_COLOR}`, padding: '4px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '10.5px', fontWeight: '700', backgroundColor: TOTAL_BG, color: '#0F172A' },
   tdGrandTotal: { border: `1px solid ${BORDER_COLOR}`, padding: '4px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', fontWeight: '800', backgroundColor: GRAND_TOTAL_BG, color: '#0F172A' }
 };
 
-const MainReportTableV2 = ({ facilityName, barangays = ["Poblacion", "San Jose", "San Juan"] }) => {
+const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onChange, isRowReadOnly }) => {
   const [activeTab, setActiveTab] = useState('tab1');
-  const tableRows = [...barangays, "Outside Catchment / Non-Abra"];
+  
+  // Combine all keys for math operations
+  const allRowKeys = [...baseRowKeys, ...otherRowKeys];
 
-  const [tableData, setTableData] = useState(() => {
-    const initialState = {};
-    tableRows.forEach((_, idx) => {
-      initialState[idx] = {
-        pop: '', male: '', female: '', ageUnder15: '', ageOver15: '', cat1: '',
-        cat2EligPri: '', cat2EligBoost: '', cat2NonElig: '',
-        cat3EligPri: '', cat3EligBoost: '', cat3NonElig: '',
-        compCat2Pri: '', compCat2Boost: '', compCat3PriErig: '', compCat3PriHrig: '', compCat3Boost: '',
-        typeDog: '', typeCat: '', typeOthers: '', statusPet: '', statusStray: '', statusUnk: '', rabiesCases: ''
-      };
-    });
-    return initialState;
-  });
-
-  const handleInputChange = (rowIndex, name, value) => {
-    let val = value === '' ? '' : Math.max(0, parseInt(value) || 0);
-    setTableData(prev => ({ ...prev, [rowIndex]: { ...prev[rowIndex], [name]: val.toString() } }));
+  const num = (location, name) => {
+      if (!data[location]) return 0;
+      return parseInt(data[location][name]) || 0;
   };
 
-  const handleKeyDown = (e, rIdx, cIdx) => {
+  const handleInputChange = (location, name, value) => {
+    if (isRowReadOnly) return;
+    let val = value === '' ? '' : Math.max(0, parseInt(value) || 0);
+    onChange(location, name, val.toString());
+  };
+
+  const handleKeyDown = (e, location, cIdx, rowIndex, totalRows) => {
+    if (isRowReadOnly) return;
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault(); 
     if (e.key === '-' || e.key === 'e' || e.key === 'E') { e.preventDefault(); return; }
-    let nextR = rIdx; let nextC = cIdx;
+    
+    let nextR = rowIndex; let nextC = cIdx;
     if (e.key === 'ArrowUp') nextR -= 1;
     else if (e.key === 'ArrowDown') nextR += 1;
     else if (e.key === 'ArrowLeft') nextC -= 1;
     else if (e.key === 'ArrowRight') nextC += 1;
     else return;
-    const nextEl = document.getElementById(`input-${activeTab}-${nextR}-${nextC}`);
-    if (nextEl) { nextEl.focus(); if (nextEl.select) nextEl.select(); }
+    
+    // Bounds check
+    if (nextR >= 0 && nextR < totalRows) {
+        const nextEl = document.getElementById(`input-${activeTab}-${nextR}-${nextC}`);
+        if (nextEl) { nextEl.focus(); if (nextEl.select) nextEl.select(); }
+    }
   };
 
-  const calculateGrandTotal = (key) => Object.values(tableData).reduce((sum, row) => sum + (parseInt(row[key]) || 0), 0);
+  const calculateGrandTotal = (key) => {
+      return allRowKeys.reduce((sum, loc) => sum + (parseInt(data[loc]?.[key]) || 0), 0);
+  };
 
   const tabs = [
     { id: 'tab1', label: 'ANIMAL BITE CASES' },
-    { id: 'pep', label: 'POST-EXPOSURE PROPHYLAXIS (PEP)' },
-    { id: 'tab3', label: 'BITING ANIMALS & HUMAN RABIES CASES' }
+    { id: 'pep', label: 'POST-EXPOSURE PROPHYLAXIS' },
+    { id: 'tab3', label: 'BITING ANIMALS & CASES' }
   ];
 
+  // Utility to render rows safely
+  const renderRow = (location, globalRowIndex, isNonAbra) => {
+      const rowData = data[location] || {};
+      const population = populations?.[location] || 0;
+
+      return (
+        <tr key={`${activeTab}-${location}`} className="hover:bg-blue-50/40 transition-colors">
+            <td style={{...STYLES.tdData, padding: '0 10px', textAlign: 'left', fontWeight: '700', fontSize: '11px', color: isNonAbra ? '#C2410C' : TEXT_COLOR, backgroundColor: isNonAbra ? '#FFEDD5' : '#ffffff', borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
+              {location}
+            </td>
+            <DataCells 
+                isNonAbra={isNonAbra} globalRowIndex={globalRowIndex} location={location} activeTab={activeTab} 
+                rowData={rowData} population={population} totalRows={allRowKeys.length}
+                onChange={handleInputChange} onKeyDown={handleKeyDown} 
+                readOnly={isRowReadOnly} num={(name) => num(location, name)}
+            />
+        </tr>
+      );
+  }
+
   return (
-    <div className="mt-4 mb-12 mx-auto max-w-[1280px] px-4">
-      <div className="inline-block min-w-full bg-white shadow-lg border border-slate-300 flex flex-col h-[75vh]">
-        <style>{`
-          input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-          input[type=number] { -moz-appearance: textfield; }
-          .hide-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-          .hide-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-          .hide-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; }
-        `}</style>
+    <div className="flex flex-col w-full bg-white h-[600px] lg:h-[calc(100vh-260px)] 2xl:h-[calc(100vh-240px)]">
+      <style>{`
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .hide-scrollbar::-webkit-scrollbar { width: 6px; height: 0px; }
+        .hide-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .hide-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .hide-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      `}</style>
 
-        <div className="flex items-center bg-slate-50 border-b border-slate-200 px-4 py-1 gap-2 flex-shrink-0">
-          {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-2 text-[11px] font-bold transition-all duration-300 relative group
-                ${activeTab === tab.id ? 'bg-[#0F172A] text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'}`}>
-              {tab.label}
-              <span className={`absolute bottom-0 left-0 h-1 bg-[#EAB308] transition-all duration-300 ${activeTab === tab.id ? 'w-full' : 'w-0 group-hover:w-1/2'}`}></span>
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="flex items-center bg-slate-100 border-b border-slate-200 px-3 py-1.5 gap-1.5 flex-shrink-0">
+        {tabs.map((tab) => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-md text-[10.5px] font-extrabold transition-all duration-200
+              ${activeTab === tab.id ? 'bg-white text-blue-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 border border-transparent'}`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="w-full overflow-auto hide-scrollbar flex-grow">
-          <table className="w-full border-collapse tabular-nums relative">
-            <thead className="sticky top-0 z-30 shadow-sm bg-[#E2E8F0]">
-              {activeTab === 'tab1' && <Tab1Headers />}
-              {activeTab === 'pep' && <Tab2Headers />}
-              {activeTab === 'tab3' && <Tab3Headers />}
-            </thead>
-            <tbody>
-              {tableRows.map((barangay, index) => (
-                <tr key={`${activeTab}-${index}`} className="hover:bg-blue-50/30">
-                  <td style={{...STYLES.tdData, padding: '0 12px', textAlign: 'left', fontWeight: '700', fontSize: '11px', color: barangay.includes("Outside") ? '#C2410C' : TEXT_COLOR, backgroundColor: barangay.includes("Outside") ? '#FFEDD5' : '#F8FAFC', borderRight: `1px solid ${BORDER_COLOR}`}} className="sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                    {barangay}
-                  </td>
-                  <DataCells barangay={barangay} rowIndex={index} activeTab={activeTab} data={tableData[index]} onChange={handleInputChange} onKeyDown={handleKeyDown} />
+      <div className="w-full overflow-auto hide-scrollbar flex-grow bg-white relative">
+        <table className="w-full border-collapse tabular-nums relative">
+          <thead className="sticky top-0 z-30 shadow-[0_2px_4px_rgba(0,0,0,0.04)]">
+            {activeTab === 'tab1' && <Tab1Headers />}
+            {activeTab === 'pep' && <Tab2Headers />}
+            {activeTab === 'tab3' && <Tab3Headers />}
+          </thead>
+          <tbody>
+            
+            {/* Standard Base Catchment Rows */}
+            {baseRowKeys.map((location, index) => renderRow(location, index, false))}
+            
+            {/* Dynamically Added 'Other' Rows Header (Only shows if rows exist) */}
+            {otherRowKeys.length > 0 && (
+                <tr className="bg-slate-100">
+                    <td colSpan={21} style={{...STYLES.tdData, padding: '6px 10px', textAlign: 'left', fontWeight: '800', fontSize: '11px', color: '#475569', backgroundColor: '#F1F5F9', borderTop: `2px solid ${BORDER_COLOR}`, borderBottom: `1px solid ${BORDER_COLOR}`}} className="sticky left-0 z-10">
+                        OTHER MUNICIPALITIES / NON-ABRA
+                    </td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot className="sticky bottom-0 z-40 border-t-2 border-slate-400">
-               <tr className="bg-[#E2E8F0]">
-                 <td style={{...STYLES.tdGrandTotal, textAlign: 'left', padding: '10px 12px', backgroundColor: '#E2E8F0', borderRight: `1px solid ${BORDER_COLOR}`}} className="sticky left-0 z-50">
-                   <strong>TOTAL</strong>
-                 </td>
-                 <GrandTotalCells activeTab={activeTab} calculate={calculateGrandTotal} />
-               </tr>
-            </tfoot>
-          </table>
-        </div>
+            )}
+
+            {/* Other Rows */}
+            {otherRowKeys.map((location, index) => {
+                const globalIndex = baseRowKeys.length + index;
+                const isNonAbra = location === "Non-Abra";
+                return renderRow(location, globalIndex, isNonAbra);
+            })}
+
+          </tbody>
+          <tfoot className="sticky bottom-0 z-40 shadow-[0_-2px_4px_rgba(0,0,0,0.04)] border-t-[3px] border-slate-400">
+             <tr>
+               <td style={{...STYLES.tdGrandTotal, textAlign: 'left', padding: '8px 10px', backgroundColor: GRAND_TOTAL_BG, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
+                 <span className="font-black text-slate-800">GRAND TOTAL</span>
+               </td>
+               <GrandTotalCells activeTab={activeTab} calculate={calculateGrandTotal} populations={populations} />
+             </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
   );
 };
 
-const DataCells = ({ barangay, rowIndex, activeTab, data, onChange, onKeyDown }) => {
-  const isNonAbra = barangay.includes("Outside");
-  const num = (name) => parseInt(data[name]) || 0;
+const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, population, totalRows, onChange, onKeyDown, readOnly, num }) => {
   const renderInput = (name, colIndex) => {
-    if (name === 'pop' && isNonAbra) return <div className="text-center text-slate-400 italic text-[10px] font-semibold py-1">N/A</div>;
     return (
-      <input id={`input-${activeTab}-${rowIndex}-${colIndex}`} type="number" value={data[name] || ''} onChange={(e) => onChange(rowIndex, name, e.target.value)} onKeyDown={(e) => onKeyDown(e, rowIndex, colIndex)} onWheel={(e) => e.target.blur()} className="outline-none w-full h-full py-1 min-h-[26px] min-w-[42px] text-center text-[12px] font-bold bg-transparent text-[#1E293B] hover:bg-white/50 focus:bg-white focus:ring-1 focus:ring-inset focus:ring-blue-500" />
+      <input 
+        id={`input-${activeTab}-${globalRowIndex}-${colIndex}`} 
+        type="number" 
+        value={rowData[name] || ''} 
+        onChange={(e) => onChange(location, name, e.target.value)} 
+        onKeyDown={(e) => onKeyDown(e, location, colIndex, globalRowIndex, totalRows)} 
+        onWheel={(e) => e.target.blur()} 
+        readOnly={readOnly}
+        className={`outline-none w-full h-full py-1.5 min-h-[28px] text-center text-[11px] font-bold bg-transparent transition-all box-border
+          ${readOnly ? 'text-slate-400 cursor-not-allowed' : 'text-slate-800 hover:bg-slate-50 focus:bg-white focus:ring-[1.5px] focus:ring-inset focus:ring-blue-500'}`} 
+      />
     );
   };
 
@@ -140,11 +178,15 @@ const DataCells = ({ barangay, rowIndex, activeTab, data, onChange, onKeyDown })
     const sexTot = num('male') + num('female');
     const ageTot = num('ageUnder15') + num('ageOver15');
     const casesTot = num('cat1') + n16 + s16;
-    const isMismatch = (sexTot > 0 || ageTot > 0) && (sexTot !== ageTot || sexTot !== casesTot);
+    
+    const isMismatch = (sexTot > 0 || ageTot > 0 || casesTot > 0) && (sexTot !== ageTot || sexTot !== casesTot);
     const valStyle = (base) => ({ ...base, backgroundColor: isMismatch ? '#FEE2E2' : base.backgroundColor, color: isMismatch ? '#B91C1C' : base.color });
+    
     return (
       <>
-        <td style={STYLES.tdData}>{renderInput('pop', 0)}</td>
+        <td style={STYLES.tdData}>
+            {isNonAbra ? <div className="text-center text-slate-400 italic text-[10px] font-semibold py-1.5">N/A</div> : <div className="text-center text-slate-700 text-[10.5px] font-bold py-1.5">{population.toLocaleString()}</div>}
+        </td>
         <td style={STYLES.tdData}>{renderInput('male', 1)}</td>
         <td style={STYLES.tdData}>{renderInput('female', 2)}</td>
         <td style={valStyle(STYLES.tdTotal)}>{sexTot}</td>
@@ -174,7 +216,7 @@ const DataCells = ({ barangay, rowIndex, activeTab, data, onChange, onKeyDown })
     const formatCovCell = (n, d) => {
         const pct = d > 0 ? (n/d)*100 : 0;
         const err = pct > 100;
-        return <td style={{...STYLES.tdTotal, backgroundColor: err ? '#FEE2E2' : TOTAL_BG, color: err ? '#B91C1C' : '#0F172A'}}>{pct.toFixed(2)}%</td>;
+        return <td style={{...STYLES.tdTotal, backgroundColor: err ? '#FEE2E2' : TOTAL_BG, color: err ? '#B91C1C' : '#0F172A'}}>{pct.toFixed(1)}%</td>;
     };
     return (
       <>
@@ -192,6 +234,7 @@ const DataCells = ({ barangay, rowIndex, activeTab, data, onChange, onKeyDown })
       </>
     );
   }
+  
   return (
     <>
       <td style={STYLES.tdData}>{renderInput('typeDog', 0)}</td>
@@ -202,13 +245,16 @@ const DataCells = ({ barangay, rowIndex, activeTab, data, onChange, onKeyDown })
       <td style={STYLES.tdData}>{renderInput('statusUnk', 5)}</td>
       <td style={STYLES.tdGrandTotal}>{num('typeDog') + num('typeCat') + num('typeOthers')}</td>
       <td style={STYLES.tdData}>{renderInput('rabiesCases', 6)}</td>
-      <td style={{...STYLES.tdGrandTotal}}>{(num('pop') > 0 && !isNonAbra) ? ((num('rabiesCases') / num('pop')) * 1000000).toFixed(2) : '0.00'}</td>
+      <td style={{...STYLES.tdGrandTotal, color: '#B91C1C', backgroundColor: '#FEE2E2'}}>{(population > 0 && !isNonAbra) ? ((num('rabiesCases') / population) * 1000000).toFixed(2) : '0.00'}</td>
     </>
   );
 };
 
-const GrandTotalCells = ({ activeTab, calculate }) => {
-    const fPct = (n, d) => d > 0 ? ((n/d)*100).toFixed(2)+'%' : '0.00%';
+const GrandTotalCells = ({ activeTab, calculate, populations }) => {
+    const fPct = (n, d) => d > 0 ? ((n/d)*100).toFixed(1)+'%' : '0.0%';
+    
+    const totalPop = Object.values(populations || {}).reduce((sum, val) => sum + val, 0);
+
     if (activeTab === 'tab1') {
         const sM = calculate('male'), sF = calculate('female'), sSex = sM + sF;
         const sU = calculate('ageUnder15'), sO = calculate('ageOver15'), sAge = sU + sO;
@@ -217,7 +263,7 @@ const GrandTotalCells = ({ activeTab, calculate }) => {
         const sC3 = calculate('cat3EligPri') + calculate('cat3EligBoost') + calculate('cat3NonElig');
         return (
             <>
-                <td style={STYLES.tdGrandTotal}>{calculate('pop')}</td>
+                <td style={STYLES.tdGrandTotal}>{totalPop.toLocaleString()}</td>
                 <td style={STYLES.tdGrandTotal}>{sM}</td><td style={STYLES.tdGrandTotal}>{sF}</td><td style={STYLES.tdGrandTotal}>{sSex}</td>
                 <td style={STYLES.tdGrandTotal}>{sU}</td><td style={STYLES.tdGrandTotal}>{sO}</td><td style={STYLES.tdGrandTotal}>{sAge}</td>
                 <td style={STYLES.tdGrandTotal}>{sC1}</td>
@@ -244,8 +290,7 @@ const GrandTotalCells = ({ activeTab, calculate }) => {
             </>
         );
     }
-    // Formula for Grand Total Incidence Proportion
-    const totalPop = calculate('pop');
+    
     const totalRabies = calculate('rabiesCases');
     const grandIncidence = totalPop > 0 ? ((totalRabies / totalPop) * 1000000).toFixed(2) : '0.00';
     
@@ -254,8 +299,8 @@ const GrandTotalCells = ({ activeTab, calculate }) => {
             <td style={STYLES.tdGrandTotal}>{calculate('typeDog')}</td><td style={STYLES.tdGrandTotal}>{calculate('typeCat')}</td><td style={STYLES.tdGrandTotal}>{calculate('typeOthers')}</td>
             <td style={STYLES.tdGrandTotal}>{calculate('statusPet')}</td><td style={STYLES.tdGrandTotal}>{calculate('statusStray')}</td><td style={STYLES.tdGrandTotal}>{calculate('statusUnk')}</td>
             <td style={STYLES.tdGrandTotal}>{calculate('typeDog')+calculate('typeCat')+calculate('typeOthers')}</td>
-            <td style={STYLES.tdGrandTotal}>{totalRabies}</td>
-            <td style={STYLES.tdGrandTotal}>{grandIncidence}</td>
+            <td style={{...STYLES.tdGrandTotal, color: '#B91C1C'}}>{totalRabies}</td>
+            <td style={{...STYLES.tdGrandTotal, color: '#B91C1C', backgroundColor: '#FEE2E2'}}>{grandIncidence}</td>
         </>
     );
 };
@@ -263,7 +308,7 @@ const GrandTotalCells = ({ activeTab, calculate }) => {
 const Tab1Headers = () => (
   <>
     <tr>
-      <th rowSpan={5} style={STYLES.thLocation} className="sticky left-0 z-30 border-r border-r-[#94A3B8]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Barangay)</span><br/><span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Municipality/City)</span></th>
+      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
       <th rowSpan={5} style={STYLES.thPop}>TOTAL POPULATION</th>
       <th colSpan={19} style={STYLES.thMain}>ANIMAL BITE CASES</th>
     </tr>
@@ -290,8 +335,8 @@ const Tab1Headers = () => (
 const Tab2Headers = () => (
   <>
     <tr>
-      <th rowSpan={5} style={STYLES.thLocation} className="sticky left-0 z-30 border-r border-r-[#94A3B8]">LOCATION<br/>
-      <span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Barangay)</span><br/><span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Municipality/City)</span></th>
+      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/>
+      <span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
       <th colSpan={11} style={STYLES.thMain}>POST-EXPOSURE PROPHYLAXIS (PEP)</th>
     </tr>
     <tr><th colSpan={6} style={STYLES.thGroup}>PEP Completed**</th><th colSpan={5} style={STYLES.thGroup}>PEP Coverage</th></tr>
@@ -310,10 +355,10 @@ const Tab2Headers = () => (
 const Tab3Headers = () => (
   <>
     <tr>
-      <th rowSpan={5} style={STYLES.thLocation} className="sticky left-0 z-30 border-r border-r-[#94A3B8]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Barangay)</span><br/><span style={{fontSize:'8.5px', fontWeight:'700', color:'#475569'}}>(Municipality/City)</span></th>
+      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
       <th colSpan={7} style={STYLES.thMain}>BITING ANIMALS (7)</th><th colSpan={2} style={STYLES.thMain}>HUMAN RABIES CASES</th>
     </tr>
-    <tr><th colSpan={3} style={STYLES.thGroup}>Type</th><th colSpan={3} style={STYLES.thGroup}>Status</th><th rowSpan={4} style={STYLES.thGrandTotal}>Total</th><th rowSpan={4} style={STYLES.thLeaf}>Cases (PIDSR c/o RESU)</th><th rowSpan={4} style={{...STYLES.thLeaf, minWidth: '100px', backgroundColor:'#FEE2E2', color:'#991B1B'}}>Incidence Proportion (per 10⁶)</th></tr>
+    <tr><th colSpan={3} style={STYLES.thGroup}>Type</th><th colSpan={3} style={STYLES.thGroup}>Status</th><th rowSpan={4} style={STYLES.thGrandTotal}>Total</th><th rowSpan={4} style={{...STYLES.thLeaf, color:'#B91C1C'}}>Cases (PIDSR c/o RESU)</th><th rowSpan={4} style={{...STYLES.thLeaf, minWidth: '110px', backgroundColor:'#FEE2E2', color:'#991B1B'}}>Incidence Proportion (per 10⁶)</th></tr>
     <tr><th rowSpan={3} style={STYLES.thLeaf}>Dog (7a)</th><th rowSpan={3} style={STYLES.thLeaf}>Cat (7b)</th><th rowSpan={3} style={STYLES.thLeaf}>Others (7c)</th><th rowSpan={3} style={STYLES.thLeaf}>Pet/ Domestic</th><th rowSpan={3} style={STYLES.thLeaf}>Stray/ Free-roaming</th><th rowSpan={3} style={STYLES.thLeaf}>Unknown</th></tr>
     <tr></tr><tr></tr>
   </>
