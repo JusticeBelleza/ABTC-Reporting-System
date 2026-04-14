@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { X, CheckCircle, XCircle } from 'lucide-react'; 
 
 // ==========================================
 // V2 ENTERPRISE COMPACT UI (EXACT FIT)
@@ -22,10 +23,9 @@ const STYLES = {
   tdGrandTotal: { border: `1px solid ${BORDER_COLOR}`, padding: '4px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', fontWeight: '800', backgroundColor: GRAND_TOTAL_BG, color: '#0F172A' }
 };
 
-const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onChange, isRowReadOnly }) => {
+const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onChange, isRowReadOnly, onDeleteOtherRow }) => {
   const [activeTab, setActiveTab] = useState('tab1');
   
-  // Combine all keys for math operations
   const allRowKeys = [...baseRowKeys, ...otherRowKeys];
 
   const num = (location, name) => {
@@ -51,7 +51,6 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
     else if (e.key === 'ArrowRight') nextC += 1;
     else return;
     
-    // Bounds check
     if (nextR >= 0 && nextR < totalRows) {
         const nextEl = document.getElementById(`input-${activeTab}-${nextR}-${nextC}`);
         if (nextEl) { nextEl.focus(); if (nextEl.select) nextEl.select(); }
@@ -62,21 +61,84 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
       return allRowKeys.reduce((sum, loc) => sum + (parseInt(data[loc]?.[key]) || 0), 0);
   };
 
+  // ==========================================
+  // DATA VALIDATION LOGIC
+  // ==========================================
+  
+  // 1. Check Totals Mismatch
+  const gtSex = calculateGrandTotal('male') + calculateGrandTotal('female');
+  const gtAge = calculateGrandTotal('ageUnder15') + calculateGrandTotal('ageOver15');
+  const gtCases = calculateGrandTotal('cat1') + 
+                  (calculateGrandTotal('cat2EligPri') + calculateGrandTotal('cat2EligBoost') + calculateGrandTotal('cat2NonElig')) + 
+                  (calculateGrandTotal('cat3EligPri') + calculateGrandTotal('cat3EligBoost') + calculateGrandTotal('cat3NonElig'));
+  const gtAnimals = calculateGrandTotal('typeDog') + calculateGrandTotal('typeCat') + calculateGrandTotal('typeOthers');
+
+  const hasAnyData = gtSex > 0 || gtAge > 0 || gtCases > 0 || gtAnimals > 0;
+  const isTotalsMatch = hasAnyData ? (gtSex === gtAge && gtSex === gtCases && gtCases === gtAnimals) : true;
+
+  // 2. Count PEP Exceedances (> 100%)
+  let pepExceedCount = 0;
+  
+  // Check every individual row
+  allRowKeys.forEach(loc => {
+      const row = data[loc] || {};
+      const n = (name) => parseInt(row[name]) || 0;
+
+      const e2p = n('cat2EligPri'), c2p = n('compCat2Pri');
+      const e2b = n('cat2EligBoost'), c2b = n('compCat2Boost');
+      const e3p = n('cat3EligPri'), c3z = n('compCat3PriErig') + n('compCat3PriHrig');
+      const e3b = n('cat3EligBoost'), c3b = n('compCat3Boost');
+      
+      const totElig = e2p + e2b + e3p + e3b;
+      const totComp = c2p + c2b + c3z + c3b;
+
+      if (e2p > 0 && c2p / e2p > 1) pepExceedCount++;
+      if (e2b > 0 && c2b / e2b > 1) pepExceedCount++;
+      if (e3p > 0 && c3z / e3p > 1) pepExceedCount++;
+      if (e3b > 0 && c3b / e3b > 1) pepExceedCount++;
+      if (totElig > 0 && totComp / totElig > 1) pepExceedCount++;
+  });
+
+  // Check the Grand Total row
+  const gt_e2p = calculateGrandTotal('cat2EligPri'), gt_c2p = calculateGrandTotal('compCat2Pri');
+  const gt_e2b = calculateGrandTotal('cat2EligBoost'), gt_c2b = calculateGrandTotal('compCat2Boost');
+  const gt_e3p = calculateGrandTotal('cat3EligPri'), gt_c3z = calculateGrandTotal('compCat3PriErig') + calculateGrandTotal('compCat3PriHrig');
+  const gt_e3b = calculateGrandTotal('cat3EligBoost'), gt_c3b = calculateGrandTotal('compCat3Boost');
+  const gt_totElig = gt_e2p + gt_e2b + gt_e3p + gt_e3b;
+  const gt_totComp = gt_c2p + gt_c2b + gt_c3z + gt_c3b;
+
+  if (gt_e2p > 0 && gt_c2p / gt_e2p > 1) pepExceedCount++;
+  if (gt_e2b > 0 && gt_c2b / gt_e2b > 1) pepExceedCount++;
+  if (gt_e3p > 0 && gt_c3z / gt_e3p > 1) pepExceedCount++;
+  if (gt_e3b > 0 && gt_c3b / gt_e3b > 1) pepExceedCount++;
+  if (gt_totElig > 0 && gt_totComp / gt_totElig > 1) pepExceedCount++;
+
   const tabs = [
     { id: 'tab1', label: 'ANIMAL BITE CASES' },
     { id: 'pep', label: 'POST-EXPOSURE PROPHYLAXIS' },
     { id: 'tab3', label: 'BITING ANIMALS & CASES' }
   ];
 
-  // Utility to render rows safely
-  const renderRow = (location, globalRowIndex, isNonAbra) => {
+  const renderRow = (location, globalRowIndex, isOtherRow) => {
       const rowData = data[location] || {};
       const population = populations?.[location] || 0;
+      const isNonAbra = location === "Non-Abra";
 
       return (
-        <tr key={`${activeTab}-${location}`} className="hover:bg-blue-50/40 transition-colors">
+        <tr key={`${activeTab}-${location}`} className="hover:bg-blue-50/40 transition-colors group/row">
             <td style={{...STYLES.tdData, padding: '0 10px', textAlign: 'left', fontWeight: '700', fontSize: '11px', color: isNonAbra ? '#C2410C' : TEXT_COLOR, backgroundColor: isNonAbra ? '#FFEDD5' : '#ffffff', borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
-              {location}
+              <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">{location}</span>
+                  {isOtherRow && !isRowReadOnly && (
+                    <button
+                      onClick={() => onDeleteOtherRow(location)}
+                      className="opacity-0 group-hover/row:opacity-100 p-1 hover:bg-rose-100 text-rose-500 rounded transition-all active:scale-90"
+                      title="Remove this location"
+                    >
+                      <X size={12} strokeWidth={3} />
+                    </button>
+                  )}
+              </div>
             </td>
             <DataCells 
                 isNonAbra={isNonAbra} globalRowIndex={globalRowIndex} location={location} activeTab={activeTab} 
@@ -99,7 +161,31 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
         .hide-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}</style>
 
-      {/* Tabs */}
+      {/* --- DATA VALIDATION BANNERS --- */}
+      <div className="flex flex-col xl:flex-row gap-2 px-3 pt-3 pb-1 shrink-0 bg-slate-50 border-b border-slate-200">
+          <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md border text-[11px] sm:text-xs font-bold ${
+              isTotalsMatch ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+          }`}>
+              {isTotalsMatch ? <CheckCircle size={16} className="shrink-0" /> : <XCircle size={16} className="shrink-0" />}
+              <span>
+                  {isTotalsMatch 
+                      ? "Totals of sex, age, animal bite cases, and biting animals match" 
+                      : "Totals of sex, age, animal bite cases, and biting animals DO NOT match. Please recheck the data."}
+              </span>
+          </div>
+
+          <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md border text-[11px] sm:text-xs font-bold ${
+              pepExceedCount === 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+          }`}>
+              {pepExceedCount === 0 ? <CheckCircle size={16} className="shrink-0" /> : <XCircle size={16} className="shrink-0" />}
+              <span>
+                  {pepExceedCount === 0 
+                      ? "PEP Coverage ≤100%" 
+                      : `PEP Coverage cannot exceed 100%. ${pepExceedCount} cell(s) exceed 100%. Please recheck the data.`}
+              </span>
+          </div>
+      </div>
+
       <div className="flex items-center bg-slate-100 border-b border-slate-200 px-3 py-1.5 gap-1.5 flex-shrink-0">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -119,10 +205,8 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
           </thead>
           <tbody>
             
-            {/* Standard Base Catchment Rows */}
             {baseRowKeys.map((location, index) => renderRow(location, index, false))}
             
-            {/* Dynamically Added 'Other' Rows Header (Only shows if rows exist) */}
             {otherRowKeys.length > 0 && (
                 <tr className="bg-slate-100">
                     <td colSpan={21} style={{...STYLES.tdData, padding: '6px 10px', textAlign: 'left', fontWeight: '800', fontSize: '11px', color: '#475569', backgroundColor: '#F1F5F9', borderTop: `2px solid ${BORDER_COLOR}`, borderBottom: `1px solid ${BORDER_COLOR}`}} className="sticky left-0 z-10">
@@ -131,11 +215,9 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
                 </tr>
             )}
 
-            {/* Other Rows */}
             {otherRowKeys.map((location, index) => {
                 const globalIndex = baseRowKeys.length + index;
-                const isNonAbra = location === "Non-Abra";
-                return renderRow(location, globalIndex, isNonAbra);
+                return renderRow(location, globalIndex, true);
             })}
 
           </tbody>
@@ -252,7 +334,6 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
 
 const GrandTotalCells = ({ activeTab, calculate, populations }) => {
     const fPct = (n, d) => d > 0 ? ((n/d)*100).toFixed(1)+'%' : '0.0%';
-    
     const totalPop = Object.values(populations || {}).reduce((sum, val) => sum + val, 0);
 
     if (activeTab === 'tab1') {
