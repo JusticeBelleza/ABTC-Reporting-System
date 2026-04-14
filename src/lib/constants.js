@@ -1,136 +1,47 @@
-export const MUNICIPALITIES_DATA = {
-  "Bangued": [
-    "Agtangao", "Angad", "Banacao", "Bangbangar", "Cabuloan", "Calaba", "Cosili East (Proper)", 
-    "Cosili West (Buaya)", "Dangdangla", "Lingtan", "Lipcan", "Lubong", "Macarcarmay", "Macray", 
-    "Malita", "Maoay", "Palao", "Patucannay (Bangued)", "Sagap", "San Antonio", "Santa Rosa", 
-    "Sao-atan", "Sappaac", "Tablac (Calot)", "Zone 1 Poblacion (Nalasin)", "Zone 2 Poblacion (Consiliman)", 
-    "Zone 3 Poblacion (Lalaud)", "Zone 4 Poblacion (Town Proper)", "Zone 5 Poblacion (Bo. Barikir)", 
-    "Zone 6 Poblacion (Sinapangan)", "Zone 7 Poblacion (Baliling)"
-  ],
-  "Boliney": [
-    "Amti", "Bao-yan", "Danac East", "Danac West", "Dao-angan", "Dumagas", "Kilong-Olao", "Poblacion (Boliney)"
-  ],
-  "Bucay": [
-    "Abang", "Bangbangcag", "Bangcagan", "Banglolao", "Bugbog", "Calao", "Dugong", "Labon", 
-    "Layugan", "Madalipay", "North Poblacion (Bucay)", "Pagala", "Pakiling", "Palaquio", "Patoc", 
-    "Quimloong", "Salnec", "San Miguel", "Siblong", "South Poblacion (Bucay)", "Tabiog"
-  ],
-  "Bucloc": [
-    "Ducligan", "Labaan", "Lamao (Poblacion)", "Lingay"
-  ],
-  "Daguioman": [
-    "Ableg", "Cabaruyan", "Pikek", "Tui (Poblacion)"
-  ],
-  "Danglas": [
-    // RENAMED: 'Danglas' -> 'Danglas (Barangay)' to avoid collision with Municipality
-    "Abaquid", "Cabaruan", "Caupasan (Poblacion)", "Danglas (Barangay)", "Nagaparan", "Padangitan", "Pangal"
-  ],
-  "Dolores": [
-    "Bayaan", "Cabaroan", "Calumbaya", "Cardona", "Isit", "Kimmalaba", "Libtec", "Lub-lubba", 
-    "Mudiit", "Namit-ingan", "Pacac", "Poblacion", "Salucag", "Talogtog", "Taping"
-  ],
-  "La Paz": [
-    "Benben (Bonbon)", "Bulbulala", "Buli", "Canan (Gapan)", "Luguis", "Malabbaga", "Mudeng", 
-    "Pidipid", "Poblacion (La Paz)", "San Gregorio", "Toon", "Udangan"
-  ],
-  "Lacub": [
-    "Bacag", "Buneg", "Guinguinabang", "Lan-ag", "Pacoc", "Poblacion (Talampac)"
-  ],
-  "Lagangilang": [
-    // RENAMED: 'San Isidro' -> 'San Isidro (Lagangilang)' to avoid collision with San Isidro Municipality
-    "Aguet", "Bacooc", "Balais", "Cayapa", "Dalaguisen", "Laang", "Lagben", "Laguiben", 
-    "Nagtupacan", "Paganao", "Pawa", "Poblacion (Lagangilang)", "Presentar", "San Isidro (Lagangilang)", 
-    "Tagodtod", "Taping"
-  ],
-  "Lagayan": [
-    "Ba-i", "Collago", "Pang-ot", "Poblacion (lagayan)", "Pulot"
-  ],
-  "Langiden": [
-    "Baac", "Dalayap (Nalaas)", "Mabungtot", "Malapaao", "Poblacion (Langiden)", "Quillat"
-  ],
-  "Licuan-Baay": [
-    "Bonglo (Patagui)", "Bulbulala", "Cawayan", "Domenglay", "Lenneng", "Mapisla", "Mogao", 
-    "Nalbuan", "Poblacion (Licuan-Baay)", "Subagan", "Tumalip"
-  ],
-  "Luba": [
-    "Ampalioc", "Barit", "Gayaman", "Lul-luno", "Luzong", "Nagbukel-Tiquipa", "Poblacion (luba)", "Sabnangan"
-  ],
-  "Malibcong": [
-    "Bayabas", "Binasaran", "Buanao", "Dulao", "Duldulao", "Gacab", "Lat-ey", "Malibcong (Poblacion)", 
-    "Mataragan", "Pacgued", "Taripan", "Umnap"
-  ],
-  "Manabo": [
-    "Ayyeng (Poblacion)", "Catacdegan Nuevo", "Catacdegan Viejo", "Luzong", "San Jose Norte", 
-    "San Jose Sur", "San Juan Norte", "San Juan Sur", "San Ramon East", "San Ramon West", "Santo Tomas"
-  ],
-  "Peñarrubia": [
-    "Dumayco", "Lusuac", "Malamsit (Pau-Malamsit)", "Namarabar", "Patiao", "Poblacion", "Riang (Tiang)", 
-    "Santa Rosa", "Tattawa"
-  ],
-  "Pidigan": [
-    "Alinaya", "Arab", "Garreta", "Immuli", "Laskig", "Monggoc", "Naguirayan", "Pamutic", "Pangtud", 
-    "Poblacion East", "Poblacion West", "San Diego", "Sulbec", "Suyo (Malidong)", "Yuyeng"
-  ],
-  "Pilar": [
-    "Bolbolo", "Brookside", "Dalit", "Dintan", "Gapang", "Kinabiti", "Maliplipit", "Nagcanasan", 
-    "Namara", "Nanangduan", "Ocup", "Pang-ot", "Patad", "Poblacion (Pilar)", "San Juan East", 
-    "San Juan West", "South Balioag", "Tikitik", "Villavieja"
-  ],
-  "Sallapadan": [
-    "Bazar", "Bilabila", "Gangal (Poblacion)", "Maguyepyep", "Naguilian", "Saccaang", "Sallapadan", 
-    "Subusob", "Ud-udiao"
-  ],
-  "San Isidro": [
-    "Cabayogan", "Dalimag", "Langbaban", "Manayday", "Pantoc (San Isidro)", "Poblacion (San Isidro)", 
-    "Sabtan-olo", "San Marcial", "Tangbao"
-  ],
-  "San Juan": [
-    "Abualan", "Ba-ug", "Badas", "Cabcaborao", "Calabaoan", "Culiong", "Daoidao", "Guimba", "Lam-ag", 
-    "Lumobang", "Nangobongan", "Pattaoig", "Poblacion North (San Juan)", "Poblacion South (San Juan)", 
-    "Quidaoen", "Sabangan", "Silet", "Supi-il", "Tagaytay"
-  ],
-  "San Quintin": [
-    "Labaan (San Quintin)", "Palang", "Pantoc (San Quintin)", "Poblacion (San Quintin)", "Tangadan", "Villa Mercedes"
-  ],
-  "Tayum": [
-    "Bagalay", "Basbasa", "Budac", "Bumagcat", "Cabaroan", "Deet", "Gaddani", "Patucannay (Tayum)", 
-    "Pias", "Poblacion (tayum)", "Velasco"
-  ],
-  "Tineg": [
-    "Alaoa", "Anayan", "Apao", "Belaat", "Caganayan", "Cogon", "Lanec", "Lapat-Balantay", 
-    "Naglibacan", "Poblacion (Agsimao)"
-  ],
-  "Tubo": [
-    "Alangtin", "Amtuagan", "Dilong", "Kili", "Poblacion (Mayabo)", "Supo", "Tabacda", "Tiempo", 
-    "Tubtuba", "Wayangan"
-  ],
-  "Villaviciosa": [
-    "Ap-apaya", "Bol-lilising", "Cal-lao", "Lap-lapog", "Lumaba", "Poblacion", "Tamac", "Tuquib"
-  ],
-  "Non-Abra": []
-};
+// We removed MUNICIPALITIES_DATA because the app now dynamically fetches 
+// locations directly from the Supabase 'populations' table!
 
-export const MUNICIPALITIES = Object.keys(MUNICIPALITIES_DATA);
-
-// ... (Rest of the file remains unchanged)
 export const DEFAULT_FACILITIES = [];
 export const INITIAL_FACILITY_BARANGAYS = {};
-export const INITIAL_ROW_STATE = { 
-  male: '', female: '', ageLt15: '', ageGt15: '', 
-  cat1: '', cat2: '', cat3: '', 
-  totalPatients: '', abCount: '', hrCount: '', 
-  pvrv: '', pcecv: '', hrig: '', erig: '', 
-  dog: '', cat: '', othersCount: '', othersSpec: '', 
-  washed: '', remarks: '' 
+
+// Updated V2 Data Structure for the new DOH format
+export const INITIAL_ROW_STATE = {
+  pop: 0, 
+  male: '',
+  female: '',
+  ageUnder15: '',
+  ageOver15: '',
+  cat1: '',
+  cat2EligPri: '',
+  cat2EligBoost: '',
+  cat2NonElig: '',
+  cat3EligPri: '',
+  cat3EligBoost: '',
+  cat3NonElig: '',
+  compCat2Pri: '',
+  compCat2Boost: '',
+  compCat3PriErig: '',
+  compCat3PriHrig: '',
+  compCat3Boost: '',
+  typeDog: '',
+  typeCat: '',
+  typeOthers: '',
+  statusPet: '',
+  statusStray: '',
+  statusUnk: '',
+  rabiesCases: ''
 };
 
-export const INITIAL_COHORT_ROW = {
-  cat2_registered: '', cat2_rig: '', cat2_complete: '', cat2_incomplete: '', cat2_booster: '', cat2_none: '', cat2_died: '', cat2_remarks: '',
-  cat3_registered: '', cat3_rig: '', cat3_complete: '', cat3_incomplete: '', cat3_booster: '', cat3_none: '', cat3_died: '', cat3_remarks: ''
-};
+// Cohort state was removed here since the feature was deleted.
 
-export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-export const QUARTERS = ["1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"];
+export const MONTHS = [
+  "January", "February", "March", "April", "May", "June", 
+  "July", "August", "September", "October", "November", "December"
+];
+
+export const QUARTERS = [
+  "1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"
+];
 
 export const PDF_STYLES = {
   container: { backgroundColor: '#ffffff', color: '#000000', fontFamily: 'Arial, sans-serif' },

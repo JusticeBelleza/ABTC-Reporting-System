@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2, TrendingUp, ChevronRight, Clock, Archive, Building2, Layers, WifiOff } from 'lucide-react';
+import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2, TrendingUp, ChevronRight, Clock, Archive, Building2, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
 import ModalPortal from '../modals/ModalPortal';
-import { downloadPDF, hasData, hasCohortData, mapRowToDb, mapCohortRowToDb, toInt } from '../../lib/utils';
+import { downloadPDF } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
-import MainReportTable from '../reports/MainReportTable';
-import CohortReportTable from '../reports/CohortReportTable';
+import MainReportTableV2 from '../reports/MainReportTableV2';
 import { saveOfflineDraft, getOfflineDraft, clearOfflineDraft } from '../../lib/offlineDB';
 
 export default function FacilityDashboard({
@@ -19,7 +18,6 @@ export default function FacilityDashboard({
   quarter, setQuarter,
   availableYears, availableMonths,
   adminViewMode, selectedFacility, onBack,
-  setReportToDelete,
   currentRealYear, currentRealMonthIdx 
 }) {
   const { user, facilities, facilityBarangays, facilityDetails, globalSettings, userProfile } = useApp();
@@ -27,32 +25,24 @@ export default function FacilityDashboard({
   // Helper to check if current user is any type of admin
   const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
 
-  // This reads the flag passed from the Admin Dashboard to automatically switch tabs!
-  const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem('adminTargetTab');
-    if (savedTab) {
-        localStorage.removeItem('adminTargetTab');
-        return savedTab;
-    }
-    return 'main';
-  });
+  // --- V2 STATE MANAGEMENT ---
+  const [v2Data, setV2Data] = useState({});
+  const [formRowKeys, setFormRowKeys] = useState([]);
+  const [formPopulations, setFormPopulations] = useState({});
 
-  const [cohortSubTab, setCohortSubTab] = useState('cat2'); 
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false); 
   const [showDeleteReportModal, setShowDeleteReportModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false); 
   const [showDraftModal, setShowDraftModal] = useState(false); 
-  const [deleteRowConfirmation, setDeleteRowConfirmation] = useState({ isOpen: false, rowKey: null }); 
   const [rejectionReason, setRejectionReason] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isZeroSubmit, setIsZeroSubmit] = useState(false);
 
-  const [statusModal, setStatusModal] = useState({ isOpen: false, status: null, reportType: 'main' });
-  const [consolidatedModal, setConsolidatedModal] = useState({ isOpen: false, filter: null, reportType: 'main' });
-  const [yearlyStats, setYearlyStats] = useState({ main: [], cohort: [] });
+  const [statusModal, setStatusModal] = useState({ isOpen: false, status: null });
+  const [consolidatedModal, setConsolidatedModal] = useState({ isOpen: false, filter: null });
+  const [yearlyStats, setYearlyStats] = useState({ main: [] });
 
   // --- REAL-TIME OFFLINE DETECTION ---
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -81,77 +71,140 @@ export default function FacilityDashboard({
   };
 
   const {
-    data, cohortData, reportStatus, loading, isSaving, 
-    currentRows, cohortRowsCat2, cohortRowsCat3, activeFacilityName, currentHostMunicipality,
-    grandTotals, cohortTotals,
-    visibleOtherMunicipalities, setVisibleOtherMunicipalities,
-    visibleCat2, setVisibleCat2,
-    visibleCat3, setVisibleCat3,
-    fetchData, handleChange, handleSave, confirmDeleteReport, handleDeleteRow
+    reportStatus, loading, isSaving, 
+    activeFacilityName, currentHostMunicipality,
+    confirmDeleteReport
   } = useReportData({
-    user, facilities, facilityBarangays, year, month, quarter, periodType, activeTab, cohortSubTab, adminViewMode, selectedFacility
+    user, facilities, facilityBarangays, year, month, quarter, periodType, activeTab: 'main', adminViewMode, selectedFacility
   });
 
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
-  // --- ADVANCED INDEXED-DB BACKGROUND AUTO-SYNC ---
+  // --- V2: FETCH LOCATIONS, POPULATIONS & EXISTING DATA ---
+  useEffect(() => {
+    const fetchV2Data = async () => {
+      if (!activeFacilityName) return;
+
+      try {
+        // 1. Fetch Locations & Populations
+        let popQuery = supabase.from('populations').select('municipality, barangay_name, population').eq('year', year);
+        const facilityType = facilityDetails?.[activeFacilityName]?.type || 'RHU';
+        
+        if (facilityType !== 'Hospital') {
+          popQuery = popQuery.eq('municipality', currentHostMunicipality).neq('barangay_name', 'All').not('barangay_name', 'is', null);
+        } else {
+          popQuery = popQuery.is('barangay_name', null);
+        }
+
+        const { data: popData, error: popError } = await popQuery;
+        if (popError) throw popError;
+
+        const keys = [];
+        const popMap = {};
+
+        if (popData) {
+          popData.forEach(item => {
+            const rowName = (facilityType !== 'Hospital') ? item.barangay_name : item.municipality;
+            keys.push(rowName);
+            popMap[rowName] = item.population;
+          });
+          keys.sort((a, b) => a.localeCompare(b));
+          
+          keys.push("Outside Catchment / Non-Abra");
+          popMap["Outside Catchment / Non-Abra"] = 0;
+          
+          setFormRowKeys(keys);
+          setFormPopulations(popMap);
+        }
+
+        // 2. Fetch existing V2 Report Data for this period
+        const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
+        const { data: existingData, error: existingError } = await supabase
+          .from('abtc_reports_v2')
+          .select('*')
+          .eq('year', year)
+          .eq('month', currentPeriod)
+          .eq('facility', activeFacilityName);
+
+        if (existingError) throw existingError;
+
+        const loadedState = {};
+        if (existingData) {
+          existingData.forEach(row => {
+            loadedState[row.location_name] = {
+              male: row.male || '', female: row.female || '',
+              ageUnder15: row.age_under_15 || '', ageOver15: row.age_over_15 || '',
+              cat1: row.cat1 || '',
+              cat2EligPri: row.cat2_elig_pri || '', cat2EligBoost: row.cat2_elig_boost || '', cat2NonElig: row.cat2_non_elig || '',
+              cat3EligPri: row.cat3_elig_pri || '', cat3EligBoost: row.cat3_elig_boost || '', cat3NonElig: row.cat3_non_elig || '',
+              compCat2Pri: row.comp_cat2_pri || '', compCat2Boost: row.comp_cat2_boost || '',
+              compCat3PriErig: row.comp_cat3_pri_erig || '', compCat3PriHrig: row.comp_cat3_pri_hrig || '', compCat3Boost: row.comp_cat3_boost || '',
+              typeDog: row.type_dog || '', typeCat: row.type_cat || '', typeOthers: row.type_others || '',
+              statusPet: row.status_pet || '', statusStray: row.status_stray || '', statusUnk: row.status_unk || '',
+              rabiesCases: row.rabies_cases || ''
+            };
+          });
+        }
+        setV2Data(loadedState);
+
+      } catch (err) {
+        console.error("Error fetching V2 data:", err);
+      }
+    };
+
+    fetchV2Data();
+  }, [activeFacilityName, currentHostMunicipality, year, month, quarter, periodType, facilityDetails]);
+
+  const handleV2CellChange = (location, field, value) => {
+    setV2Data(prev => ({
+      ...prev,
+      [location]: { ...(prev[location] || {}), [field]: value }
+    }));
+  };
+
+  // --- ADVANCED OFFLINE BACKGROUND AUTO-SYNC (V2 Updated) ---
   useEffect(() => {
     const checkOfflineDraft = async () => {
         const draft = await getOfflineDraft(); 
         if (draft && navigator.onLine) {
             try {
-                toast.info("🌐 Connection restored! Auto-syncing offline report...", { duration: 4000 });
+                toast.info("🌐 Connection restored! Auto-syncing offline V2 report...", { duration: 4000 });
 
-                let payload = [];
-                if (draft.activeTab === 'main') {
-                    payload = Object.entries(draft.data).map(([m, row]) => {
-                        if (!hasData(row)) return null; 
-                        const dbRow = mapRowToDb(row);
-                        delete dbRow.reported_by;
-                        dbRow.others_count = row.othersCount === '' ? null : toInt(row.othersCount);  
-                        if (row.othersSpec) dbRow.others_spec = row.othersSpec;
-                        
-                        return { ...dbRow, municipality: m, status: draft.intendedStatus || 'Draft', remarks: row.remarks };
-                    }).filter(x => x !== null);
-                } else {
-                    payload = Object.entries(draft.data).map(([m, row]) => {
-                         const dbCohortRow = mapCohortRowToDb(row);
-                         delete dbCohortRow.reported_by;
-                         
-                         return { ...dbCohortRow, municipality: m, status: draft.intendedStatus || 'Draft' };
-                    }).filter(x => x !== null);
-                }
-
-                const { error } = await supabase.rpc('save_report_atomic', { 
-                    p_year: String(draft.year), 
-                    p_month: String(draft.month), 
-                    p_facility: draft.facility, 
-                    p_type: draft.activeTab, 
-                    p_data: payload 
+                // Construct payload from offline V2 draft
+                const payload = Object.entries(draft.data).map(([loc, row]) => {
+                    const num = (val) => parseInt(val) || 0;
+                    return {
+                        year: draft.year, month: draft.month, facility: draft.facility, location_name: loc,
+                        status: draft.intendedStatus || 'Draft',
+                        male: num(row.male), female: num(row.female),
+                        age_under_15: num(row.ageUnder15), age_over_15: num(row.ageOver15),
+                        cat1: num(row.cat1),
+                        cat2_elig_pri: num(row.cat2EligPri), cat2_elig_boost: num(row.cat2EligBoost), cat2_non_elig: num(row.cat2NonElig),
+                        cat3_elig_pri: num(row.cat3EligPri), cat3_elig_boost: num(row.cat3EligBoost), cat3_non_elig: num(row.cat3NonElig),
+                        comp_cat2_pri: num(row.compCat2Pri), comp_cat2_boost: num(row.compCat2Boost),
+                        comp_cat3_pri_erig: num(row.compCat3PriErig), comp_cat3_pri_hrig: num(row.compCat3PriHrig), comp_cat3_boost: num(row.compCat3Boost),
+                        type_dog: num(row.typeDog), type_cat: num(row.typeCat), type_others: num(row.typeOthers),
+                        status_pet: num(row.statusPet), status_stray: num(row.statusStray), status_unk: num(row.statusUnk),
+                        rabies_cases: num(row.rabiesCases)
+                    };
                 });
 
+                const { error } = await supabase.from('abtc_reports_v2').upsert(payload, { onConflict: 'year, month, facility, location_name' });
                 if (error) throw error;
 
-                // TRIGGER ADMIN NOTIFICATION BELL
                 if (draft.intendedStatus === 'Pending') {
-                    const periodText = draft.periodType === 'Monthly' ? draft.month : draft.periodType === 'Quarterly' ? draft.quarter : 'Annual';
-                    const reportType = draft.activeTab === 'main' ? 'Form 1' : 'Cohort';
-                    
                     const { error: notifError } = await supabase.from('notifications').insert([{
                         title: 'Report Auto-Synced',
-                        message: `${draft.facility} submitted their ${reportType} report for ${periodText} ${draft.year} via offline auto-sync.`,
-                        type: 'submission',
-                        is_read: false,
-                        facility: draft.facility
+                        message: `${draft.facility} submitted their Form 1 report for ${draft.month} ${draft.year} via offline auto-sync.`,
+                        type: 'submission', is_read: false, facility: draft.facility
                     }]);
-                    
                     if (notifError) console.error("Notification Sync Error:", notifError);
                 }
 
                 await clearOfflineDraft(); 
                 toast.success("Offline data successfully synced to the server!", { duration: 5000 });
-                fetchData(); 
+                // Note: The main useEffect will naturally re-fetch data if needed.
             } catch (err) {
                 console.error("Auto Sync Error:", err);
                 toast.error("Auto-sync failed. Please save manually.", { duration: 5000 });
@@ -160,66 +213,31 @@ export default function FacilityDashboard({
     };
     
     window.addEventListener('online', checkOfflineDraft);
-    checkOfflineDraft(); // Also check immediately on component mount
+    checkOfflineDraft();
     return () => window.removeEventListener('online', checkOfflineDraft);
-  }, [fetchData]);
+  }, []);
 
+  // --- STATS FETCHING (V2 Updated) ---
   useEffect(() => {
     const fetchYearlyStats = async () => {
         if (!year) return;
         try {
-            let mainQuery = supabase.from('abtc_reports').select('facility, month, status').eq('year', year);
-            let cohortQuery = supabase.from('abtc_cohort_reports').select('facility, month, status').eq('year', year);
+            let mainQuery = supabase.from('abtc_reports_v2').select('facility, month, status').eq('year', year);
             if (!isConsolidatedView) {
                 if (!activeFacilityName) return;
                 mainQuery = mainQuery.eq('facility', activeFacilityName);
-                cohortQuery = cohortQuery.eq('facility', activeFacilityName);
             }
-            const [{ data: mainData }, { data: cohortData }] = await Promise.all([mainQuery, cohortQuery]);
-            setYearlyStats({ main: mainData || [], cohort: cohortData || [] });
+            const { data: mainData } = await mainQuery;
+            setYearlyStats({ main: mainData || [] });
         } catch (error) { console.error("Error fetching yearly stats:", error); }
     };
     fetchYearlyStats();
   }, [activeFacilityName, year, isConsolidatedView, reportStatus]);
 
-  const getMonthsByStatus = (statusType, reportType) => {
+  const getMonthsByStatus = (statusType) => {
       const uniqueObj = {};
-      yearlyStats[reportType].forEach(r => { if (!uniqueObj[r.month] || r.status === 'Approved') uniqueObj[r.month] = r.status; });
+      yearlyStats.main.forEach(r => { if (!uniqueObj[r.month] || r.status === 'Approved') uniqueObj[r.month] = r.status; });
       return Object.entries(uniqueObj).filter(([m, status]) => status === statusType).map(([m]) => m).sort((a, b) => MONTHS.indexOf(a) - MONTHS.indexOf(b));
-  };
-
-  const isZeroReportActiveTab = activeTab === 'main' 
-    ? currentRows.length > 0 && currentRows.every(key => key === "Others:" || !hasData(data[key]))
-    : Object.keys(cohortData).length > 0 && Object.keys(cohortData).every(key => key === "Others:" || (!hasCohortData(cohortData[key], 'cat2') && !hasCohortData(cohortData[key], 'cat3')));
-  
-  const showZeroBanner = isZeroReportActiveTab && reportStatus !== 'Draft' && !loading;
-
-  const buildMatrix = (reportType) => {
-      const dedupedStats = {};
-      yearlyStats[reportType].forEach(r => {
-          const key = `${r.facility}_${r.month}`;
-          if (!dedupedStats[key] || r.status === 'Approved') dedupedStats[key] = r;
-      });
-      const flatStats = Object.values(dedupedStats);
-
-      return facilities.map(f => {
-          const facStats = flatStats.filter(r => r.facility === f);
-          const targetMonths = getTargetMonths();
-          const mData = targetMonths.map(m => {
-              const rec = facStats.find(r => r.month === m);
-              return { month: m, status: rec ? rec.status : 'Not Submitted' };
-          });
-          const approvedCount = mData.filter(d => d.status === 'Approved').length;
-          const submittedCount = mData.filter(d => d.status !== 'Not Submitted' && d.status !== 'Draft').length;
-          
-          return {
-              facility: f, months: mData, approvedCount,
-              complianceRate: Math.round((approvedCount / targetMonths.length) * 100),
-              isFully: approvedCount === targetMonths.length,
-              isZero: submittedCount === 0,
-              isPartial: approvedCount < targetMonths.length && submittedCount > 0
-          };
-      }).sort((a, b) => b.complianceRate - a.complianceRate || a.facility.localeCompare(b.facility));
   };
 
   const getTargetMonths = () => {
@@ -244,41 +262,49 @@ export default function FacilityDashboard({
   });
   const mainReportingRate = Math.round((mainStats.submitted / targetMonths.length) * 100) || 0;
 
-  const uniqueCohortMonths = {};
-  yearlyStats.cohort.forEach(r => { if (!uniqueCohortMonths[r.month] || r.status === 'Approved') uniqueCohortMonths[r.month] = r.status; });
-  const cohortStats = { approved: 0, pending: 0, rejected: 0, submitted: 0 };
-  targetMonths.forEach(m => {
-      const status = uniqueCohortMonths[m];
-      if (status === 'Approved') cohortStats.approved++;
-      else if (status === 'Pending') cohortStats.pending++;
-      else if (status === 'Rejected') cohortStats.rejected++;
-      if (status && status !== 'Draft' && status !== 'View Only') cohortStats.submitted++;
-  });
-  const cohortReportingRate = Math.round((cohortStats.submitted / targetMonths.length) * 100) || 0;
+  const buildMatrix = () => {
+      const dedupedStats = {};
+      yearlyStats.main.forEach(r => {
+          const key = `${r.facility}_${r.month}`;
+          if (!dedupedStats[key] || r.status === 'Approved') dedupedStats[key] = r;
+      });
+      const flatStats = Object.values(dedupedStats);
 
-  const mainMatrix = isConsolidatedView ? buildMatrix('main') : [];
-  const cohortMatrix = isConsolidatedView ? buildMatrix('cohort') : [];
+      return facilities.map(f => {
+          const facStats = flatStats.filter(r => r.facility === f);
+          const mData = targetMonths.map(m => {
+              const rec = facStats.find(r => r.month === m);
+              return { month: m, status: rec ? rec.status : 'Not Submitted' };
+          });
+          const approvedCount = mData.filter(d => d.status === 'Approved').length;
+          const submittedCount = mData.filter(d => d.status !== 'Not Submitted' && d.status !== 'Draft').length;
+          
+          return {
+              facility: f, months: mData, approvedCount,
+              complianceRate: Math.round((approvedCount / targetMonths.length) * 100),
+              isFully: approvedCount === targetMonths.length,
+              isZero: submittedCount === 0,
+              isPartial: approvedCount < targetMonths.length && submittedCount > 0
+          };
+      }).sort((a, b) => b.complianceRate - a.complianceRate || a.facility.localeCompare(b.facility));
+  };
 
+  const mainMatrix = isConsolidatedView ? buildMatrix() : [];
   const getAggregates = (matrix) => {
       if (!isConsolidatedView || matrix.length === 0) return { full: 0, partial: 0, zero: 0, rate: 0 };
       const totalApproved = matrix.reduce((sum, m) => sum + m.approvedCount, 0);
       return {
-          full: matrix.filter(m => m.isFully).length,
-          partial: matrix.filter(m => m.isPartial).length,
-          zero: matrix.filter(m => m.isZero).length,
-          rate: Math.round((totalApproved / (facilities.length * targetMonths.length)) * 100) || 0
+          full: matrix.filter(m => m.isFully).length, partial: matrix.filter(m => m.isPartial).length,
+          zero: matrix.filter(m => m.isZero).length, rate: Math.round((totalApproved / (facilities.length * targetMonths.length)) * 100) || 0
       };
   };
-
   const mainAgg = getAggregates(mainMatrix);
-  const cohortAgg = getAggregates(cohortMatrix);
 
   const getFilteredMatrix = () => {
-      const matrix = consolidatedModal.reportType === 'main' ? mainMatrix : cohortMatrix;
-      if (consolidatedModal.filter === 'full') return matrix.filter(m => m.isFully);
-      if (consolidatedModal.filter === 'partial') return matrix.filter(m => m.isPartial);
-      if (consolidatedModal.filter === 'zero') return matrix.filter(m => m.isZero);
-      return matrix; 
+      if (consolidatedModal.filter === 'full') return mainMatrix.filter(m => m.isFully);
+      if (consolidatedModal.filter === 'partial') return mainMatrix.filter(m => m.isPartial);
+      if (consolidatedModal.filter === 'zero') return mainMatrix.filter(m => m.isZero);
+      return mainMatrix; 
   };
 
   const getLabels = () => {
@@ -293,117 +319,123 @@ export default function FacilityDashboard({
   };
   const [lblApproved, lblPending, lblRejected, lblCompletion] = getLabels();
 
-  // --- SUBMISSION GUARDRAIL & BACKGROUND SYNC ---
-  const onSaveClick = async (status) => {
-    
-    // NEW: Role-Based Advanced Offline Handling
-    if (!navigator.onLine) {
-        
-        if (isAnyAdmin) {
-            // ADMIN LOGIC: Strict blocking for approvals/rejections
-            if (status === 'Approved' || status === 'Rejected') {
-                 toast.error("📴 No Internet Connection! Admin approvals and rejections require an active connection.", { duration: 5000 });
-                 return;
-            }
-        } else {
-            // FACILITY LOGIC: Auto-sync queueing for submissions
-            if (status === 'Pending') {
-                toast.warning("📴 Offline Detected! Report will be securely queued on your device and will auto-submit when internet is restored.", { duration: 8000 });
-                
-                const offlinePayload = {
-                    facility: activeFacilityName, year, month, quarter, periodType,
-                    data: activeTab === 'main' ? data : cohortData, activeTab,
-                    timestamp: new Date().toISOString(),
-                    intendedStatus: 'Pending' 
-                };
-                await saveOfflineDraft(offlinePayload);
-                return; // Stop here so it doesn't open the normal submit modal
-            }
 
-            // Let Drafts proceed to the draft modal
-            if (status === 'Draft') {
-                setShowDraftModal(true); 
-                return;
-            }
+  // --- V2 MASTER SAVE LOGIC ---
+  const saveV2Report = async (status, reason = '') => {
+    try {
+      const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
+      const payload = formRowKeys.map(loc => {
+        const row = v2Data[loc] || {};
+        const num = (val) => parseInt(val) || 0;
+        return {
+          year, month: currentPeriod, facility: activeFacilityName, location_name: loc,
+          status, remarks: reason,
+          male: num(row.male), female: num(row.female),
+          age_under_15: num(row.ageUnder15), age_over_15: num(row.ageOver15),
+          cat1: num(row.cat1),
+          cat2_elig_pri: num(row.cat2EligPri), cat2_elig_boost: num(row.cat2EligBoost), cat2_non_elig: num(row.cat2NonElig),
+          cat3_elig_pri: num(row.cat3EligPri), cat3_elig_boost: num(row.cat3EligBoost), cat3_non_elig: num(row.cat3NonElig),
+          comp_cat2_pri: num(row.compCat2Pri), comp_cat2_boost: num(row.compCat2Boost),
+          comp_cat3_pri_erig: num(row.compCat3PriErig), comp_cat3_pri_hrig: num(row.compCat3PriHrig), comp_cat3_boost: num(row.compCat3Boost),
+          type_dog: num(row.typeDog), type_cat: num(row.typeCat), type_others: num(row.typeOthers),
+          status_pet: num(row.statusPet), status_stray: num(row.statusStray), status_unk: num(row.statusUnk),
+          rabies_cases: num(row.rabiesCases)
+        };
+      });
+
+      const { error } = await supabase.from('abtc_reports_v2').upsert(payload, { onConflict: 'year, month, facility, location_name' });
+      if (error) throw error;
+      
+      toast.success(`Report successfully marked as ${status}`);
+      // Since we bypass useReportData for fetching, we might need a hard refresh or trigger
+      window.location.reload(); // Simple refresh to update dashboard status UI
+    } catch (err) {
+      console.error("Error saving report:", err);
+      toast.error("Failed to save report.");
+    }
+  };
+
+  // --- V2 VALIDATION & GUARDRAIL ---
+  const onSaveClick = async (status) => {
+    if (!navigator.onLine) {
+        if (isAnyAdmin && (status === 'Approved' || status === 'Rejected')) {
+             toast.error("📴 No Internet Connection! Admin approvals and rejections require an active connection.", { duration: 5000 });
+             return;
+        } else if (!isAnyAdmin && status === 'Pending') {
+            toast.warning("📴 Offline Detected! Report will be securely queued on your device and will auto-sync when internet is restored.", { duration: 8000 });
+            const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
+            const offlinePayload = {
+                facility: activeFacilityName, year, month: currentPeriod, periodType,
+                data: v2Data, timestamp: new Date().toISOString(), intendedStatus: 'Pending' 
+            };
+            await saveOfflineDraft(offlinePayload);
+            return;
+        } else if (status === 'Draft') {
+            setShowDraftModal(true); return;
         }
     }
 
-    // Normal Online Flow (or Offline Drafts passing through)
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
     
-    // VALIDATION LOGIC
+    // STRICT DOH VALIDATION LOGIC FOR SUBMISSIONS
     if (status === 'Pending') { 
-        if (activeTab === 'main') {
-            let hasForm1Errors = false;
-            for (const key of Object.keys(data)) {
-                if (key === "Others:") continue;
-                const row = data[key];
-                if (!hasData(row)) continue;
-                
-                const sexSum = (Number(row.male) || 0) + (Number(row.female) || 0);
-                const ageSum = (Number(row.ageLt15) || 0) + (Number(row.ageGt15) || 0);
-                const animalSum = (Number(row.dog) || 0) + (Number(row.cat) || 0) + (Number(row.othersCount) || 0);
-                const washedCount = Number(row.washed) || 0;
-                
-                const hasAnyData = sexSum > 0 || ageSum > 0 || (Number(row.cat1)||0) > 0 || (Number(row.cat2)||0) > 0 || (Number(row.cat3)||0) > 0 || animalSum > 0;
-                
-                if (hasAnyData && (sexSum !== ageSum || washedCount > animalSum)) {
-                    hasForm1Errors = true;
-                    break;
-                }
-            }
-            if (hasForm1Errors) {
-                toast.error("DATA MISMATCH: Please ensure Sex totals match Age totals, and Washed doesn't exceed Total Animals.", { duration: 6000 });
-                setActiveTab('main'); 
-                return;
+        let hasErrors = false;
+        let isCompletelyEmpty = true;
+
+        for (const loc of formRowKeys) {
+            const row = v2Data[loc] || {};
+            const num = (val) => parseInt(val) || 0;
+
+            const totalSex = num(row.male) + num(row.female);
+            const totalAge = num(row.ageUnder15) + num(row.ageOver15);
+            const totalAnimals = num(row.typeDog) + num(row.typeCat) + num(row.typeOthers);
+            const totalStatus = num(row.statusPet) + num(row.statusStray) + num(row.statusUnk);
+            const totalCases = num(row.cat1) + 
+                               (num(row.cat2EligPri) + num(row.cat2EligBoost) + num(row.cat2NonElig)) + 
+                               (num(row.cat3EligPri) + num(row.cat3EligBoost) + num(row.cat3NonElig));
+
+            if (totalSex > 0 || totalAge > 0 || totalCases > 0 || totalAnimals > 0) {
+              isCompletelyEmpty = false;
+              if (totalSex !== totalAge || totalSex !== totalCases || totalCases !== totalAnimals || totalAnimals !== totalStatus) {
+                hasErrors = true;
+                break;
+              }
             }
         }
+
+        if (hasErrors) {
+            toast.error("DATA MISMATCH: Totals for Sex, Age, Cases, and Animals MUST match exactly across all filled rows.", { duration: 6000 });
+            return;
+        }
         
-        setIsZeroSubmit(isZeroReportActiveTab); 
+        setIsZeroSubmit(isCompletelyEmpty); 
         setShowSubmitModal(true); 
         return; 
     }
-    
-    await handleSave(status); 
-    await clearOfflineDraft(); 
   };
 
-  const confirmApprove = async () => { 
-    setShowApproveModal(false); 
-    await handleSave('Approved'); 
-    await clearOfflineDraft(); 
-  };
-
+  const confirmApprove = async () => { setShowApproveModal(false); await saveV2Report('Approved'); };
   const confirmRejection = async () => { 
     if (!rejectionReason.trim()) { toast.error("Reason required"); return; } 
-    setShowRejectModal(false); 
-    await handleSave('Rejected', rejectionReason); 
-    await clearOfflineDraft(); 
+    setShowRejectModal(false); await saveV2Report('Rejected', rejectionReason); 
   };
-
-  const confirmSubmit = async () => { 
-    setShowSubmitModal(false); 
-    await handleSave('Pending'); 
-    await clearOfflineDraft(); 
-  };
-
+  const confirmSubmit = async () => { setShowSubmitModal(false); await saveV2Report('Pending'); };
+  
   const confirmSaveDraft = async () => { 
     setShowDraftModal(false); 
     if (!navigator.onLine) {
+        const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
         const offlinePayload = {
-            facility: activeFacilityName, year, month, quarter, periodType,
-            data: activeTab === 'main' ? data : cohortData, activeTab,
-            timestamp: new Date().toISOString(),
-            intendedStatus: 'Draft' 
+            facility: activeFacilityName, year, month: currentPeriod, periodType,
+            data: v2Data, timestamp: new Date().toISOString(), intendedStatus: 'Draft' 
         };
         await saveOfflineDraft(offlinePayload);
         toast.warning("📴 Offline! Draft saved locally. It will automatically sync when internet is restored.", { duration: 8000 });
         return;
     }
-    await handleSave('Draft'); 
-    await clearOfflineDraft(); 
+    await saveV2Report('Draft'); 
   };
 
   const handleDeleteReportClick = async () => { 
@@ -412,48 +444,26 @@ export default function FacilityDashboard({
     await clearOfflineDraft();
   };
 
-  const confirmDeleteRow = () => {
-    if (deleteRowConfirmation.rowKey) {
-        handleDeleteRow(deleteRowConfirmation.rowKey);
-        setDeleteRowConfirmation({ isOpen: false, rowKey: null });
-        toast.success("Row cleared");
-    }
-  };
 
   const getCurrentPeriodText = () => periodType === 'Annual' ? `Annual ${year}` : periodType === 'Quarterly' ? `${formatQuarterName(quarter)} ${year}` : `${month} ${year}`;
-  const getPreviousPeriodText = () => {
-    if (periodType === 'Annual') return `Annual ${year - 1}`;
-    if (periodType === 'Quarterly') { const idx = QUARTERS.indexOf(quarter); return idx === 0 ? `4th Quarter ${year - 1}` : `${formatQuarterName(QUARTERS[idx - 1])} ${year}`; }
-    const idx = MONTHS.indexOf(month); return idx === 0 ? `December ${year - 1}` : `${MONTHS[idx - 1]} ${year}`;
-  };
+  const currentDisplayPeriod = periodType === 'Monthly' ? month : periodType === 'Quarterly' ? formatQuarterName(quarter) : 'Annual';
 
   const confirmExportPdf = async () => {
     setShowExportModal(false);
     setIsDownloadingPdf(true);
     const currentPeriodText = getCurrentPeriodText();
-    const periodText = activeTab === 'cohort' ? `${getPreviousPeriodText()} (Current Period: ${currentPeriodText})` : currentPeriodText;
-    const suffix = activeTab === 'cohort' ? (cohortSubTab === 'cat2' ? '_Category_II' : '_Category_III') : '';
-    const filename = `Report_${activeFacilityName.replace(/\s+/g,'_')}_${year}${suffix}.pdf`;
+    const filename = `Report_${activeFacilityName.replace(/\s+/g,'_')}_${year}.pdf`;
     
-    const activeDetails = facilityDetails?.[activeFacilityName] || {};
-    const hasBarangays = facilityBarangays[activeFacilityName] && facilityBarangays[activeFacilityName].length > 0;
-    const keyToFilter = hasBarangays ? currentHostMunicipality : null;
-    const exportRowKeys = activeTab === 'main' 
-        ? currentRows.filter(k => k !== keyToFilter) 
-        : (cohortSubTab === 'cat2' ? cohortRowsCat2 : cohortRowsCat3).filter(k => k !== keyToFilter);
-
+    // Note: V2 PDF Generation will require the `downloadPDF` utility to be updated later to map the new V2 columns.
     await downloadPDF({
-        type: activeTab, cohortType: cohortSubTab, filename, data: activeTab === 'main' ? data : cohortData,
-        rowKeys: exportRowKeys, 
-        grandTotals, cohortTotals, periodText, facilityName: activeFacilityName, userProfile, globalSettings,
+        type: 'main', filename, data: v2Data, rowKeys: formRowKeys, 
+        periodText: currentPeriodText, facilityName: activeFacilityName, userProfile, globalSettings,
         isConsolidated: isConsolidatedView,
-        facilityType: activeDetails.type || 'RHU',      
-        facilityOwnership: activeDetails.ownership || 'Government'
+        facilityType: facilityDetails?.[activeFacilityName]?.type || 'RHU',      
+        facilityOwnership: facilityDetails?.[activeFacilityName]?.ownership || 'Government'
     });
     setIsDownloadingPdf(false);
   };
-
-  const currentDisplayPeriod = periodType === 'Monthly' ? month : periodType === 'Quarterly' ? formatQuarterName(quarter) : 'Annual';
 
   return (
     <div className="max-w-[1600px] mx-auto animate-in fade-in zoom-in-95 duration-300 pb-24 sm:pb-12 w-full px-2 sm:px-4">
@@ -473,17 +483,17 @@ export default function FacilityDashboard({
                             </div>
                             <div className="overflow-hidden">
                                 <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
-                                    {statusModal.reportType === 'cohort' ? 'Cohort' : 'Form 1'} - {statusModal.status}
+                                    Form 1 - {statusModal.status}
                                 </h3>
                                 <p className="text-xs font-medium text-slate-500 truncate">{activeFacilityName} • {year}</p>
                             </div>
                         </div>
-                        <button onClick={() => setStatusModal({ isOpen: false, status: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
+                        <button onClick={() => setStatusModal({ isOpen: false, status: null })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                             <X size={20} />
                         </button>
                     </div>
                     <div className="overflow-y-auto p-2 custom-scrollbar flex-1">
-                        {getMonthsByStatus(statusModal.status, statusModal.reportType).length === 0 ? (
+                        {getMonthsByStatus(statusModal.status).length === 0 ? (
                             <div className="p-8 text-center flex flex-col items-center justify-center">
                                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
                                     <Archive size={20} className="text-slate-400" />
@@ -493,12 +503,11 @@ export default function FacilityDashboard({
                             </div>
                         ) : (
                             <div className="flex flex-col gap-1 p-2">
-                                {getMonthsByStatus(statusModal.status, statusModal.reportType).map(m => (
+                                {getMonthsByStatus(statusModal.status).map(m => (
                                     <div 
                                         key={m} 
                                         onClick={() => { 
-                                            setActiveTab(statusModal.reportType === 'cohort' ? 'cohort' : 'main');
-                                            setStatusModal({ isOpen: false, status: null, reportType: 'main' }); 
+                                            setStatusModal({ isOpen: false, status: null }); 
                                             setMonth(m); 
                                             setPeriodType('Monthly'); 
                                         }} 
@@ -526,7 +535,7 @@ export default function FacilityDashboard({
                     <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className="w-10 h-10 rounded-full flex shrink-0 items-center justify-center bg-slate-900 text-yellow-400 shadow-sm">
-                                <Layers size={20} strokeWidth={2.5}/> 
+                                <Building2 size={20} strokeWidth={2.5}/> 
                             </div>
                             <div className="overflow-hidden">
                                 <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
@@ -537,7 +546,7 @@ export default function FacilityDashboard({
                                 </p>
                             </div>
                         </div>
-                        <button onClick={() => setConsolidatedModal({ isOpen: false, filter: null, reportType: 'main' })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
+                        <button onClick={() => setConsolidatedModal({ isOpen: false, filter: null })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                             <X size={20} />
                         </button>
                     </div>
@@ -660,20 +669,9 @@ export default function FacilityDashboard({
         {/* ========================================== */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2 sm:p-3 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10 no-print">
             
-            {/* Left side: View Tabs */}
-            <div className="flex items-center bg-slate-100/80 p-1 rounded-lg border border-slate-200/60 w-full sm:w-auto">
-                <button 
-                    onClick={() => setActiveTab('main')} 
-                    className={`flex-1 sm:flex-none px-6 py-2 text-sm font-bold rounded-md transition-all duration-200 ${activeTab === 'main' ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}
-                >
-                    Form 1
-                </button>
-                <button 
-                    onClick={() => setActiveTab('cohort')} 
-                    className={`flex-1 sm:flex-none px-6 py-2 text-sm font-bold rounded-md transition-all duration-200 ${activeTab === 'cohort' ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}
-                >
-                    Cohort
-                </button>
+            {/* Left side: Empty placeholder since we removed Cohort tabs */}
+            <div className="flex items-center w-full sm:w-auto">
+                 <h2 className="text-slate-800 font-bold px-4">DOH Form 1</h2>
             </div>
 
             {/* Right side: Date Filters */}
@@ -734,198 +732,95 @@ export default function FacilityDashboard({
 
         {/* --- DYNAMIC KPI CARDS & YEARLY TRACKER --- */}
         <div className="space-y-6 mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500 no-print">
-            {activeTab === 'main' && (
-              <div>
-                <h3 className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">
-                    {isConsolidatedView ? `Form 1 Provincial Compliance (${getCurrentPeriodText()})` : `Form 1 Overview (${currentDisplayPeriod} ${year})`}
-                </h3>
-                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 ${periodType === 'Monthly' && !isConsolidatedView ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'full', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Approved', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
-                        <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><CheckCircle size={20} strokeWidth={2.5} /></div>
-                        <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblApproved}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.full : mainStats.approved}</p></div>
-                    </div>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'partial', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Pending', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-amber-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
-                        <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Clock size={20} strokeWidth={2.5} /></div>
-                        <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblPending}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.partial : mainStats.pending}</p></div>
-                    </div>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'zero', reportType: 'main' }) : setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'main' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
-                        <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors"><XCircle size={20} strokeWidth={2.5} /></div>
-                        <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblRejected}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.zero : mainStats.rejected}</p></div>
-                    </div>
-                    {lblCompletion && (
-                        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-slate-400 transition-all duration-300 group">
-                            <div className="w-10 h-10 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all"><TrendingUp size={20} strokeWidth={2.5} /></div>
-                            <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblCompletion}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.rate : mainReportingRate}%</p></div>
-                        </div>
-                    )}
+            <div>
+            <h3 className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">
+                {isConsolidatedView ? `Form 1 Provincial Compliance (${getCurrentPeriodText()})` : `Form 1 Overview (${currentDisplayPeriod} ${year})`}
+            </h3>
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 ${periodType === 'Monthly' && !isConsolidatedView ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+                <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'full' }) : setStatusModal({ isOpen: true, status: 'Approved' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><CheckCircle size={20} strokeWidth={2.5} /></div>
+                    <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblApproved}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.full : mainStats.approved}</p></div>
                 </div>
-
-                {/* --- DYNAMIC SUBMISSION TRACKER --- */}
-                {!isConsolidatedView && periodType !== 'Monthly' && (
-                    <div className="mt-4 bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex flex-col gap-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            {periodType === 'Quarterly' ? `${formatQuarterName(quarter)} Submission Tracker (${year})` : `Yearly Submission Tracker (${year})`}
-                        </p>
-                        <div className="flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2">
-                            {(periodType === 'Quarterly' ? targetMonths : MONTHS).map((m) => {
-                                const status = uniqueMainMonths[m];
-                                const isApproved = status === 'Approved';
-                                const isPending = status === 'Pending';
-                                const isRejected = status === 'Rejected';
-                                
-                                const monthActualIdx = MONTHS.indexOf(m);
-                                const isFutureMonth = year > currentRealYear || (year === currentRealYear && monthActualIdx > currentRealMonthIdx);
-
-                                return (
-                                    <div 
-                                        key={m} 
-                                        onClick={() => { 
-                                            if (isFutureMonth) return;
-                                            setMonth(m); 
-                                            setPeriodType('Monthly'); 
-                                        }}
-                                        className={`flex-1 flex items-center justify-center px-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg border transition-all duration-300 ${
-                                            isFutureMonth 
-                                                ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-60' 
-                                                : `cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
-                                                    isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 
-                                                    isPending ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' : 
-                                                    isRejected ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' : 
-                                                    'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                                                }`
-                                        }`}
-                                        title={isFutureMonth ? `${m}: Future month` : `${m}: ${status || 'Not Submitted'} (Click to view)`}
-                                    >
-                                        <span className="hidden sm:inline">{m.substring(0, 3).toUpperCase()}</span>
-                                        <span className="sm:hidden">{m.substring(0, 1).toUpperCase()}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'partial' }) : setStatusModal({ isOpen: true, status: 'Pending' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-amber-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
+                    <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Clock size={20} strokeWidth={2.5} /></div>
+                    <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblPending}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.partial : mainStats.pending}</p></div>
+                </div>
+                <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'zero' }) : setStatusModal({ isOpen: true, status: 'Rejected' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
+                    <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors"><XCircle size={20} strokeWidth={2.5} /></div>
+                    <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblRejected}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.zero : mainStats.rejected}</p></div>
+                </div>
+                {lblCompletion && (
+                    <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-slate-400 transition-all duration-300 group">
+                        <div className="w-10 h-10 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all"><TrendingUp size={20} strokeWidth={2.5} /></div>
+                        <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblCompletion}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? mainAgg.rate : mainReportingRate}%</p></div>
                     </div>
                 )}
-              </div>
-            )}
+            </div>
 
-            {activeTab === 'cohort' && (
-              <div>
-                <h3 className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">
-                    {isConsolidatedView ? `Cohort Provincial Compliance (${getCurrentPeriodText()})` : `Cohort Overview (${currentDisplayPeriod} ${year})`}
-                </h3>
-                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 ${periodType === 'Monthly' && !isConsolidatedView ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'full', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Approved', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
-                        <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><CheckCircle size={20} strokeWidth={2.5} /></div>
-                        <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblApproved}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? cohortAgg.full : cohortStats.approved}</p></div>
+            {/* --- DYNAMIC SUBMISSION TRACKER --- */}
+            {!isConsolidatedView && periodType !== 'Monthly' && (
+                <div className="mt-4 bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex flex-col gap-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {periodType === 'Quarterly' ? `${formatQuarterName(quarter)} Submission Tracker (${year})` : `Yearly Submission Tracker (${year})`}
+                    </p>
+                    <div className="flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2">
+                        {(periodType === 'Quarterly' ? targetMonths : MONTHS).map((m) => {
+                            const status = uniqueMainMonths[m];
+                            const isApproved = status === 'Approved';
+                            const isPending = status === 'Pending';
+                            const isRejected = status === 'Rejected';
+                            
+                            const monthActualIdx = MONTHS.indexOf(m);
+                            const isFutureMonth = year > currentRealYear || (year === currentRealYear && monthActualIdx > currentRealMonthIdx);
+
+                            return (
+                                <div 
+                                    key={m} 
+                                    onClick={() => { 
+                                        if (isFutureMonth) return;
+                                        setMonth(m); 
+                                        setPeriodType('Monthly'); 
+                                    }}
+                                    className={`flex-1 flex items-center justify-center px-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg border transition-all duration-300 ${
+                                        isFutureMonth 
+                                            ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-60' 
+                                            : `cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
+                                                isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 
+                                                isPending ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' : 
+                                                isRejected ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' : 
+                                                'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                                            }`
+                                    }`}
+                                    title={isFutureMonth ? `${m}: Future month` : `${m}: ${status || 'Not Submitted'} (Click to view)`}
+                                >
+                                    <span className="hidden sm:inline">{m.substring(0, 3).toUpperCase()}</span>
+                                    <span className="sm:hidden">{m.substring(0, 1).toUpperCase()}</span>
+                                </div>
+                            );
+                        })}
                     </div>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'partial', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Pending', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-amber-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
-                        <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-500 group-hover:text-white transition-colors"><Clock size={20} strokeWidth={2.5} /></div>
-                        <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblPending}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? cohortAgg.partial : cohortStats.pending}</p></div>
-                    </div>
-                    <div onClick={() => isConsolidatedView ? setConsolidatedModal({ isOpen: true, filter: 'zero', reportType: 'cohort' }) : setStatusModal({ isOpen: true, status: 'Rejected', reportType: 'cohort' })} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-rose-300 transition-all duration-300 cursor-pointer group active:scale-[0.98]">
-                        <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors"><XCircle size={20} strokeWidth={2.5} /></div>
-                        <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblRejected}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? cohortAgg.zero : cohortStats.rejected}</p></div>
-                    </div>
-                    {lblCompletion && (
-                        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center gap-3 hover:-translate-y-1 hover:shadow-md hover:border-slate-400 transition-all duration-300 group">
-                            <div className="w-10 h-10 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_10px_rgba(250,204,21,0.3)] transition-all"><TrendingUp size={20} strokeWidth={2.5} /></div>
-                            <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lblCompletion}</p><p className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{isConsolidatedView ? cohortAgg.rate : cohortReportingRate}%</p></div>
-                        </div>
-                    )}
                 </div>
-
-                {/* --- DYNAMIC SUBMISSION TRACKER --- */}
-                {!isConsolidatedView && periodType !== 'Monthly' && (
-                    <div className="mt-4 bg-white rounded-xl p-3 sm:p-4 border border-slate-200 shadow-sm flex flex-col gap-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            {periodType === 'Quarterly' ? `${formatQuarterName(quarter)} Submission Tracker (${year})` : `Yearly Submission Tracker (${year})`}
-                        </p>
-                        <div className="flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2">
-                            {(periodType === 'Quarterly' ? targetMonths : MONTHS).map((m) => {
-                                const status = uniqueCohortMonths[m];
-                                const isApproved = status === 'Approved';
-                                const isPending = status === 'Pending';
-                                const isRejected = status === 'Rejected';
-                                
-                                const monthActualIdx = MONTHS.indexOf(m);
-                                const isFutureMonth = year > currentRealYear || (year === currentRealYear && monthActualIdx > currentRealMonthIdx);
-
-                                return (
-                                    <div 
-                                        key={m} 
-                                        onClick={() => { 
-                                            if (isFutureMonth) return;
-                                            setMonth(m); 
-                                            setPeriodType('Monthly'); 
-                                        }}
-                                        className={`flex-1 flex items-center justify-center px-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg border transition-all duration-300 ${
-                                            isFutureMonth 
-                                                ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-60' 
-                                                : `cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
-                                                    isApproved ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 
-                                                    isPending ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' : 
-                                                    isRejected ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' : 
-                                                    'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                                                }`
-                                        }`}
-                                        title={isFutureMonth ? `${m}: Future month` : `${m}: ${status || 'Not Submitted'} (Click to view)`}
-                                    >
-                                        <span className="hidden sm:inline">{m.substring(0, 3).toUpperCase()}</span>
-                                        <span className="sm:hidden">{m.substring(0, 1).toUpperCase()}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-              </div>
             )}
+            </div>
         </div>
 
         {/* Main Table Container */}
         <div className="bg-white rounded-none print:rounded-none print:shadow-none print:border-none relative w-full overflow-x-auto" style={{...PDF_STYLES.container}}>
-            
-            {showZeroBanner && (
-                <div className="bg-rose-50 text-rose-700 text-xs sm:text-sm font-bold py-2 sm:py-3 flex items-center justify-center gap-2 border-b border-rose-200 rounded-t-2xl no-print tracking-widest shadow-inner">
-                    <AlertCircle size={18} strokeWidth={2.5} />
-                    *** ZERO CASE REPORT ***
-                </div>
-            )}
-
-            {activeTab === 'main' ? (
-                <div className="min-w-fit">
-                    <MainReportTable 
-                        data={data} rowKeys={currentRows} isConsolidated={isConsolidatedView} isAggregationMode={isAggregationMode} reportStatus={reportStatus} userRole={user.role} activeFacilityName={activeFacilityName} currentHostMunicipality={currentHostMunicipality} 
-                        visibleOtherMunicipalities={visibleOtherMunicipalities} setVisibleOtherMunicipalities={setVisibleOtherMunicipalities}
-                        onChange={handleChange} 
-                        onDeleteRow={(key) => setDeleteRowConfirmation({ isOpen: true, rowKey: key })} 
-                        grandTotals={grandTotals} facilityBarangays={facilityBarangays}
+            <div className="min-w-fit">
+                {formRowKeys.length > 0 ? (
+                    <MainReportTableV2 
+                        data={v2Data} 
+                        rowKeys={formRowKeys} 
+                        populations={formPopulations}
+                        onChange={handleV2CellChange} 
+                        isRowReadOnly={reportStatus === 'Approved' || reportStatus === 'Pending' || isConsolidatedView}
                     />
-                </div>
-            ) : (
-                <div className="p-1 min-w-fit">
-                    <div className="mb-4 sm:mb-6 mt-4 mx-2 sm:mx-4 p-3 sm:p-4 bg-slate-100 text-slate-800 text-xs sm:text-sm rounded-xl border border-slate-200 flex items-start sm:items-center gap-2 sm:gap-3 no-print shadow-sm">
-                        <AlertCircle size={18} className="text-slate-600 shrink-0 mt-0.5 sm:mt-0" />
-                        <span><strong>Guide:</strong> Viewing Cohort Report. Reporting for <u>previous period</u>: <strong>{getPreviousPeriodText()}</strong> (Current Period: <strong>{getCurrentPeriodText()}</strong>).</span>
+                ) : (
+                    <div className="flex items-center justify-center h-64 text-slate-400 font-medium border border-slate-200 rounded-lg">
+                        <Loader2 className="animate-spin mr-2" size={20} /> Loading database locations...
                     </div>
-                    
-                    <div className="flex flex-wrap gap-4 sm:gap-6 mb-4 sm:mb-6 border-b border-gray-200 no-print px-4 sm:px-6">
-                        <button onClick={() => setCohortSubTab('cat2')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 active:opacity-70 transition-all duration-200 ${cohortSubTab==='cat2' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
-                            Category II Exposures
-                        </button>
-                        <button onClick={() => setCohortSubTab('cat3')} className={`text-xs sm:text-sm font-bold pb-2 sm:pb-3 border-b-2 active:opacity-70 transition-all duration-200 ${cohortSubTab==='cat3' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-400 hover:text-gray-700 hover:border-gray-300'}`}>
-                            Category III Exposures
-                        </button>
-                    </div>
-                    
-                    <CohortReportTable 
-                        subTab={cohortSubTab} data={cohortData} rowKeysCat2={cohortRowsCat2} rowKeysCat3={cohortRowsCat3} isConsolidated={isConsolidatedView} userRole={user.role} activeFacilityName={activeFacilityName} currentHostMunicipality={currentHostMunicipality}
-                        visibleCat2={visibleCat2} setVisibleCat2={setVisibleCat2} visibleCat3={visibleCat3} setVisibleCat3={setVisibleCat3}
-                        onChange={handleChange} 
-                        onDeleteRow={(key) => setDeleteRowConfirmation({ isOpen: true, rowKey: key })} 
-                        cohortTotals={cohortTotals}
-                    />
-                </div>
-            )}
+                )}
+            </div>
         </div>
 
         {/* --- EXPORT PDF CONFIRMATION MODAL --- */}
@@ -939,7 +834,7 @@ export default function FacilityDashboard({
                         </div>
                         <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Export to PDF?</h3>
                         <p className="text-xs sm:text-sm text-slate-500 mt-2 mb-6 leading-relaxed">
-                            Are you sure you want to download the <strong>{activeTab === 'main' ? 'Form 1' : 'Cohort'}</strong> report as a PDF document?
+                            Are you sure you want to download the <strong>Form 1</strong> report as a PDF document?
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
                             <button onClick={() => setShowExportModal(false)} disabled={isDownloadingPdf} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
@@ -1075,9 +970,9 @@ export default function FacilityDashboard({
                         <div className="bg-red-50 p-4 rounded-full mb-5 text-red-600 shadow-inner">
                             <AlertCircle size={28} strokeWidth={2.5} />
                         </div>
-                        <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Delete {activeTab === 'main' ? 'Form 1' : 'Cohort'} Report?</h3>
+                        <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Delete Form 1 Report?</h3>
                         <p className="text-xs sm:text-sm text-slate-500 mt-2 mb-6 leading-relaxed">
-                            Are you sure you want to delete the <strong>{activeTab === 'main' ? 'Form 1' : 'Cohort'}</strong> report? This action cannot be undone and all data will be lost.
+                            Are you sure you want to delete the <strong>Form 1</strong> report? This action cannot be undone and all data will be lost.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3 w-full">
                             <button onClick={() => setShowDeleteReportModal(false)} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
@@ -1085,33 +980,6 @@ export default function FacilityDashboard({
                             </button>
                             <button onClick={handleDeleteReportClick} disabled={isSaving} className="flex-1 py-3 sm:py-2.5 px-4 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 shadow-sm active:scale-95 transition-all duration-200 flex justify-center items-center gap-2 order-1 sm:order-2">
                                 {isSaving && <Loader2 size={16} className="animate-spin"/>} Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            </ModalPortal>
-        )}
-
-        {/* --- DELETE ROW MODAL --- */}
-        {deleteRowConfirmation.isOpen && (
-            <ModalPortal>
-             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
-                    <div className="flex flex-col items-center text-center">
-                        <div className="bg-amber-50 p-4 rounded-full mb-5 text-amber-600 shadow-inner">
-                            <AlertCircle size={28} strokeWidth={2.5} />
-                        </div>
-                        <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Remove Row?</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-2 mb-6 leading-relaxed">
-                            Are you sure you want to remove <strong>{deleteRowConfirmation.rowKey}</strong>? Any data entered in this row will be lost immediately.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-3 w-full">
-                            <button onClick={() => setDeleteRowConfirmation({ isOpen: false, rowKey: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all duration-200 order-2 sm:order-1">
-                                Cancel
-                            </button>
-                            <button onClick={confirmDeleteRow} className="flex-1 py-3 sm:py-2.5 px-4 bg-amber-500 text-black rounded-xl text-sm font-bold hover:bg-amber-600 shadow-sm active:scale-95 transition-all duration-200 order-1 sm:order-2">
-                                Remove
                             </button>
                         </div>
                     </div>

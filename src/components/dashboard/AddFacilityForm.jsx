@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, PlusCircle, Building2, MapPin, Building, Activity, X } from 'lucide-react';
-import { MUNICIPALITIES, MUNICIPALITIES_DATA } from '../../lib/constants';
 import { toast } from 'sonner';
 import ModalPortal from '../modals/ModalPortal';
+import { supabase } from '../../lib/supabase'; // IMPORT SUPABASE
 
 // --- FLOATING TEXT INPUT ---
 const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, disabled = false, required, placeholder = " " }) => (
@@ -37,11 +37,10 @@ const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, 
 const FloatingTextarea = ({ id, label, icon: Icon, value, disabled = false }) => {
     const textareaRef = useRef(null);
 
-    // Auto-resize logic based on content
     useEffect(() => {
         if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto'; // Reset height to recalculate
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`; // Set to exact scroll height
+            textareaRef.current.style.height = 'auto'; 
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`; 
         }
     }, [value]);
 
@@ -64,7 +63,6 @@ const FloatingTextarea = ({ id, label, icon: Icon, value, disabled = false }) =>
                 placeholder=" " 
                 value={value || ''}
             />
-            {/* Label is permanently floated to the top left */}
             <label className={`absolute text-[9px] transform -translate-y-1 top-2 z-10 origin-[0] ${Icon ? 'left-8' : 'left-3'} pointer-events-none font-bold tracking-wide text-slate-400`}>
                 {label}
             </label>
@@ -79,12 +77,55 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
   const [barangays, setBarangays] = useState('');
   const [selectedMunicipality, setSelectedMunicipality] = useState('');
   
+  // New V2 State for Database-Fetched Locations
+  const [dbMunicipalities, setDbMunicipalities] = useState([]);
+  const [dbCatchments, setDbCatchments] = useState({});
+  const [isFetchingLocations, setIsFetchingLocations] = useState(true);
+
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Normalize existing facilities and filter out municipalities that already have an RHU
+  // Fetch Locations directly from Supabase 'populations' table
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('populations')
+          .select('municipality, barangay_name')
+          .not('municipality', 'is', null);
+
+        if (error) throw error;
+
+        const munis = new Set();
+        const catchments = {};
+
+        data.forEach(item => {
+          if (item.municipality && item.municipality !== 'Non-Abra') {
+            munis.add(item.municipality);
+            if (item.barangay_name && item.barangay_name !== 'All') {
+              if (!catchments[item.municipality]) catchments[item.municipality] = [];
+              catchments[item.municipality].push(item.barangay_name);
+            }
+          }
+        });
+
+        const sortedMunis = Array.from(munis).sort();
+        Object.keys(catchments).forEach(m => catchments[m].sort());
+
+        setDbMunicipalities(sortedMunis);
+        setDbCatchments(catchments);
+      } catch (err) {
+        console.error('Error fetching locations:', err);
+        toast.error('Failed to load municipalities from database.');
+      } finally {
+        setIsFetchingLocations(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
   const normalizedFacilities = facilities.map(f => typeof f === 'string' ? f.trim().toLowerCase() : '');
-  const availableMunicipalities = MUNICIPALITIES.filter(m => {
-      if (m === 'Non-Abra') return false; 
+  const availableMunicipalities = dbMunicipalities.filter(m => {
       const expectedRhuName = `${m} RHU`.toLowerCase();
       return !normalizedFacilities.includes(expectedRhuName);
   });
@@ -96,7 +137,7 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
     if (type === 'RHU') {
         if (muni) {
             setName(`${muni} RHU`);
-            const catchments = MUNICIPALITIES_DATA[muni] || [];
+            const catchments = dbCatchments[muni] || [];
             setBarangays(catchments.join(', '));
         } else {
             setBarangays('');
@@ -112,7 +153,7 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
       if (newType === 'Hospital' || newType === 'Clinic') {
           setSelectedMunicipality('');
           setName('');
-          setBarangays(MUNICIPALITIES.join(', '));
+          setBarangays(dbMunicipalities.join(', '));
           if (newType === 'Clinic') setOwnership('Private');
           else setOwnership('Government'); 
       } else if (newType === 'RHU') {
@@ -125,14 +166,8 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
 
   const handlePreSubmit = (e) => {
     e.preventDefault();
-    if (!type) {
-        toast.error("Please select a Facility Type.");
-        return;
-    }
-    if (type === 'RHU' && !selectedMunicipality) {
-        toast.error("Please select a Municipality.");
-        return;
-    }
+    if (!type) { toast.error("Please select a Facility Type."); return; }
+    if (type === 'RHU' && !selectedMunicipality) { toast.error("Please select a Municipality."); return; }
     setShowConfirmModal(true);
   };
 
@@ -146,7 +181,6 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
         
       <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl w-full max-w-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
           
-          {/* Header */}
           <div className="bg-slate-900 px-6 sm:px-8 py-5 border-b border-slate-800 flex justify-between items-center relative overflow-hidden shrink-0">
             <div className="absolute -right-10 -top-10 w-40 h-40 bg-slate-800 rounded-full opacity-50 blur-2xl pointer-events-none"></div>
             <div className="flex items-center gap-3 relative z-10">
@@ -170,7 +204,6 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
           <div className="overflow-y-auto max-h-[75vh] custom-scrollbar">
               <form onSubmit={handlePreSubmit} className="p-6 sm:p-8 space-y-5">
                 
-                {/* Custom Select for Facility Type */}
                 <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${!type ? 'border-rose-200 bg-rose-50/20' : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md'}`}>
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                         <Activity size={14} className={`transition-colors duration-300 ${!type ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900 group-focus-within:scale-110'}`} />
@@ -182,15 +215,16 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
                         required
                         value={type} 
                         onChange={handleTypeChange} 
-                        className={`block w-full pl-8 pr-8 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${type ? 'text-slate-900' : 'text-slate-400'}`}
+                        disabled={isFetchingLocations}
+                        className={`block w-full pl-8 pr-8 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${type ? 'text-slate-900' : 'text-slate-400'} disabled:opacity-50`}
                     >
-                        <option value="" disabled>Select Facility Type...</option>
+                        <option value="" disabled>{isFetchingLocations ? "Loading Data..." : "Select Facility Type..."}</option>
                         <option value="RHU">RHU (Rural Health Unit)</option>
                         <option value="Hospital">Hospital</option>
                         <option value="Clinic">Clinic</option>
                     </select>
                     <div className={`absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none ${!type ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900'}`}>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                        {isFetchingLocations ? <Loader2 size={14} className="animate-spin" /> : <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>}
                     </div>
                 </div>
 
@@ -268,10 +302,10 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
                 <div className="pt-2">
                     <button 
                         type="submit" 
-                        disabled={loading} 
+                        disabled={loading || isFetchingLocations} 
                         className="w-full bg-slate-900 text-yellow-400 py-3 rounded-lg text-sm font-bold shadow-md hover:bg-slate-800 hover:shadow-lg active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
-                      {loading ? <Loader2 size={16} className="animate-spin" /> : <PlusCircle size={16} />}
+                      {loading || isFetchingLocations ? <Loader2 size={16} className="animate-spin" /> : <PlusCircle size={16} />}
                       {loading ? 'Registering...' : 'Register Facility'}
                     </button>
                 </div>
