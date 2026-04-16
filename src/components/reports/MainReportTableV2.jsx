@@ -35,8 +35,18 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
 
   const handleInputChange = (location, name, value) => {
     if (isRowReadOnly) return;
-    let val = value === '' ? '' : Math.max(0, parseInt(value) || 0);
-    onChange(location, name, val.toString());
+    
+    // STRICT BLANK VS ZERO LOGIC
+    // If the user leaves it blank, save it as an empty string
+    if (value === '') {
+        onChange(location, name, '');
+        return;
+    }
+    
+    // If they typed a number (including 0), parse it safely and save it as a stringified number
+    const parsed = parseInt(value, 10);
+    const finalVal = isNaN(parsed) ? '' : Math.max(0, parsed).toString();
+    onChange(location, name, finalVal);
   };
 
   const handleKeyDown = (e, location, cIdx, rowIndex, totalRows) => {
@@ -64,8 +74,6 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
   // ==========================================
   // DATA VALIDATION LOGIC
   // ==========================================
-  
-  // 1. Check Totals Mismatch
   const gtSex = calculateGrandTotal('male') + calculateGrandTotal('female');
   const gtAge = calculateGrandTotal('ageUnder15') + calculateGrandTotal('ageOver15');
   const gtCases = calculateGrandTotal('cat1') + 
@@ -76,10 +84,8 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
   const hasAnyData = gtSex > 0 || gtAge > 0 || gtCases > 0 || gtAnimals > 0;
   const isTotalsMatch = hasAnyData ? (gtSex === gtAge && gtSex === gtCases && gtCases === gtAnimals) : true;
 
-  // 2. Count PEP Exceedances (> 100%)
   let pepExceedCount = 0;
   
-  // Check every individual row
   allRowKeys.forEach(loc => {
       const row = data[loc] || {};
       const n = (name) => parseInt(row[name]) || 0;
@@ -99,7 +105,6 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
       if (totElig > 0 && totComp / totElig > 1) pepExceedCount++;
   });
 
-  // Check the Grand Total row
   const gt_e2p = calculateGrandTotal('cat2EligPri'), gt_c2p = calculateGrandTotal('compCat2Pri');
   const gt_e2b = calculateGrandTotal('cat2EligBoost'), gt_c2b = calculateGrandTotal('compCat2Boost');
   const gt_e3p = calculateGrandTotal('cat3EligPri'), gt_c3z = calculateGrandTotal('compCat3PriErig') + calculateGrandTotal('compCat3PriHrig');
@@ -169,8 +174,8 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
               {isTotalsMatch ? <CheckCircle size={16} className="shrink-0" /> : <XCircle size={16} className="shrink-0" />}
               <span>
                   {isTotalsMatch 
-                      ? "Totals of sex, age, animal bite cases, and biting animals match" 
-                      : "Totals of sex, age, animal bite cases, and biting animals DO NOT match. Please recheck the data."}
+                      ? "✅ Totals of sex, age, animal bite cases, and biting animals match" 
+                      : "❌ Totals of sex, age, animal bite cases, and biting animals DO NOT match. Please recheck the data."}
               </span>
           </div>
 
@@ -180,8 +185,8 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
               {pepExceedCount === 0 ? <CheckCircle size={16} className="shrink-0" /> : <XCircle size={16} className="shrink-0" />}
               <span>
                   {pepExceedCount === 0 
-                      ? "PEP Coverage ≤100%" 
-                      : `PEP Coverage cannot exceed 100%. ${pepExceedCount} cell(s) exceed 100%. Please recheck the data.`}
+                      ? "✅ PEP Coverage ≤100%" 
+                      : `❌ PEP Coverage cannot exceed 100%. ${pepExceedCount} cell(s) exceed 100%. Please recheck the data.`}
               </span>
           </div>
       </div>
@@ -196,7 +201,7 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
         ))}
       </div>
 
-      <div className="w-full overflow-auto hide-scrollbar flex-grow bg-white relative">
+      <div id="v2-table-container" className="w-full overflow-auto hide-scrollbar flex-grow bg-white relative scroll-smooth">
         <table className="w-full border-collapse tabular-nums relative">
           <thead className="sticky top-0 z-30 shadow-[0_2px_4px_rgba(0,0,0,0.04)]">
             {activeTab === 'tab1' && <Tab1Headers />}
@@ -237,11 +242,17 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
 
 const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, population, totalRows, onChange, onKeyDown, readOnly, num }) => {
   const renderInput = (name, colIndex) => {
+    // STRICT BLANK VS ZERO RENDER FIX:
+    // This checks if the database specifically sent us the number 0 or string '0'
+    // If they did, it shows it. Otherwise, it stays a beautifully clean blank ''.
+    const cellValue = rowData[name];
+    const displayValue = (cellValue !== undefined && cellValue !== null && cellValue !== '') ? cellValue : '';
+
     return (
       <input 
         id={`input-${activeTab}-${globalRowIndex}-${colIndex}`} 
         type="number" 
-        value={rowData[name] || ''} 
+        value={displayValue} 
         onChange={(e) => onChange(location, name, e.target.value)} 
         onKeyDown={(e) => onKeyDown(e, location, colIndex, globalRowIndex, totalRows)} 
         onWheel={(e) => e.target.blur()} 

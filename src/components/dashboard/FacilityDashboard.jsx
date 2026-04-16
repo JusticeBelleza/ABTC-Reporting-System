@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2, TrendingUp, ChevronRight, Clock, Archive, Building2, Layers, WifiOff, Plus, Calendar, CalendarCheck, BarChart3 } from 'lucide-react';
+import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2, TrendingUp, ChevronDown, Clock, Archive, Building2, Layers, WifiOff, Plus, Calendar, CalendarCheck, BarChart3, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
@@ -139,20 +139,27 @@ export default function FacilityDashboard({
         if (existingError) throw existingError;
 
         const loadedState = {};
+        
+        // FIX: Safely extract values so 0 doesn't turn into ''
+        const getV = (val) => (val === null || val === undefined) ? '' : String(val);
+
         if (existingData) {
           existingData.forEach(row => {
             if (!baseKeys.has(row.location_name)) {
                 otherKeys.add(row.location_name);
-                popMap[row.location_name] = fullPopMap[row.location_name] || 0;
+                popMap[row.location_name] = 0;
             }
             loadedState[row.location_name] = {
-              male: row.male || '', female: row.female || '', ageUnder15: row.age_under_15 || '', ageOver15: row.age_over_15 || '',
-              cat1: row.cat1 || '', cat2EligPri: row.cat2_elig_pri || '', cat2EligBoost: row.cat2_elig_boost || '', cat2NonElig: row.cat2_non_elig || '',
-              cat3EligPri: row.cat3_elig_pri || '', cat3EligBoost: row.cat3_elig_boost || '', cat3NonElig: row.cat3_non_elig || '',
-              compCat2Pri: row.comp_cat2_pri || '', compCat2Boost: row.comp_cat2_boost || '',
-              compCat3PriErig: row.comp_cat3_pri_erig || '', compCat3PriHrig: row.comp_cat3_pri_hrig || '', compCat3Boost: row.comp_cat3_boost || '',
-              typeDog: row.type_dog || '', typeCat: row.type_cat || '', typeOthers: row.type_others || '',
-              statusPet: row.status_pet || '', statusStray: row.status_stray || '', statusUnk: row.status_unk || '', rabiesCases: row.rabies_cases || ''
+              male: getV(row.male), female: getV(row.female), 
+              ageUnder15: getV(row.age_under_15), ageOver15: getV(row.age_over_15),
+              cat1: getV(row.cat1), 
+              cat2EligPri: getV(row.cat2_elig_pri), cat2EligBoost: getV(row.cat2_elig_boost), cat2NonElig: getV(row.cat2_non_elig),
+              cat3EligPri: getV(row.cat3_elig_pri), cat3EligBoost: getV(row.cat3_elig_boost), cat3NonElig: getV(row.cat3_non_elig),
+              compCat2Pri: getV(row.comp_cat2_pri), compCat2Boost: getV(row.comp_cat2_boost),
+              compCat3PriErig: getV(row.comp_cat3_pri_erig), compCat3PriHrig: getV(row.comp_cat3_pri_hrig), compCat3Boost: getV(row.comp_cat3_boost),
+              typeDog: getV(row.type_dog), typeCat: getV(row.type_cat), typeOthers: getV(row.type_others),
+              statusPet: getV(row.status_pet), statusStray: getV(row.status_stray), statusUnk: getV(row.status_unk), 
+              rabiesCases: getV(row.rabies_cases)
             };
           });
         }
@@ -216,20 +223,38 @@ export default function FacilityDashboard({
       if (!selectedLocationToAdd) return;
       const updatedOtherKeys = [...otherRowKeys, selectedLocationToAdd].sort((a, b) => (a === "Non-Abra") ? 1 : (b === "Non-Abra") ? -1 : a.localeCompare(b));
       setOtherRowKeys(updatedOtherKeys);
-      setFormPopulations(prev => ({ ...prev, [selectedLocationToAdd]: masterPopulations[selectedLocationToAdd] || 0 }));
+      setFormPopulations(prev => ({ ...prev, [selectedLocationToAdd]: 0 }));
       setAvailableLocationsToAdd(prev => prev.filter(loc => loc !== selectedLocationToAdd));
       setSelectedLocationToAdd("");
       toast.success(`${selectedLocationToAdd} added.`);
+
+      setTimeout(() => {
+          const tableContainer = document.getElementById('v2-table-container');
+          if (tableContainer) {
+              tableContainer.scrollTo({
+                  top: tableContainer.scrollHeight,
+                  behavior: 'smooth'
+              });
+          }
+      }, 100);
   };
 
   const confirmDeleteOtherRow = () => {
     const loc = deleteRowModal.location;
     setOtherRowKeys(prev => prev.filter(k => k !== loc));
+    
     setV2Data(prev => {
         const next = { ...prev };
         delete next[loc];
         return next;
     });
+
+    setFormPopulations(prev => {
+        const next = { ...prev };
+        delete next[loc];
+        return next;
+    });
+
     setAvailableLocationsToAdd(prev => [...prev, loc].sort((a,b) => (a==="Non-Abra")?1:(b==="Non-Abra")?-1:a.localeCompare(b)));
     setDeleteRowModal({ isOpen: false, location: null });
     toast.success(`${loc} removed from table.`);
@@ -247,7 +272,8 @@ export default function FacilityDashboard({
             try {
                 toast.info("🌐 Connection restored! Auto-syncing offline V2 report...", { duration: 4000 });
                 const payload = Object.entries(draft.data).map(([loc, row]) => {
-                    const num = (val) => parseInt(val) || 0;
+                    // FIX: Saves blank strings as null, preserves 0
+                    const num = (val) => (val === '' || val === null || val === undefined) ? null : parseInt(val);
                     return {
                         year: draft.year, month: draft.month, facility: draft.facility, location_name: loc,
                         status: draft.intendedStatus || 'Draft',
@@ -287,7 +313,8 @@ export default function FacilityDashboard({
       
       const payload = allKeysToSave.map(loc => {
         const row = v2Data[loc] || {};
-        const num = (val) => parseInt(val) || 0;
+        // FIX: Saves blank strings as null, preserves 0
+        const num = (val) => (val === '' || val === null || val === undefined) ? null : parseInt(val);
         return {
           year, month: currentPeriod, facility: activeFacilityName, location_name: loc,
           status, 
@@ -535,17 +562,34 @@ export default function FacilityDashboard({
                         />
                         
                         {!isConsolidatedView && reportStatus !== 'Approved' && reportStatus !== 'Pending' && (
-                            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-4 shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <div className="bg-blue-100 text-blue-600 p-1.5 rounded-lg"><Plus size={16} strokeWidth={3}/></div>
-                                    <div><h3 className="text-sm font-bold text-slate-800">Add Patient Origin</h3><p className="text-[10px] text-slate-500 font-medium">Report cases from outside your catchment area.</p></div>
+                            <div className="bg-white border-t border-slate-100 px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100"><MapPin size={16} strokeWidth={2.5}/></div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-800 tracking-tight">Add Patient Origin</h3>
+                                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Include cases from other municipalities</p>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                                    <select value={selectedLocationToAdd} onChange={e => setSelectedLocationToAdd(e.target.value)} className="text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2 w-full sm:w-[220px] focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-700 bg-white">
-                                        <option value="">-- Select Municipality --</option>
-                                        {availableLocationsToAdd.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                                    </select>
-                                    <button onClick={handleAddRow} disabled={!selectedLocationToAdd} className="bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors">Add Row</button>
+                                    <div className="relative w-full sm:w-auto">
+                                        <select 
+                                            value={selectedLocationToAdd} 
+                                            onChange={e => setSelectedLocationToAdd(e.target.value)} 
+                                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-4 focus:ring-slate-50 focus:border-slate-300 transition-all shadow-sm w-full sm:w-[220px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={availableLocationsToAdd.length === 0}
+                                        >
+                                            <option value="" disabled className="text-slate-400">Select municipality...</option>
+                                            {availableLocationsToAdd.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                                        </select>
+                                        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    </div>
+                                    <button 
+                                        onClick={handleAddRow} 
+                                        disabled={!selectedLocationToAdd} 
+                                        className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 disabled:hover:bg-white text-sm font-bold px-4 py-2 rounded-lg transition-all shadow-sm whitespace-nowrap flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                                    >
+                                        <Plus size={14} strokeWidth={2.5}/> Add
+                                    </button>
                                 </div>
                             </div>
                         )}
