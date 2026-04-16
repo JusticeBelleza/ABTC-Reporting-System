@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X, CheckCircle, XCircle, TrendingUp, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X, CheckCircle, XCircle, TrendingUp, ChevronRight, ChevronLeft, FileDown, Loader2, ArrowLeft } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
@@ -8,6 +8,17 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
 import ModalPortal from '../modals/ModalPortal';
+import { exportToExcelTemplate } from '../../lib/excelExporter';
+import MainReportTableV2 from '../reports/MainReportTableV2';
+import { useReportStore } from '../../store/useReportStore';
+
+const ABRA_MUNICIPALITIES = [
+    "Bangued", "Boliney", "Bucay", "Bucloc", "Daguioman", "Danglas", "Dolores",
+    "La Paz", "Lacub", "Lagangilang", "Lagayan", "Langiden", "Licuan-Baay",
+    "Luba", "Malibcong", "Manabo", "Penarrubia", "Pidigan", "Pilar",
+    "Sallapadan", "San Isidro", "San Juan", "San Quintin", "Tayum",
+    "Tineg", "Tubo", "Villaviciosa"
+];
 
 export default function AdminDashboard({ 
   onViewConsolidated, 
@@ -21,8 +32,10 @@ export default function AdminDashboard({
   availableYears, availableMonths,
   initiateDeleteFacility 
 }) {
-  const { facilities, user, facilityBarangays } = useApp();
+  const { facilities, user, facilityBarangays, facilityDetails, globalSettings, userProfile } = useApp();
   
+  const setInitialData = useReportStore(state => state.setInitialData);
+
   const [facilityMeta, setFacilityMeta] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
   const [facilityOwners, setFacilityOwners] = useState({});
@@ -30,6 +43,10 @@ export default function AdminDashboard({
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, facility: null });
   const [statusModal, setStatusModal] = useState({ isOpen: false, status: null });
   const [leaderboardModal, setLeaderboardModal] = useState({ isOpen: false, filter: null });
+  
+  const [isViewingConsolidated, setIsViewingConsolidated] = useState(false);
+  const [isLoadingConsolidated, setIsLoadingConsolidated] = useState(false);
+  const [isExportingConsolidated, setIsExportingConsolidated] = useState(false);
 
   const [yearlyStats, setYearlyStats] = useState({ main: [] });
   const [facilityStatuses, setFacilityStatuses] = useState({});
@@ -62,7 +79,7 @@ export default function AdminDashboard({
 
   const fetchFacilityMeta = async () => {
     try {
-      const { data } = await supabase.from('facilities').select('name, status, type, ownership');
+      const { data } = await supabase.from('facilities').select('name, status, type, ownership, host_municipality');
       if (data) setFacilityMeta(data);
     } catch (err) { console.error("Error fetching facility meta", err); }
   };
@@ -97,7 +114,6 @@ export default function AdminDashboard({
 
   useEffect(() => { fetchFacilityMeta(); }, [facilities]);
 
-  // V2 Fetch Logic for Statuses & Leaderboards (FIXED created_at)
   useEffect(() => {
     const fetchV2StatsAndStatuses = async () => {
         if (!year) return;
@@ -152,6 +168,280 @@ export default function AdminDashboard({
     } catch (err) { toast.error(`Failed to ${action} facility`); }
   };
 
+  // ==========================================
+  // CONSOLIDATED DATA FETCHING & UI RENDER
+  // ==========================================
+  const loadConsolidatedData = async () => {
+    setIsLoadingConsolidated(true);
+    try {
+        const { data: popData, error: popError } = await supabase.from('populations').select('municipality, barangay_name, population, year');
+        if (popError) throw popError;
+
+        const muniPopulations = {};
+        ABRA_MUNICIPALITIES.forEach(m => muniPopulations[m] = 0);
+        muniPopulations["Non-Abra"] = 0; 
+
+        if (popData && popData.length > 0) {
+            const maxYear = Math.max(...popData.map(p => p.year || 0));
+            const latestPopData = popData.filter(p => !p.year || p.year === maxYear);
+            
+            const muniPopSums = {};
+            const fullPopMap = {};
+
+            latestPopData.forEach(item => {
+                const muni = (item.municipality || '').trim();
+                const brgy = (item.barangay_name || '').trim();
+                const pop = parseInt(item.population) || 0;
+                
+                if (brgy && brgy.toLowerCase() !== 'all') {
+                    muniPopSums[muni] = (muniPopSums[muni] || 0) + pop;
+                } else if (!brgy || brgy.toLowerCase() === 'all') {
+                    fullPopMap[muni] = pop;
+                }
+            });
+
+            ABRA_MUNICIPALITIES.forEach(m => {
+                muniPopulations[m] = fullPopMap[m] !== undefined ? fullPopMap[m] : (muniPopSums[m] || 0);
+            });
+        }
+
+        let targetMonths = [];
+        if (periodType === 'Monthly') targetMonths = [month];
+        else if (periodType === 'Quarterly') {
+            const qIdx = QUARTERS.indexOf(quarter);
+            targetMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
+        } else targetMonths = MONTHS;
+
+        // FIX: STRICTLY PULLS ONLY 'Approved' REPORTS
+        const { data: reports, error: repError } = await supabase.from('abtc_reports_v2')
+            .select('*')
+            .eq('year', year)
+            .in('month', periodType === 'Annual' ? MONTHS : targetMonths)
+            .eq('status', 'Approved');
+
+        if (repError) throw repError;
+
+        const consolidatedData = {};
+        ABRA_MUNICIPALITIES.forEach(m => consolidatedData[m] = {
+            male: null, female: null, ageUnder15: null, ageOver15: null, cat1: null, 
+            cat2EligPri: null, cat2EligBoost: null, cat2NonElig: null, 
+            cat3EligPri: null, cat3EligBoost: null, cat3NonElig: null, 
+            compCat2Pri: null, compCat2Boost: null, compCat3PriErig: null, compCat3PriHrig: null, compCat3Boost: null, 
+            typeDog: null, typeCat: null, typeOthers: null, statusPet: null, statusStray: null, statusUnk: null, rabiesCases: null
+        });
+        consolidatedData["Non-Abra"] = { ...consolidatedData["Bangued"] }; 
+
+        const addVal = (current, incoming) => {
+            if (incoming === null || incoming === undefined || incoming === '') return current;
+            const num = parseInt(incoming, 10);
+            if (isNaN(num)) return current;
+            return (current === null ? 0 : current) + num;
+        };
+
+        const map = {
+            male: 'male', female: 'female', ageUnder15: 'age_under_15', ageOver15: 'age_over_15',
+            cat1: 'cat1', cat2EligPri: 'cat2_elig_pri', cat2EligBoost: 'cat2_elig_boost', cat2NonElig: 'cat2_non_elig',
+            cat3EligPri: 'cat3_elig_pri', cat3EligBoost: 'cat3_elig_boost', cat3NonElig: 'cat3_non_elig',
+            compCat2Pri: 'comp_cat2_pri', compCat2Boost: 'comp_cat2_boost', compCat3PriErig: 'comp_cat3_pri_erig', compCat3PriHrig: 'comp_cat3_pri_hrig', compCat3Boost: 'comp_cat3_boost',
+            typeDog: 'type_dog', typeCat: 'type_cat', typeOthers: 'type_others',
+            statusPet: 'status_pet', statusStray: 'status_stray', statusUnk: 'status_unk', rabiesCases: 'rabies_cases'
+        };
+
+        reports.forEach(row => {
+            const loc = row.location_name?.trim();
+            const facName = row.facility;
+            
+            let targetMuni = null;
+
+            if (ABRA_MUNICIPALITIES.includes(loc)) {
+                targetMuni = loc;
+            } else if (loc === "Non-Abra") {
+                targetMuni = "Non-Abra"; 
+            } else {
+                const fMeta = facilityMeta.find(m => m.name === facName);
+                if (fMeta && fMeta.host_municipality && ABRA_MUNICIPALITIES.includes(fMeta.host_municipality)) {
+                    targetMuni = fMeta.host_municipality;
+                } else {
+                    const fCtx = facilityDetails?.[facName];
+                    if (fCtx && fCtx.host_municipality && ABRA_MUNICIPALITIES.includes(fCtx.host_municipality)) {
+                        targetMuni = fCtx.host_municipality;
+                    } else {
+                        const guessed = ABRA_MUNICIPALITIES.find(m => facName.includes(m));
+                        if (guessed) targetMuni = guessed;
+                    }
+                }
+            }
+
+            if (targetMuni && consolidatedData[targetMuni]) {
+                const agg = consolidatedData[targetMuni];
+                for (const [camel, snake] of Object.entries(map)) {
+                    agg[camel] = addVal(agg[camel], row[snake]);
+                }
+            }
+        });
+
+        Object.keys(consolidatedData).forEach(loc => {
+            Object.keys(consolidatedData[loc]).forEach(k => {
+                consolidatedData[loc][k] = consolidatedData[loc][k] === null ? '' : String(consolidatedData[loc][k]);
+            });
+        });
+
+        setInitialData({
+            formRowKeys: [...ABRA_MUNICIPALITIES, "Non-Abra"], 
+            otherRowKeys: [], 
+            formPopulations: muniPopulations,
+            masterPopulations: muniPopulations,
+            v2Data: consolidatedData,
+            availableLocationsToAdd: [],
+            selectedLocationToAdd: ""
+        });
+
+        setIsViewingConsolidated(true);
+    } catch (err) {
+        toast.error("Failed to load consolidated data");
+    } finally {
+        setIsLoadingConsolidated(false);
+    }
+  };
+
+  useEffect(() => {
+      if (isViewingConsolidated) {
+          loadConsolidatedData();
+      }
+  }, [year, month, quarter, periodType]);
+
+  const handleExportConsolidated = async () => {
+    setIsExportingConsolidated(true);
+    try {
+        const { v2Data, formRowKeys, otherRowKeys, formPopulations } = useReportStore.getState();
+
+        let rawDataForAnnual = null;
+        if (periodType === 'Annual') {
+            // FIX: STRICTLY PULLS ONLY 'Approved' REPORTS FOR RAW DATA
+            const { data: rd, error } = await supabase.from('abtc_reports_v2')
+                .select('*')
+                .eq('year', year)
+                .eq('status', 'Approved');
+            if (error) throw error;
+            
+            rawDataForAnnual = rd.map(row => {
+                const loc = row.location_name?.trim();
+                const facName = row.facility;
+                
+                let targetMuni = null;
+
+                if (ABRA_MUNICIPALITIES.includes(loc)) {
+                    targetMuni = loc;
+                } else if (loc === "Non-Abra") {
+                    targetMuni = "Non-Abra"; 
+                } else {
+                    const fMeta = facilityMeta.find(m => m.name === facName);
+                    if (fMeta && fMeta.host_municipality && ABRA_MUNICIPALITIES.includes(fMeta.host_municipality)) {
+                        targetMuni = fMeta.host_municipality;
+                    } else {
+                        const fCtx = facilityDetails?.[facName];
+                        if (fCtx && fCtx.host_municipality && ABRA_MUNICIPALITIES.includes(fCtx.host_municipality)) {
+                            targetMuni = fCtx.host_municipality;
+                        } else {
+                            const guessed = ABRA_MUNICIPALITIES.find(m => facName.includes(m));
+                            if (guessed) targetMuni = guessed;
+                        }
+                    }
+                }
+                return targetMuni ? { ...row, location_name: targetMuni } : null;
+            }).filter(Boolean);
+        }
+
+        await exportToExcelTemplate({
+            data: v2Data,
+            formRowKeys, 
+            otherRowKeys: [], 
+            populations: formPopulations,
+            periodType, quarter, month, year,
+            facilityName: "PROVINCE OF ABRA (CONSOLIDATED)",
+            globalSettings, userProfile,
+            rawData: rawDataForAnnual
+        });
+
+        toast.success("Consolidated Excel exported successfully!");
+    } catch (err) {
+        console.error(err);
+        toast.error("Failed to generate Consolidated Excel.");
+    } finally {
+        setIsExportingConsolidated(false);
+    }
+  };
+
+  // ==========================================
+  // RENDER CONSOLIDATED TABLE VIEW
+  // ==========================================
+  if (isViewingConsolidated) {
+      return (
+          <div className="flex flex-col h-full w-full bg-slate-50 relative pb-24">
+              <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-4 pt-4 flex-1">
+                  
+                  {/* Header */}
+                  <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden">
+                      <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
+                      <div className="flex items-start sm:items-center gap-4 relative z-10">
+                          <button onClick={() => setIsViewingConsolidated(false)} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ArrowLeft size={20}/></button>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
+                              <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">Province-Wide Consolidated</h2>
+                              <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1.5"><Layers size={14}/> Province Data</div>
+                          </div>
+                      </div>
+                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 relative z-10 w-full xl:w-auto shrink-0">
+                          <button disabled={isExportingConsolidated} onClick={handleExportConsolidated} className="w-full sm:w-auto bg-yellow-400 text-black px-5 py-2.5 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                              {isExportingConsolidated ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
+                              {isExportingConsolidated ? 'Aggregating...' : 'Export Excel'}
+                          </button>
+                      </div>
+                  </div>
+
+                  {/* Filters */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-4 relative z-10">
+                      <h2 className="text-slate-800 font-bold px-4 shrink-0">Animal Bite and Rabies Report Form</h2>
+                      <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+                          <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
+                          
+                          {/* FIX: Dynamic Dropdowns (Hides Future Months/Quarters entirely) */}
+                          {periodType === 'Monthly' && (
+                              <select value={month} onChange={e => setMonth(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
+                                  {availableMonths
+                                      .filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx)))
+                                      .map(m => <option key={m} value={m}>{m}</option>)}
+                              </select>
+                          )}
+                          {periodType === 'Quarterly' && (
+                              <select value={quarter} onChange={e => setQuarter(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
+                                  {QUARTERS
+                                      .filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3))))
+                                      .map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
+                              </select>
+                          )}
+                          <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">{availableYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                      </div>
+                  </div>
+
+                  {/* Table Component */}
+                  <div className="bg-white flex-1 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
+                      {isLoadingConsolidated ? (
+                          <div className="flex flex-col items-center justify-center py-32 text-slate-400">
+                              <Loader2 className="animate-spin mb-4 text-blue-500" size={32} />
+                              <p>Aggregating province-wide data...</p>
+                          </div>
+                      ) : (
+                          <MainReportTableV2 isRowReadOnly={true} onDeleteOtherRow={() => {}} />
+                      )}
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
+  // ==========================================
+  // RENDER NORMAL ADMIN DASHBOARD
+  // ==========================================
   const displayedFacilities = facilities.filter(f => {
     const meta = facilityMeta.find(m => m.name === f);
     const status = meta?.status || 'Active'; 
@@ -468,7 +758,7 @@ export default function AdminDashboard({
                     <Users size={16} /> <span>Manage Users</span>
                 </button>
                 <div className="hidden sm:block w-px h-6 bg-slate-700 mx-1"></div>
-                <button onClick={onViewConsolidated} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 flex items-center gap-2 active:scale-95 transition-all duration-200">
+                <button onClick={loadConsolidatedData} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 flex items-center gap-2 active:scale-95 transition-all duration-200">
                     <Layers size={16} /> <span>Consolidated Report</span>
                 </button>
             </div>
@@ -490,22 +780,20 @@ export default function AdminDashboard({
                     </select>
                 </div>
                 
+                {/* FIX: Dynamic Dropdowns (Hides Future Months/Quarters entirely) */}
                 {periodType === 'Monthly' && (
                     <select value={month} onChange={e => setMonth(e.target.value)} disabled={!availableMonths.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
-                        {availableMonths.map(m => {
-                            const mIdx = MONTHS.indexOf(m);
-                            const isFuture = year > currentRealYear || (year === currentRealYear && mIdx > currentRealMonthIdx);
-                            return <option key={m} value={m} disabled={isFuture}>{m}</option>;
-                        })}
+                        {availableMonths
+                            .filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx)))
+                            .map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                 )}
                 
                 {periodType === 'Quarterly' && (
                     <select value={quarter} onChange={e => setQuarter(e.target.value)} disabled={!QUARTERS.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
-                        {QUARTERS.map((q, idx) => {
-                            const isFuture = year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3));
-                            return <option key={q} value={q} disabled={isFuture}>{formatQuarterName(q)}</option>;
-                        })}
+                        {QUARTERS
+                            .filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3))))
+                            .map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
                     </select>
                 )}
                 

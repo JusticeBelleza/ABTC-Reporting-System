@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, Trash2, ChevronDown, WifiOff, Plus, Calendar, CalendarCheck, BarChart3, MapPin } from 'lucide-react';
+import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2, TrendingUp, ChevronDown, Clock, Archive, Building2, Layers, WifiOff, Plus, Calendar, CalendarCheck, BarChart3, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS } from '../../lib/constants';
@@ -10,16 +10,17 @@ import { supabase } from '../../lib/supabase';
 import MainReportTableV2 from '../reports/MainReportTableV2';
 import { saveOfflineDraft, getOfflineDraft, clearOfflineDraft } from '../../lib/offlineDB';
 import { useReportStore } from '../../store/useReportStore';
+import { exportToExcelTemplate } from '../../lib/excelExporter'; 
 
 export default function FacilityDashboard({
   periodType, setPeriodType, year, setYear, month, setMonth, quarter, setQuarter,
   availableYears, availableMonths, adminViewMode, selectedFacility, onBack, currentRealYear, currentRealMonthIdx 
 }) {
-  const { user, facilityDetails } = useApp();
+  const { user, facilityDetails, globalSettings, userProfile } = useApp();
   const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
 
-  // --- ZUSTAND STORE HOOKS ---
   const formRowKeys = useReportStore(state => state.formRowKeys);
+  const otherRowKeys = useReportStore(state => state.otherRowKeys);
   const availableLocationsToAdd = useReportStore(state => state.availableLocationsToAdd);
   const selectedLocationToAdd = useReportStore(state => state.selectedLocationToAdd);
   const setSelectedLocationToAdd = useReportStore(state => state.setSelectedLocationToAdd);
@@ -27,20 +28,23 @@ export default function FacilityDashboard({
   const deleteOtherRow = useReportStore(state => state.deleteOtherRow);
   const setInitialData = useReportStore(state => state.setInitialData);
 
-  // Clean up store when we unmount/leave the page
   useEffect(() => {
     return () => useReportStore.getState().reset();
   }, []);
 
   const [deleteRowModal, setDeleteRowModal] = useState({ isOpen: false, location: null });
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isExporting, setIsExporting] = useState(false); 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false); 
   const [showExportModal, setShowExportModal] = useState(false); 
   const [showDraftModal, setShowDraftModal] = useState(false); 
+  const [showDeleteReportModal, setShowDeleteReportModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isZeroSubmit, setIsZeroSubmit] = useState(false);
+
+  const [v2Status, setV2Status] = useState('Draft');
+  const [isFetchingV2, setIsFetchingV2] = useState(false); 
 
   const [yearlyStats, setYearlyStats] = useState({ main: [] });
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -62,7 +66,7 @@ export default function FacilityDashboard({
       return q;
   };
 
-  const { reportStatus, loading, isSaving, activeFacilityName, currentHostMunicipality } = useReportData({
+  const { loading, isSaving, activeFacilityName, currentHostMunicipality } = useReportData({
     user, facilityDetails, year, month, quarter, periodType, adminViewMode, selectedFacility
   });
 
@@ -72,6 +76,8 @@ export default function FacilityDashboard({
   useEffect(() => {
     const fetchV2Data = async () => {
       if (!activeFacilityName) return;
+      setIsFetchingV2(true); 
+      
       try {
         let facilityType = facilityDetails?.[activeFacilityName]?.type;
         if (!facilityType) {
@@ -121,33 +127,107 @@ export default function FacilityDashboard({
         }
         fullPopMap["Non-Abra"] = 0;
 
-        const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
+        const targetMonths = periodType === 'Monthly' 
+            ? [month] 
+            : periodType === 'Quarterly' 
+                ? MONTHS.slice(QUARTERS.indexOf(quarter) * 3, QUARTERS.indexOf(quarter) * 3 + 3)
+                : MONTHS;
+
         const { data: existingData, error: existingError } = await supabase
-          .from('abtc_reports_v2').select('*').eq('year', year).eq('month', currentPeriod).eq('facility', activeFacilityName);
+          .from('abtc_reports_v2')
+          .select('*')
+          .eq('year', year)
+          .in('month', targetMonths) 
+          .eq('facility', activeFacilityName);
+        
         if (existingError) throw existingError;
+
+        if (existingData && existingData.length > 0) {
+            if (periodType === 'Monthly') setV2Status(existingData[0].status || 'Draft');
+            else setV2Status('View Only'); 
+        } else {
+            setV2Status('Draft');
+        }
 
         const loadedState = {};
         const getV = (val) => (val === null || val === undefined) ? '' : String(val);
 
         if (existingData) {
-          existingData.forEach(row => {
-            if (!baseKeys.has(row.location_name)) {
-                otherKeys.add(row.location_name);
-                popMap[row.location_name] = 0;
+            if (periodType === 'Monthly') {
+                existingData.forEach(row => {
+                    if (!baseKeys.has(row.location_name)) {
+                        otherKeys.add(row.location_name);
+                        popMap[row.location_name] = 0;
+                    }
+                    loadedState[row.location_name] = {
+                        male: getV(row.male), female: getV(row.female), 
+                        ageUnder15: getV(row.age_under_15), ageOver15: getV(row.age_over_15),
+                        cat1: getV(row.cat1), 
+                        cat2EligPri: getV(row.cat2_elig_pri), cat2EligBoost: getV(row.cat2_elig_boost), cat2NonElig: getV(row.cat2_non_elig),
+                        cat3EligPri: getV(row.cat3_elig_pri), cat3EligBoost: getV(row.cat3_elig_boost), cat3NonElig: getV(row.cat3_non_elig),
+                        compCat2Pri: getV(row.comp_cat2_pri), compCat2Boost: getV(row.comp_cat2_boost),
+                        compCat3PriErig: getV(row.comp_cat3_pri_erig), compCat3PriHrig: getV(row.comp_cat3_pri_hrig), compCat3Boost: getV(row.comp_cat3_boost),
+                        typeDog: getV(row.type_dog), typeCat: getV(row.type_cat), typeOthers: getV(row.type_others),
+                        statusPet: getV(row.status_pet), statusStray: getV(row.status_stray), statusUnk: getV(row.status_unk), 
+                        rabiesCases: getV(row.rabies_cases)
+                    };
+                });
+            } else {
+                existingData.forEach(row => {
+                    const loc = row.location_name;
+                    if (!baseKeys.has(loc)) {
+                        otherKeys.add(loc);
+                        if (popMap[loc] === undefined) popMap[loc] = 0;
+                    }
+                    
+                    if (!loadedState[loc]) {
+                        loadedState[loc] = { 
+                            male: null, female: null, ageUnder15: null, ageOver15: null, cat1: null, 
+                            cat2EligPri: null, cat2EligBoost: null, cat2NonElig: null, 
+                            cat3EligPri: null, cat3EligBoost: null, cat3NonElig: null, 
+                            compCat2Pri: null, compCat2Boost: null, compCat3PriErig: null, compCat3PriHrig: null, compCat3Boost: null, 
+                            typeDog: null, typeCat: null, typeOthers: null, statusPet: null, statusStray: null, statusUnk: null, rabiesCases: null 
+                        };
+                    }
+
+                    const addVal = (current, incoming) => {
+                        if (incoming === null || incoming === undefined || incoming === '') return current;
+                        const num = parseInt(incoming, 10);
+                        if (isNaN(num)) return current;
+                        return (current === null ? 0 : current) + num;
+                    };
+                    
+                    loadedState[loc].male = addVal(loadedState[loc].male, row.male);
+                    loadedState[loc].female = addVal(loadedState[loc].female, row.female);
+                    loadedState[loc].ageUnder15 = addVal(loadedState[loc].ageUnder15, row.age_under_15);
+                    loadedState[loc].ageOver15 = addVal(loadedState[loc].ageOver15, row.age_over_15);
+                    loadedState[loc].cat1 = addVal(loadedState[loc].cat1, row.cat1);
+                    loadedState[loc].cat2EligPri = addVal(loadedState[loc].cat2EligPri, row.cat2_elig_pri);
+                    loadedState[loc].cat2EligBoost = addVal(loadedState[loc].cat2EligBoost, row.cat2_elig_boost);
+                    loadedState[loc].cat2NonElig = addVal(loadedState[loc].cat2NonElig, row.cat2_non_elig);
+                    loadedState[loc].cat3EligPri = addVal(loadedState[loc].cat3EligPri, row.cat3_elig_pri);
+                    loadedState[loc].cat3EligBoost = addVal(loadedState[loc].cat3EligBoost, row.cat3_elig_boost);
+                    loadedState[loc].cat3NonElig = addVal(loadedState[loc].cat3NonElig, row.cat3_non_elig);
+                    loadedState[loc].compCat2Pri = addVal(loadedState[loc].compCat2Pri, row.comp_cat2_pri);
+                    loadedState[loc].compCat2Boost = addVal(loadedState[loc].compCat2Boost, row.comp_cat2_boost);
+                    loadedState[loc].compCat3PriErig = addVal(loadedState[loc].compCat3PriErig, row.comp_cat3_pri_erig);
+                    loadedState[loc].compCat3PriHrig = addVal(loadedState[loc].compCat3PriHrig, row.comp_cat3_pri_hrig);
+                    loadedState[loc].compCat3Boost = addVal(loadedState[loc].compCat3Boost, row.comp_cat3_boost);
+                    loadedState[loc].typeDog = addVal(loadedState[loc].typeDog, row.type_dog);
+                    loadedState[loc].typeCat = addVal(loadedState[loc].typeCat, row.type_cat);
+                    loadedState[loc].typeOthers = addVal(loadedState[loc].typeOthers, row.type_others);
+                    loadedState[loc].statusPet = addVal(loadedState[loc].statusPet, row.status_pet);
+                    loadedState[loc].statusStray = addVal(loadedState[loc].statusStray, row.status_stray);
+                    loadedState[loc].statusUnk = addVal(loadedState[loc].statusUnk, row.status_unk);
+                    loadedState[loc].rabiesCases = addVal(loadedState[loc].rabiesCases, row.rabies_cases);
+                });
+
+                Object.keys(loadedState).forEach(loc => {
+                    Object.keys(loadedState[loc]).forEach(k => {
+                        loadedState[loc][k] = loadedState[loc][k] === null ? '' : String(loadedState[loc][k]);
+                    });
+                });
             }
-            loadedState[row.location_name] = {
-              male: getV(row.male), female: getV(row.female), 
-              ageUnder15: getV(row.age_under_15), ageOver15: getV(row.age_over_15),
-              cat1: getV(row.cat1), 
-              cat2EligPri: getV(row.cat2_elig_pri), cat2EligBoost: getV(row.cat2_elig_boost), cat2NonElig: getV(row.cat2_non_elig),
-              cat3EligPri: getV(row.cat3_elig_pri), cat3EligBoost: getV(row.cat3_elig_boost), cat3NonElig: getV(row.cat3_non_elig),
-              compCat2Pri: getV(row.comp_cat2_pri), compCat2Boost: getV(row.comp_cat2_boost),
-              compCat3PriErig: getV(row.comp_cat3_pri_erig), compCat3PriHrig: getV(row.comp_cat3_pri_hrig), compCat3Boost: getV(row.comp_cat3_boost),
-              typeDog: getV(row.type_dog), typeCat: getV(row.type_cat), typeOthers: getV(row.type_others),
-              statusPet: getV(row.status_pet), statusStray: getV(row.status_stray), statusUnk: getV(row.status_unk), 
-              rabiesCases: getV(row.rabies_cases)
-            };
-          });
         }
 
         const sortedBaseKeys = Array.from(baseKeys).sort((a, b) => a.localeCompare(b));
@@ -156,7 +236,6 @@ export default function FacilityDashboard({
         const availableMunis = Array.from(allMunicipalities).filter(m => !combinedKeys.includes(m) && m.toLowerCase() !== (currentHostMunicipality || '').toLowerCase()).sort();
         if (!combinedKeys.includes("Non-Abra")) availableMunis.push("Non-Abra");
 
-        // FIRE IT INTO ZUSTAND IN ONE CLEAN SHOT
         setInitialData({
           formRowKeys: sortedBaseKeys,
           otherRowKeys: sortedOtherKeys,
@@ -167,7 +246,11 @@ export default function FacilityDashboard({
           selectedLocationToAdd: ""
         });
 
-      } catch (err) { console.error("Error fetching V2 data:", err); }
+      } catch (err) { 
+        console.error("Error fetching V2 data:", err); 
+      } finally {
+        setIsFetchingV2(false);
+      }
     };
     fetchV2Data();
   }, [activeFacilityName, currentHostMunicipality, year, month, quarter, periodType, facilityDetails, setInitialData]);
@@ -181,7 +264,7 @@ export default function FacilityDashboard({
         } catch (error) { console.error("Error fetching yearly stats:", error); }
     };
     fetchYearlyStats();
-  }, [activeFacilityName, year, isConsolidatedView, reportStatus]);
+  }, [activeFacilityName, year, isConsolidatedView, v2Status]);
 
   const myYearlyStats = yearlyStats.main || [];
   const getMonthStatus = (m) => { const record = myYearlyStats.find(r => r.month === m); return record ? record.status : 'Not Submitted'; };
@@ -195,7 +278,31 @@ export default function FacilityDashboard({
           default: return 'bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200';
       }
   };
+  
+  // Kept for the UI progress bar (Pending + Approved counts as "Submitted")
   const submittedMonthsCount = MONTHS.filter(m => ['Pending', 'Approved'].includes(getMonthStatus(m))).length;
+
+  // --- STRICT EXPORT LOCK LOGIC (APPROVED ONLY) ---
+  let canExportExcel = true;
+  let exportWarning = "";
+
+  if (periodType === 'Quarterly') {
+      const qIdx = QUARTERS.indexOf(quarter);
+      const qMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
+      // Strictly requires Approved
+      const completeMonths = qMonths.filter(m => getMonthStatus(m) === 'Approved').length;
+      if (completeMonths < 3) {
+          canExportExcel = false;
+          exportWarning = `Cannot export: Only ${completeMonths}/3 months approved for this quarter.`;
+      }
+  } else if (periodType === 'Annual') {
+      // Strictly requires Approved
+      const approvedMonthsCount = MONTHS.filter(m => getMonthStatus(m) === 'Approved').length;
+      if (approvedMonthsCount < 12) {
+          canExportExcel = false;
+          exportWarning = `Cannot export: Only ${approvedMonthsCount}/12 months approved for the year.`;
+      }
+  }
 
   const handleAddRow = () => {
       const addedLoc = addOtherRow();
@@ -269,8 +376,68 @@ export default function FacilityDashboard({
       if (error) throw error;
       
       toast.success(`Report successfully marked as ${status}`);
-      window.location.reload(); 
+      setV2Status(status);
     } catch (err) { toast.error("Failed to save report."); }
+  };
+
+  const handleDeleteV2Report = async () => {
+    setShowDeleteReportModal(false);
+    try {
+        const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
+        const { error } = await supabase.from('abtc_reports_v2')
+            .delete()
+            .eq('year', year)
+            .eq('month', currentPeriod)
+            .eq('facility', activeFacilityName);
+        
+        if (error) throw error;
+        
+        toast.success("Report deleted successfully.");
+        window.location.reload(); 
+    } catch (err) {
+        toast.error("Failed to delete report.");
+    }
+  };
+
+  const handleExportExcel = async () => {
+      setShowExportModal(false);
+      setIsExporting(true);
+      
+      try {
+          const { v2Data, formRowKeys, otherRowKeys, formPopulations } = useReportStore.getState();
+          
+          let rawDataForAnnual = null;
+          if (periodType === 'Annual') {
+              const { data: rd, error } = await supabase.from('abtc_reports_v2')
+                  .select('*')
+                  .eq('year', year)
+                  .eq('facility', activeFacilityName);
+              if (error) throw error;
+              rawDataForAnnual = rd;
+          }
+
+          await exportToExcelTemplate({
+              data: v2Data,
+              formRowKeys,   
+              otherRowKeys,  
+              populations: formPopulations,
+              periodType,
+              quarter,
+              month,
+              year,
+              facilityName: activeFacilityName,
+              globalSettings,
+              userProfile,
+              rawData: rawDataForAnnual 
+          });
+          
+          toast.success("Excel file generated successfully!");
+      } catch (error) {
+          console.error(error);
+          toast.error("Failed to generate Excel file. Ensure doh_template.xlsx is in the public folder.");
+      } finally {
+          setIsExporting(false);
+      }
   };
 
   const onSaveClick = async (status) => {
@@ -303,8 +470,7 @@ export default function FacilityDashboard({
 
   const confirmApprove = async () => { setShowApproveModal(false); await saveV2Report('Approved'); };
   const confirmRejection = async () => { 
-    if (!rejectionReason.trim()) { toast.error("Reason required"); return; } 
-    setShowRejectModal(false); await saveV2Report('Rejected', rejectionReason); 
+    setShowRejectModal(false); await saveV2Report('Rejected', 'N/A'); 
   };
   const confirmSubmit = async () => { setShowSubmitModal(false); await saveV2Report('Pending'); };
   
@@ -333,26 +499,55 @@ export default function FacilityDashboard({
                     {isAnyAdmin && <button onClick={onBack} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all"><ArrowLeft size={20}/></button>}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
                         <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">{activeFacilityName}</h2>
-                        {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && <StatusBadge status={reportStatus} />}
+                        {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && <StatusBadge status={v2Status} />}
                     </div>
                 </div>
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 relative z-10 w-full xl:w-auto shrink-0">
-                    <button disabled={isDownloadingPdf || (!isConsolidatedView && !isAggregationMode && reportStatus !== 'Approved')} onClick={() => setShowExportModal(true)} className="w-full sm:w-auto bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
-                        {isDownloadingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} Export PDF
-                    </button>
+                    
+                    {periodType !== 'Monthly' && (
+                        <button 
+                            disabled={isExporting || !canExportExcel} 
+                            title={exportWarning}
+                            onClick={() => setShowExportModal(true)} 
+                            className="w-full sm:w-auto bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                        >
+                            {isExporting ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} Export Excel
+                        </button>
+                    )}
+
                     {!isConsolidatedView && !isAggregationMode && (
                         <div className="flex w-full sm:w-auto items-center gap-2 sm:pl-3 sm:border-l sm:border-slate-700">
                         {isAnyAdmin ? (
                             <>
-                            <button onClick={() => onSaveClick('Approved')} disabled={loading || isSaving || reportStatus !== 'Pending'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-600 disabled:opacity-50 transition-all whitespace-nowrap">Approve</button>
-                            <button onClick={() => onSaveClick('Rejected')} disabled={loading || isSaving || reportStatus !== 'Pending'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-700 text-rose-400 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-rose-600 hover:text-white transition-all whitespace-nowrap">Reject</button>
+                            <button 
+                                onClick={() => onSaveClick('Approved')} 
+                                disabled={loading || isFetchingV2 || isSaving || v2Status !== 'Pending'} 
+                                className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-600 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
+                            >
+                                Approve
+                            </button>
+                            <button 
+                                onClick={() => onSaveClick('Rejected')} 
+                                disabled={loading || isFetchingV2 || isSaving || (v2Status !== 'Pending' && v2Status !== 'Approved')} 
+                                className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-700 text-rose-400 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-rose-600 hover:text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-300 transition-all whitespace-nowrap"
+                            >
+                                Reject
+                            </button>
+                            <button 
+                                onClick={() => setShowDeleteReportModal(true)} 
+                                disabled={loading || isFetchingV2 || isSaving || v2Status === 'Draft'} 
+                                className="flex-none justify-center flex items-center bg-white border border-slate-200 text-slate-400 px-3 py-2.5 rounded-xl hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 disabled:opacity-50 disabled:grayscale transition-all shadow-sm"
+                                title="Delete Report"
+                            >
+                                <Trash2 size={16} />
+                            </button>
                             </>
                         ) : (
                             <>
-                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isSaving || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-all whitespace-nowrap">
+                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isFetchingV2 || isSaving || v2Status === 'Approved' || v2Status === 'Pending'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-700 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap">
                                 {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Draft
                             </button>
-                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isSaving || reportStatus === 'Pending' || reportStatus === 'Approved'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50 whitespace-nowrap">
+                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isFetchingV2 || isSaving || v2Status === 'Pending' || v2Status === 'Approved'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50 disabled:grayscale whitespace-nowrap">
                                 {isSaving ? <Loader2 size={16} className="animate-spin"/> : null} Submit Report
                             </button>
                             </>
@@ -363,7 +558,7 @@ export default function FacilityDashboard({
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-4 relative z-10">
-                <h2 className="text-slate-800 font-bold px-4 shrink-0">DOH Form 1</h2>
+                <h2 className="text-slate-800 font-bold px-4 shrink-0">Animal Bite and Rabies Report Form</h2>
                 <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
                     <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
                     {periodType === 'Monthly' && (
@@ -399,18 +594,33 @@ export default function FacilityDashboard({
                         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-slate-400 border border-slate-500"></div> Draft</div>
                         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-slate-100 border border-slate-200"></div> Unsubmitted</div>
                     </div>
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                         {[0, 1, 2, 3].map(qIdx => {
                             const qMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
+                            const qVal = String(quarter).replace(/\D/g, '');
+                            const isActiveQuarter = periodType === 'Quarterly' && parseInt(qVal) === qIdx + 1;
+
                             return (
-                                <div key={qIdx} className="flex flex-col bg-slate-50 rounded-xl p-3 pt-4 border border-slate-100 relative">
-                                    <span className="absolute -top-2.5 left-3 bg-white px-2 text-[10px] font-black text-slate-400 border border-slate-200 rounded-full shadow-sm">Q{qIdx + 1}</span>
+                                <div key={qIdx} className={`flex flex-col bg-slate-50 rounded-xl p-3 pt-4 border relative transition-all duration-300 ${isActiveQuarter ? 'border-blue-400 ring-1 ring-blue-400 bg-blue-50/20 shadow-md z-10' : 'border-slate-100'}`}>
+                                    <span className={`absolute -top-2.5 left-3 px-2 text-[10px] font-black rounded-full shadow-sm transition-all duration-300 ${isActiveQuarter ? 'bg-blue-600 text-white border border-blue-700' : 'bg-white text-slate-400 border border-slate-200'}`}>
+                                        Q{qIdx + 1}
+                                    </span>
                                     <div className="flex gap-1.5">
                                         {qMonths.map(m => {
                                             const status = getMonthStatus(m);
                                             const isFuture = year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx);
+                                            const isActiveMonth = periodType === 'Monthly' && month === m;
+                                            
                                             return (
-                                                <div key={m} onClick={() => { if (!isFuture) { setMonth(m); setPeriodType('Monthly'); } }} title={isFuture ? 'Future month' : `${m}: ${status}`} className={`flex-1 py-2 rounded-md border flex flex-col items-center justify-center transition-all ${isFuture ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95 hover:shadow-md'} ${getStatusColor(status, isFuture)}`}>
+                                                <div 
+                                                    key={m} 
+                                                    onClick={() => { if (!isFuture) { setMonth(m); setPeriodType('Monthly'); } }} 
+                                                    title={isFuture ? 'Future month' : `${m}: ${status}`} 
+                                                    className={`flex-1 py-2 rounded-md border flex flex-col items-center justify-center transition-all duration-300 ${
+                                                        isFuture ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95'
+                                                    } ${getStatusColor(status, isFuture)} ${isActiveMonth ? 'ring-2 ring-offset-1 ring-blue-500 border-blue-500 shadow-md scale-[1.05] z-20' : ''}`}
+                                                >
                                                     <span className="text-[10px] sm:text-xs font-black tracking-widest">{m.substring(0, 3).toUpperCase()}</span>
                                                 </div>
                                             )
@@ -434,11 +644,11 @@ export default function FacilityDashboard({
                 {formRowKeys.length > 0 ? (
                     <>
                         <MainReportTableV2 
-                            isRowReadOnly={reportStatus === 'Approved' || reportStatus === 'Pending' || isConsolidatedView}
+                            isRowReadOnly={isAnyAdmin || v2Status === 'Approved' || v2Status === 'Pending' || isConsolidatedView || isAggregationMode}
                             onDeleteOtherRow={(loc) => setDeleteRowModal({ isOpen: true, location: loc })}
                         />
                         
-                        {!isConsolidatedView && reportStatus !== 'Approved' && reportStatus !== 'Pending' && (
+                        {!isConsolidatedView && !isAnyAdmin && !isAggregationMode && v2Status !== 'Approved' && v2Status !== 'Pending' && (
                             <div className="bg-white border-t border-slate-100 px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
                                 <div className="flex items-center gap-3">
                                     <div className="text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100"><MapPin size={16} strokeWidth={2.5}/></div>
@@ -461,48 +671,22 @@ export default function FacilityDashboard({
             </div>
         </div>
 
-        {/* Confirmation Modals */}
-        {deleteRowModal.isOpen && (
+        {/* --- EXPORT MODAL --- */}
+        {showExportModal && (
             <ModalPortal>
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl">
-                        <Trash2 size={32} className="mx-auto mb-4 text-rose-500" />
-                        <h3 className="text-xl font-bold mb-2">Remove Row?</h3>
-                        <p className="text-sm text-slate-500 mb-6">Are you sure you want to remove <b>{deleteRowModal.location}</b>? All unsaved data in this row will be lost.</p>
-                        <div className="flex gap-3">
-                            <button onClick={() => setDeleteRowModal({ isOpen: false, location: null })} className="flex-1 py-2.5 bg-slate-100 rounded-xl font-semibold text-slate-700 transition-colors">Cancel</button>
-                            <button onClick={confirmDeleteOtherRow} className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all shadow-sm">Remove Row</button>
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                            <FileDown size={24} strokeWidth={2.5} />
                         </div>
-                    </div>
-                </div>
-            </ModalPortal>
-        )}
-
-        {showSubmitModal && (
-            <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center">
-                        <AlertCircle size={32} className={`mx-auto mb-4 ${isZeroSubmit ? 'text-amber-500' : 'text-blue-600'}`} />
-                        <h3 className="text-xl font-bold mb-2">{isZeroSubmit ? "Submit Zero Case Report?" : "Submit Report?"}</h3>
-                        <p className="text-sm text-slate-500 mb-6">Verify all data entries before submission. This action cannot be undone by you.</p>
+                        <h3 className="text-xl font-bold mb-2 text-slate-900">Export as Excel?</h3>
+                        <p className="text-sm text-slate-500 mb-6">This will generate a highly detailed Animal Bite and Rabies Report Form in Excel format.</p>
                         <div className="flex gap-3">
-                            <button onClick={() => setShowSubmitModal(false)} className="flex-1 py-2.5 bg-slate-100 rounded-xl font-semibold text-slate-700">Cancel</button>
-                            <button onClick={confirmSubmit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">Confirm</button>
-                        </div>
-                    </div>
-                </div>
-            </ModalPortal>
-        )}
-        {showDraftModal && (
-            <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center">
-                        <Save size={32} className="mx-auto mb-4 text-slate-800" />
-                        <h3 className="text-xl font-bold mb-2">Save as Draft?</h3>
-                        <p className="text-sm text-slate-500 mb-6">Current progress will be saved. You can submit it later.</p>
-                        <div className="flex gap-3">
-                            <button onClick={() => setShowDraftModal(false)} className="flex-1 py-2.5 bg-slate-100 rounded-xl font-semibold text-slate-700">Cancel</button>
-                            <button onClick={confirmSaveDraft} className="flex-1 py-2.5 bg-slate-900 text-white rounded-xl font-bold">Save Draft</button>
+                            <button onClick={() => setShowExportModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
+                            <button onClick={handleExportExcel} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm flex justify-center items-center gap-2">
+                                {isExporting ? <Loader2 size={16} className="animate-spin"/> : null} 
+                                Generate Excel
+                            </button>
                         </div>
                     </div>
                 </div>
