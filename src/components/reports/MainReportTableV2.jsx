@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, XCircle } from 'lucide-react'; 
+import { useReportStore } from '../../store/useReportStore';
 
 // ==========================================
-// V2 ENTERPRISE COMPACT UI (EXACT FIT)
+// V2 ENTERPRISE COMPACT UI
 // ==========================================
 const BORDER_COLOR = '#CBD5E1'; 
 const HEADER_BG = '#F8FAFC';    
@@ -23,9 +24,16 @@ const STYLES = {
   tdGrandTotal: { border: `1px solid ${BORDER_COLOR}`, padding: '4px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', fontWeight: '800', backgroundColor: GRAND_TOTAL_BG, color: '#0F172A' }
 };
 
-const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onChange, isRowReadOnly, onDeleteOtherRow }) => {
+const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow }) => {
   const [activeTab, setActiveTab] = useState('tab1');
   
+  // --- ZUSTAND STORE SUBSCRIPTIONS ---
+  const data = useReportStore(state => state.v2Data);
+  const baseRowKeys = useReportStore(state => state.formRowKeys);
+  const otherRowKeys = useReportStore(state => state.otherRowKeys);
+  const populations = useReportStore(state => state.formPopulations);
+  const updateCell = useReportStore(state => state.updateCell);
+
   const allRowKeys = [...baseRowKeys, ...otherRowKeys];
 
   const num = (location, name) => {
@@ -36,17 +44,13 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
   const handleInputChange = (location, name, value) => {
     if (isRowReadOnly) return;
     
-    // STRICT BLANK VS ZERO LOGIC
-    // If the user leaves it blank, save it as an empty string
     if (value === '') {
-        onChange(location, name, '');
+        updateCell(location, name, '');
         return;
     }
-    
-    // If they typed a number (including 0), parse it safely and save it as a stringified number
     const parsed = parseInt(value, 10);
     const finalVal = isNaN(parsed) ? '' : Math.max(0, parsed).toString();
-    onChange(location, name, finalVal);
+    updateCell(location, name, finalVal);
   };
 
   const handleKeyDown = (e, location, cIdx, rowIndex, totalRows) => {
@@ -242,9 +246,6 @@ const MainReportTableV2 = ({ data, baseRowKeys, otherRowKeys, populations, onCha
 
 const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, population, totalRows, onChange, onKeyDown, readOnly, num }) => {
   const renderInput = (name, colIndex) => {
-    // STRICT BLANK VS ZERO RENDER FIX:
-    // This checks if the database specifically sent us the number 0 or string '0'
-    // If they did, it shows it. Otherwise, it stays a beautifully clean blank ''.
     const cellValue = rowData[name];
     const displayValue = (cellValue !== undefined && cellValue !== null && cellValue !== '') ? cellValue : '';
 

@@ -1,45 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, MessageSquare, X, Trash2, TrendingUp, ChevronDown, Clock, Archive, Building2, Layers, WifiOff, Plus, Calendar, CalendarCheck, BarChart3, MapPin } from 'lucide-react';
+import { Save, AlertCircle, Loader2, FileDown, CheckCircle, XCircle, ArrowLeft, Trash2, ChevronDown, WifiOff, Plus, Calendar, CalendarCheck, BarChart3, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from './StatusBadge';
-import { MONTHS, QUARTERS, PDF_STYLES } from '../../lib/constants';
+import { MONTHS, QUARTERS } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
 import ModalPortal from '../modals/ModalPortal';
-import { downloadPDF } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import MainReportTableV2 from '../reports/MainReportTableV2';
 import { saveOfflineDraft, getOfflineDraft, clearOfflineDraft } from '../../lib/offlineDB';
+import { useReportStore } from '../../store/useReportStore';
 
 export default function FacilityDashboard({
-  periodType, setPeriodType,
-  year, setYear,
-  month, setMonth,
-  quarter, setQuarter,
-  availableYears, availableMonths,
-  adminViewMode, selectedFacility, onBack,
-  currentRealYear, currentRealMonthIdx 
+  periodType, setPeriodType, year, setYear, month, setMonth, quarter, setQuarter,
+  availableYears, availableMonths, adminViewMode, selectedFacility, onBack, currentRealYear, currentRealMonthIdx 
 }) {
-  const { user, facilities, facilityBarangays, facilityDetails, globalSettings, userProfile } = useApp();
-  
+  const { user, facilityDetails } = useApp();
   const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
 
-  // --- V2 STATE MANAGEMENT ---
-  const [v2Data, setV2Data] = useState({});
-  const [formRowKeys, setFormRowKeys] = useState([]);     
-  const [otherRowKeys, setOtherRowKeys] = useState([]);   
-  const [formPopulations, setFormPopulations] = useState({});
-  
-  const [masterPopulations, setMasterPopulations] = useState({});
-  const [availableLocationsToAdd, setAvailableLocationsToAdd] = useState([]);
-  const [selectedLocationToAdd, setSelectedLocationToAdd] = useState("");
+  // --- ZUSTAND STORE HOOKS ---
+  const formRowKeys = useReportStore(state => state.formRowKeys);
+  const availableLocationsToAdd = useReportStore(state => state.availableLocationsToAdd);
+  const selectedLocationToAdd = useReportStore(state => state.selectedLocationToAdd);
+  const setSelectedLocationToAdd = useReportStore(state => state.setSelectedLocationToAdd);
+  const addOtherRow = useReportStore(state => state.addOtherRow);
+  const deleteOtherRow = useReportStore(state => state.deleteOtherRow);
+  const setInitialData = useReportStore(state => state.setInitialData);
+
+  // Clean up store when we unmount/leave the page
+  useEffect(() => {
+    return () => useReportStore.getState().reset();
+  }, []);
 
   const [deleteRowModal, setDeleteRowModal] = useState({ isOpen: false, location: null });
-
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false); 
-  const [showDeleteReportModal, setShowDeleteReportModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false); 
   const [showDraftModal, setShowDraftModal] = useState(false); 
   const [rejectionReason, setRejectionReason] = useState('');
@@ -54,28 +50,20 @@ export default function FacilityDashboard({
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
   }, []);
 
   const formatQuarterName = (q) => {
       if (!q) return '';
-      const qStr = q.toString().toLowerCase();
-      if (qStr.includes('1')) return '1st Quarter';
-      if (qStr.includes('2')) return '2nd Quarter';
-      if (qStr.includes('3')) return '3rd Quarter';
-      if (qStr.includes('4')) return '4th Quarter';
+      if (q.toString().toLowerCase().includes('1')) return '1st Quarter';
+      if (q.toString().toLowerCase().includes('2')) return '2nd Quarter';
+      if (q.toString().toLowerCase().includes('3')) return '3rd Quarter';
+      if (q.toString().toLowerCase().includes('4')) return '4th Quarter';
       return q;
   };
 
-  const {
-    reportStatus, loading, isSaving, 
-    activeFacilityName, currentHostMunicipality,
-    confirmDeleteReport
-  } = useReportData({
-    user, facilities, facilityBarangays, year, month, quarter, periodType, adminViewMode, selectedFacility
+  const { reportStatus, loading, isSaving, activeFacilityName, currentHostMunicipality } = useReportData({
+    user, facilityDetails, year, month, quarter, periodType, adminViewMode, selectedFacility
   });
 
   const isConsolidatedView = adminViewMode === 'consolidated';
@@ -139,8 +127,6 @@ export default function FacilityDashboard({
         if (existingError) throw existingError;
 
         const loadedState = {};
-        
-        // FIX: Safely extract values so 0 doesn't turn into ''
         const getV = (val) => (val === null || val === undefined) ? '' : String(val);
 
         if (existingData) {
@@ -166,23 +152,26 @@ export default function FacilityDashboard({
 
         const sortedBaseKeys = Array.from(baseKeys).sort((a, b) => a.localeCompare(b));
         const sortedOtherKeys = Array.from(otherKeys).sort((a, b) => (a === "Non-Abra") ? 1 : (b === "Non-Abra") ? -1 : a.localeCompare(b));
-        
-        setFormRowKeys(sortedBaseKeys);
-        setOtherRowKeys(sortedOtherKeys);
-        setFormPopulations(popMap);
-        setMasterPopulations(fullPopMap);
-        setV2Data(loadedState);
-
         const combinedKeys = [...sortedBaseKeys, ...sortedOtherKeys];
         const availableMunis = Array.from(allMunicipalities).filter(m => !combinedKeys.includes(m) && m.toLowerCase() !== (currentHostMunicipality || '').toLowerCase()).sort();
         if (!combinedKeys.includes("Non-Abra")) availableMunis.push("Non-Abra");
-        setAvailableLocationsToAdd(availableMunis);
+
+        // FIRE IT INTO ZUSTAND IN ONE CLEAN SHOT
+        setInitialData({
+          formRowKeys: sortedBaseKeys,
+          otherRowKeys: sortedOtherKeys,
+          formPopulations: popMap,
+          masterPopulations: fullPopMap,
+          v2Data: loadedState,
+          availableLocationsToAdd: availableMunis,
+          selectedLocationToAdd: ""
+        });
+
       } catch (err) { console.error("Error fetching V2 data:", err); }
     };
     fetchV2Data();
-  }, [activeFacilityName, currentHostMunicipality, year, month, quarter, periodType, facilityDetails]);
+  }, [activeFacilityName, currentHostMunicipality, year, month, quarter, periodType, facilityDetails, setInitialData]);
 
-  // --- FETCH KPI STATS FOR PROGRESS TRACKER ---
   useEffect(() => {
     const fetchYearlyStats = async () => {
         if (!year || !activeFacilityName || isConsolidatedView) return;
@@ -195,12 +184,7 @@ export default function FacilityDashboard({
   }, [activeFacilityName, year, isConsolidatedView, reportStatus]);
 
   const myYearlyStats = yearlyStats.main || [];
-  
-  const getMonthStatus = (m) => {
-      const record = myYearlyStats.find(r => r.month === m);
-      return record ? record.status : 'Not Submitted';
-  };
-
+  const getMonthStatus = (m) => { const record = myYearlyStats.find(r => r.month === m); return record ? record.status : 'Not Submitted'; };
   const getStatusColor = (status, isFuture) => {
       if (isFuture) return 'bg-slate-50 border-slate-200 text-slate-300 border-dashed opacity-60';
       switch(status) {
@@ -211,60 +195,26 @@ export default function FacilityDashboard({
           default: return 'bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200';
       }
   };
+  const submittedMonthsCount = MONTHS.filter(m => ['Pending', 'Approved'].includes(getMonthStatus(m))).length;
 
-  const submittedMonthsCount = MONTHS.filter(m => {
-      const s = getMonthStatus(m);
-      return s === 'Pending' || s === 'Approved';
-  }).length;
-
-
-  // --- DYNAMIC ROW ADDER / REMOVER ---
   const handleAddRow = () => {
-      if (!selectedLocationToAdd) return;
-      const updatedOtherKeys = [...otherRowKeys, selectedLocationToAdd].sort((a, b) => (a === "Non-Abra") ? 1 : (b === "Non-Abra") ? -1 : a.localeCompare(b));
-      setOtherRowKeys(updatedOtherKeys);
-      setFormPopulations(prev => ({ ...prev, [selectedLocationToAdd]: 0 }));
-      setAvailableLocationsToAdd(prev => prev.filter(loc => loc !== selectedLocationToAdd));
-      setSelectedLocationToAdd("");
-      toast.success(`${selectedLocationToAdd} added.`);
-
-      setTimeout(() => {
-          const tableContainer = document.getElementById('v2-table-container');
-          if (tableContainer) {
-              tableContainer.scrollTo({
-                  top: tableContainer.scrollHeight,
-                  behavior: 'smooth'
-              });
-          }
-      }, 100);
+      const addedLoc = addOtherRow();
+      if (addedLoc) {
+          toast.success(`${addedLoc} added.`);
+          setTimeout(() => {
+              const tableContainer = document.getElementById('v2-table-container');
+              if (tableContainer) tableContainer.scrollTo({ top: tableContainer.scrollHeight, behavior: 'smooth' });
+          }, 100);
+      }
   };
 
   const confirmDeleteOtherRow = () => {
     const loc = deleteRowModal.location;
-    setOtherRowKeys(prev => prev.filter(k => k !== loc));
-    
-    setV2Data(prev => {
-        const next = { ...prev };
-        delete next[loc];
-        return next;
-    });
-
-    setFormPopulations(prev => {
-        const next = { ...prev };
-        delete next[loc];
-        return next;
-    });
-
-    setAvailableLocationsToAdd(prev => [...prev, loc].sort((a,b) => (a==="Non-Abra")?1:(b==="Non-Abra")?-1:a.localeCompare(b)));
+    deleteOtherRow(loc);
     setDeleteRowModal({ isOpen: false, location: null });
     toast.success(`${loc} removed from table.`);
   };
 
-  const handleV2CellChange = (location, field, value) => {
-    setV2Data(prev => ({ ...prev, [location]: { ...(prev[location] || {}), [field]: value } }));
-  };
-
-  // --- OFFLINE / SAVE / SUBMIT LOGIC ---
   useEffect(() => {
     const checkOfflineDraft = async () => {
         const draft = await getOfflineDraft(); 
@@ -272,35 +222,24 @@ export default function FacilityDashboard({
             try {
                 toast.info("🌐 Connection restored! Auto-syncing offline V2 report...", { duration: 4000 });
                 const payload = Object.entries(draft.data).map(([loc, row]) => {
-                    // FIX: Saves blank strings as null, preserves 0
                     const num = (val) => (val === '' || val === null || val === undefined) ? null : parseInt(val);
                     return {
-                        year: draft.year, month: draft.month, facility: draft.facility, location_name: loc,
-                        status: draft.intendedStatus || 'Draft',
-                        male: num(row.male), female: num(row.female),
-                        age_under_15: num(row.ageUnder15), age_over_15: num(row.ageOver15),
-                        cat1: num(row.cat1),
-                        cat2_elig_pri: num(row.cat2EligPri), cat2_elig_boost: num(row.cat2EligBoost), cat2_non_elig: num(row.cat2NonElig),
+                        year: draft.year, month: draft.month, facility: draft.facility, location_name: loc, status: draft.intendedStatus || 'Draft',
+                        male: num(row.male), female: num(row.female), age_under_15: num(row.ageUnder15), age_over_15: num(row.ageOver15),
+                        cat1: num(row.cat1), cat2_elig_pri: num(row.cat2EligPri), cat2_elig_boost: num(row.cat2EligBoost), cat2_non_elig: num(row.cat2NonElig),
                         cat3_elig_pri: num(row.cat3EligPri), cat3_elig_boost: num(row.cat3EligBoost), cat3_non_elig: num(row.cat3NonElig),
-                        comp_cat2_pri: num(row.compCat2Pri), comp_cat2_boost: num(row.compCat2Boost),
-                        comp_cat3_pri_erig: num(row.compCat3PriErig), comp_cat3_pri_hrig: num(row.compCat3PriHrig), comp_cat3_boost: num(row.compCat3Boost),
+                        comp_cat2_pri: num(row.compCat2Pri), comp_cat2_boost: num(row.compCat2Boost), comp_cat3_pri_erig: num(row.compCat3PriErig), comp_cat3_pri_hrig: num(row.compCat3PriHrig), comp_cat3_boost: num(row.compCat3Boost),
                         type_dog: num(row.typeDog), type_cat: num(row.typeCat), type_others: num(row.typeOthers),
-                        status_pet: num(row.statusPet), status_stray: num(row.statusStray), status_unk: num(row.statusUnk),
-                        rabies_cases: num(row.rabiesCases)
+                        status_pet: num(row.statusPet), status_stray: num(row.statusStray), status_unk: num(row.statusUnk), rabies_cases: num(row.rabiesCases)
                     };
                 });
-
                 const { error } = await supabase.from('abtc_reports_v2').upsert(payload, { onConflict: 'year, month, facility, location_name' });
                 if (error) throw error;
-
                 await clearOfflineDraft(); 
                 toast.success("Offline data successfully synced to the server!", { duration: 5000 });
-            } catch (err) {
-                console.error("Auto Sync Error:", err);
-            }
+            } catch (err) { console.error("Auto Sync Error:", err); }
         }
     };
-    
     window.addEventListener('online', checkOfflineDraft);
     checkOfflineDraft();
     return () => window.removeEventListener('online', checkOfflineDraft);
@@ -308,26 +247,21 @@ export default function FacilityDashboard({
 
   const saveV2Report = async (status, reason = '') => {
     try {
+      const { v2Data, formRowKeys, otherRowKeys } = useReportStore.getState();
       const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
       const allKeysToSave = [...formRowKeys, ...otherRowKeys];
       
       const payload = allKeysToSave.map(loc => {
         const row = v2Data[loc] || {};
-        // FIX: Saves blank strings as null, preserves 0
         const num = (val) => (val === '' || val === null || val === undefined) ? null : parseInt(val);
         return {
-          year, month: currentPeriod, facility: activeFacilityName, location_name: loc,
-          status, 
-          male: num(row.male), female: num(row.female),
-          age_under_15: num(row.ageUnder15), age_over_15: num(row.ageOver15),
-          cat1: num(row.cat1),
-          cat2_elig_pri: num(row.cat2EligPri), cat2_elig_boost: num(row.cat2EligBoost), cat2_non_elig: num(row.cat2NonElig),
+          year, month: currentPeriod, facility: activeFacilityName, location_name: loc, status, 
+          male: num(row.male), female: num(row.female), age_under_15: num(row.ageUnder15), age_over_15: num(row.ageOver15),
+          cat1: num(row.cat1), cat2_elig_pri: num(row.cat2EligPri), cat2_elig_boost: num(row.cat2EligBoost), cat2_non_elig: num(row.cat2NonElig),
           cat3_elig_pri: num(row.cat3EligPri), cat3_elig_boost: num(row.cat3EligBoost), cat3_non_elig: num(row.cat3NonElig),
-          comp_cat2_pri: num(row.compCat2Pri), comp_cat2_boost: num(row.compCat2Boost),
-          comp_cat3_pri_erig: num(row.compCat3PriErig), comp_cat3_pri_hrig: num(row.compCat3PriHrig), comp_cat3_boost: num(row.compCat3Boost),
+          comp_cat2_pri: num(row.compCat2Pri), comp_cat2_boost: num(row.compCat2Boost), comp_cat3_pri_erig: num(row.compCat3PriErig), comp_cat3_pri_hrig: num(row.compCat3PriHrig), comp_cat3_boost: num(row.compCat3Boost),
           type_dog: num(row.typeDog), type_cat: num(row.typeCat), type_others: num(row.typeOthers),
-          status_pet: num(row.statusPet), status_stray: num(row.statusStray), status_unk: num(row.statusUnk),
-          rabies_cases: num(row.rabiesCases)
+          status_pet: num(row.statusPet), status_stray: num(row.statusStray), status_unk: num(row.statusUnk), rabies_cases: num(row.rabiesCases)
         };
       });
 
@@ -336,10 +270,7 @@ export default function FacilityDashboard({
       
       toast.success(`Report successfully marked as ${status}`);
       window.location.reload(); 
-    } catch (err) {
-      console.error("Error saving report:", err);
-      toast.error("Failed to save report.");
-    }
+    } catch (err) { toast.error("Failed to save report."); }
   };
 
   const onSaveClick = async (status) => {
@@ -353,6 +284,7 @@ export default function FacilityDashboard({
     if (status === 'Draft') { setShowDraftModal(true); return; } 
     if (status === 'Pending') { 
         let hasErrors = false; let isCompletelyEmpty = true;
+        const { v2Data, formRowKeys, otherRowKeys } = useReportStore.getState();
         for (const loc of [...formRowKeys, ...otherRowKeys]) {
             const row = v2Data[loc] || {};
             const n = (v) => parseInt(v) || 0;
@@ -379,6 +311,7 @@ export default function FacilityDashboard({
   const confirmSaveDraft = async () => { 
     setShowDraftModal(false); 
     if (!navigator.onLine) {
+        const { v2Data } = useReportStore.getState();
         const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
         const offlinePayload = {
             facility: activeFacilityName, year, month: currentPeriod, periodType,
@@ -391,21 +324,9 @@ export default function FacilityDashboard({
     await saveV2Report('Draft'); 
   };
 
-  const handleDeleteReportClick = async () => { 
-    setShowDeleteReportModal(false); 
-    await confirmDeleteReport(); 
-    await clearOfflineDraft();
-  };
-
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 relative pb-24">
-        
-        {/* ========================================== */}
-        {/* ALIGNED MASTER CONTAINER */}
-        {/* ========================================== */}
         <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-4 pt-4 flex-1">
-            
-            {/* Header Section */}
             <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden">
                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
                 <div className="flex items-start sm:items-center gap-4 relative z-10">
@@ -441,56 +362,36 @@ export default function FacilityDashboard({
                 </div>
             </div>
 
-            {/* Filter Section */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-4 relative z-10">
                 <h2 className="text-slate-800 font-bold px-4 shrink-0">DOH Form 1</h2>
                 <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
                     <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
-                    
                     {periodType === 'Monthly' && (
                         <select value={month} onChange={e => setMonth(e.target.value)} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
-                            {availableMonths.filter(m => {
-                                const isFuture = year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx);
-                                return !isFuture;
-                            }).map(m => <option key={m} value={m}>{m}</option>)}
+                            {availableMonths.filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx))).map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                     )}
-                    
                     {periodType === 'Quarterly' && (
                         <select value={quarter} onChange={e => setQuarter(e.target.value)} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
-                            {QUARTERS.filter((q, idx) => {
-                                const isFuture = year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3));
-                                return !isFuture;
-                            }).map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
+                            {QUARTERS.filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3)))).map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
                         </select>
                     )}
-                    
                     <select value={year} onChange={e => setYear(Number(e.target.value))} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">{availableYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
                 </div>
             </div>
 
-            {/* --- DYNAMIC PROGRESS TRACKER (Consolidated) --- */}
             {!isConsolidatedView && (
                 <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm animate-in fade-in slide-in-from-bottom-2 no-print">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
                         <div>
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <Calendar size={18} className="text-blue-600"/>
-                                Yearly Submission Progress ({year})
-                            </h3>
-                            <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                Track monthly reports, quarterly milestones, and annual completion in one view.
-                            </p>
+                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><Calendar size={18} className="text-blue-600"/> Yearly Submission Progress ({year})</h3>
+                            <p className="text-xs text-slate-500 font-medium mt-0.5">Track monthly reports, quarterly milestones, and annual completion in one view.</p>
                         </div>
                         <div className="flex items-center gap-3 text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg shrink-0">
                             <span className="text-slate-600 uppercase tracking-wider text-[10px]">Annual Completion:</span>
-                            <span className={`px-2 py-0.5 rounded-md ${submittedMonthsCount === 12 ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                                {submittedMonthsCount} / 12
-                            </span>
+                            <span className={`px-2 py-0.5 rounded-md ${submittedMonthsCount === 12 ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{submittedMonthsCount} / 12</span>
                         </div>
                     </div>
-
-                    {/* Legend */}
                     <div className="flex flex-wrap items-center gap-3 sm:gap-6 mb-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-emerald-500 border border-emerald-600"></div> Approved</div>
                         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-amber-500 border border-amber-600"></div> Pending</div>
@@ -498,36 +399,18 @@ export default function FacilityDashboard({
                         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-slate-400 border border-slate-500"></div> Draft</div>
                         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-slate-100 border border-slate-200"></div> Unsubmitted</div>
                     </div>
-
-                    {/* Timeline */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                         {[0, 1, 2, 3].map(qIdx => {
                             const qMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
                             return (
                                 <div key={qIdx} className="flex flex-col bg-slate-50 rounded-xl p-3 pt-4 border border-slate-100 relative">
-                                    <span className="absolute -top-2.5 left-3 bg-white px-2 text-[10px] font-black text-slate-400 border border-slate-200 rounded-full shadow-sm">
-                                        Q{qIdx + 1}
-                                    </span>
+                                    <span className="absolute -top-2.5 left-3 bg-white px-2 text-[10px] font-black text-slate-400 border border-slate-200 rounded-full shadow-sm">Q{qIdx + 1}</span>
                                     <div className="flex gap-1.5">
                                         {qMonths.map(m => {
                                             const status = getMonthStatus(m);
                                             const isFuture = year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx);
-                                            const colorClass = getStatusColor(status, isFuture);
-                                            
                                             return (
-                                                <div 
-                                                    key={m} 
-                                                    onClick={() => {
-                                                        if (!isFuture) {
-                                                            setMonth(m);
-                                                            setPeriodType('Monthly');
-                                                        }
-                                                    }}
-                                                    title={isFuture ? 'Future month' : `${m}: ${status}`}
-                                                    className={`flex-1 py-2 rounded-md border flex flex-col items-center justify-center transition-all ${
-                                                        isFuture ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95 hover:shadow-md'
-                                                    } ${colorClass}`}
-                                                >
+                                                <div key={m} onClick={() => { if (!isFuture) { setMonth(m); setPeriodType('Monthly'); } }} title={isFuture ? 'Future month' : `${m}: ${status}`} className={`flex-1 py-2 rounded-md border flex flex-col items-center justify-center transition-all ${isFuture ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-105 active:scale-95 hover:shadow-md'} ${getStatusColor(status, isFuture)}`}>
                                                     <span className="text-[10px] sm:text-xs font-black tracking-widest">{m.substring(0, 3).toUpperCase()}</span>
                                                 </div>
                                             )
@@ -543,20 +426,14 @@ export default function FacilityDashboard({
             {isOffline && (
                 <div className="px-4 py-3 rounded-xl flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-900 shadow-sm">
                     <WifiOff size={20} className="text-amber-700 mt-0.5" strokeWidth={2.5} />
-                    <div>
-                        <p className="text-sm font-bold">You are currently offline.</p>
-                        <p className="text-xs font-medium mt-0.5 text-amber-800/80">You can continue working. Drafts and submissions will be queued and auto-synced when internet is restored.</p>
-                    </div>
+                    <div><p className="text-sm font-bold">You are currently offline.</p><p className="text-xs font-medium mt-0.5 text-amber-800/80">You can continue working. Drafts and submissions will be queued and auto-synced when internet is restored.</p></div>
                 </div>
             )}
 
-            {/* Main Table Container */}
             <div className="bg-white flex-1 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
                 {formRowKeys.length > 0 ? (
                     <>
                         <MainReportTableV2 
-                            data={v2Data} baseRowKeys={formRowKeys} otherRowKeys={otherRowKeys} populations={formPopulations}
-                            onChange={handleV2CellChange} 
                             isRowReadOnly={reportStatus === 'Approved' || reportStatus === 'Pending' || isConsolidatedView}
                             onDeleteOtherRow={(loc) => setDeleteRowModal({ isOpen: true, location: loc })}
                         />
@@ -565,31 +442,17 @@ export default function FacilityDashboard({
                             <div className="bg-white border-t border-slate-100 px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
                                 <div className="flex items-center gap-3">
                                     <div className="text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100"><MapPin size={16} strokeWidth={2.5}/></div>
-                                    <div>
-                                        <h3 className="text-sm font-bold text-slate-800 tracking-tight">Add Patient Origin</h3>
-                                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Include cases from other municipalities</p>
-                                    </div>
+                                    <div><h3 className="text-sm font-bold text-slate-800 tracking-tight">Add Patient Origin</h3><p className="text-[11px] text-slate-400 font-medium mt-0.5">Include cases from other municipalities</p></div>
                                 </div>
                                 <div className="flex items-center gap-2 w-full sm:w-auto">
                                     <div className="relative w-full sm:w-auto">
-                                        <select 
-                                            value={selectedLocationToAdd} 
-                                            onChange={e => setSelectedLocationToAdd(e.target.value)} 
-                                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-4 focus:ring-slate-50 focus:border-slate-300 transition-all shadow-sm w-full sm:w-[220px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                            disabled={availableLocationsToAdd.length === 0}
-                                        >
+                                        <select value={selectedLocationToAdd} onChange={e => setSelectedLocationToAdd(e.target.value)} disabled={availableLocationsToAdd.length === 0} className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-4 focus:ring-slate-50 focus:border-slate-300 transition-all shadow-sm w-full sm:w-[220px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                                             <option value="" disabled className="text-slate-400">Select municipality...</option>
                                             {availableLocationsToAdd.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                                         </select>
                                         <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                     </div>
-                                    <button 
-                                        onClick={handleAddRow} 
-                                        disabled={!selectedLocationToAdd} 
-                                        className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 disabled:hover:bg-white text-sm font-bold px-4 py-2 rounded-lg transition-all shadow-sm whitespace-nowrap flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
-                                    >
-                                        <Plus size={14} strokeWidth={2.5}/> Add
-                                    </button>
+                                    <button onClick={handleAddRow} disabled={!selectedLocationToAdd} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 disabled:hover:bg-white text-sm font-bold px-4 py-2 rounded-lg transition-all shadow-sm whitespace-nowrap flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"><Plus size={14} strokeWidth={2.5}/> Add</button>
                                 </div>
                             </div>
                         )}
