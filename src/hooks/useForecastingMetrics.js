@@ -20,11 +20,9 @@ export function useForecastingMetrics({
     const fetchHistory = async () => {
       setLoadingHistory(true);
       try {
-        // Fetch Database Municipalities dynamically for filtering
         const { data: popData } = await supabase.from('populations').select('municipality').not('municipality', 'is', null);
         const dynamicMunicipalities = popData ? Array.from(new Set(popData.map(p => p.municipality))) : [];
 
-        // V2 Migration: Query abtc_reports_v2 instead of abtc_reports
         const query = supabase.from('abtc_reports_v2').select('*').eq('status', 'Approved');
         if (!isAdmin) query.eq('facility', user?.facility);
         
@@ -78,11 +76,16 @@ export function useForecastingMetrics({
                 if (hasData) {
                     total = periodReports.reduce((sum, r) => {
                         const fName = String(r.facility || '').trim();
+                        // Filter out Admin accounts
                         if (isAdmin && (fName === 'PHO' || fName.toLowerCase().includes('provincial') || fName.toLowerCase().includes('admin'))) {
                             return sum;
                         }
 
-                        // V2 Metric calculation logic
+                        // --- FIX: DO NOT ADD 'NON-ABRA' CASES TO THE TOTAL ---
+                        if (r.location_name && (r.location_name === 'Non-Abra' || r.location_name.includes('Outside Catchment'))) {
+                            return sum;
+                        }
+
                         const rMale = Number(r.male) || 0;
                         const rFemale = Number(r.female) || 0;
                         

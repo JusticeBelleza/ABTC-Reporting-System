@@ -52,7 +52,7 @@ export default function AnalyticsOverview({
   periodType, setPeriodType, year, setYear, month, setMonth, 
   quarter, setQuarter, availableYears, availableMonths 
 }) {
-  const { user, facilities, facilityBarangays, facilityDetails, globalSettings } = useApp();
+  const { user, facilities, facilityDetails, globalSettings } = useApp();
   const isAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
 
   const OUTBREAK_SENSITIVITY = 1 + ((globalSettings?.outbreak_threshold_percent ?? 50) / 100);
@@ -67,7 +67,6 @@ export default function AnalyticsOverview({
   const [showMathModal, setShowMathModal] = useState(false);
   const [dbMunicipalities, setDbMunicipalities] = useState([]);
 
-  // Fetch dbMunicipalities
   useEffect(() => {
       const getMunis = async () => {
           const { data } = await supabase.from('populations').select('municipality').not('municipality', 'is', null);
@@ -85,8 +84,9 @@ export default function AnalyticsOverview({
     return QUARTERS;
   }, [year, currentRealYear, currentQuarterIndex]);
 
-  // V2 Fetch Logic directly inside Overview for chart processing
-  const [v2Data, setV2Data] = useState([]);
+  // V2 Data States
+  const [v2AllYearData, setV2AllYearData] = useState([]); // Stores the whole year for precise YTD calculations
+  const [v2Data, setV2Data] = useState([]); // Stores just the active period (month/quarter)
   const [loading, setLoading] = useState(true);
   const [reportStatus, setReportStatus] = useState('Not Submitted');
 
@@ -94,13 +94,8 @@ export default function AnalyticsOverview({
       const fetchV2Analytics = async () => {
           setLoading(true);
           try {
+              // 1. Fetch the ENTIRE year's data so we can perfectly calculate YTD including Non-Abra
               let query = supabase.from('abtc_reports_v2').select('*').eq('year', year);
-              
-              if (periodType === 'Monthly') query = query.eq('month', month);
-              else if (periodType === 'Quarterly') {
-                  const qIdx = QUARTERS.indexOf(quarter);
-                  query = query.in('month', [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]]);
-              }
 
               if (isAdmin) query = query.eq('status', 'Approved');
               else query = query.eq('facility', user?.facility);
@@ -108,12 +103,26 @@ export default function AnalyticsOverview({
               const { data, error } = await query;
               if (error) throw error;
               
-              setV2Data(data || []);
+              setV2AllYearData(data || []);
               
-              if (!isAdmin && data && data.length > 0) {
-                  setReportStatus(data[0].status || 'Draft');
+              // 2. Filter down to just the active period for the charts
+              let targetMonths = [];
+              if (periodType === 'Monthly') targetMonths = [month];
+              else if (periodType === 'Quarterly') {
+                  const qIdx = QUARTERS.indexOf(quarter);
+                  targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
               } else {
-                  setReportStatus('Draft'); // Or Approved if viewing as admin
+                  targetMonths = MONTHS;
+              }
+
+              const currentPeriodData = (data || []).filter(d => targetMonths.includes(d.month));
+              setV2Data(currentPeriodData);
+              
+              // 3. Set the official status
+              if (currentPeriodData && currentPeriodData.length > 0) {
+                  setReportStatus(isAdmin ? 'Approved' : currentPeriodData[0].status || 'Draft');
+              } else {
+                  setReportStatus('Draft'); 
               }
           } catch (err) {
               console.error("V2 Analytics Fetch Error:", err);
@@ -133,24 +142,62 @@ export default function AnalyticsOverview({
     facilityDetails, globalSettings
   });
 
+  const locationInfo = useMemo(() => {
+    if (!v2Data || v2Data.length === 0) return { chartData: [], tableData: [], total: 0 };
+    
+    const chartMap = {}; const tableMap = {}; let total = 0;
+    const isConsolidatedView = isAdmin;
+    const hostMuni = dbMunicipalities.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
+    
+    v2Data.forEach(row => {
+        if (!row.location_name || row.location_name.includes('Outside Catchment')) return;
+        
+        const num = (v) => Number(v) || 0;
+        const cases = num(row.cat1) + num(row.cat2_elig_pri) + num(row.cat2_elig_boost) + num(row.cat2_non_elig) + num(row.cat3_elig_pri) + num(row.cat3_elig_boost) + num(row.cat3_non_elig);
+        
+        if (cases > 0) {
+            total += cases;
+            
+            if (isConsolidatedView || facilityType === 'Hospital') {
+                if (dbMunicipalities.includes(row.location_name) || row.location_name === 'Non-Abra') {
+                    chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
+                } else {
+                    const parentMuni = dbMunicipalities.find(m => row.facility?.toLowerCase().includes(m.toLowerCase()));
+                    const targetName = parentMuni || row.facility; 
+                    chartMap[targetName] = (chartMap[targetName] || 0) + cases;
+                }
+            } else {
+               if (dbMunicipalities.includes(row.location_name) && row.location_name !== hostMuni) {
+                   tableMap[row.location_name] = (tableMap[row.location_name] || 0) + cases;
+               } else {
+                   chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
+               }
+            }
+        }
+    });
+
+    const chart = Object.entries(chartMap).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name));
+    const table = Object.entries(tableMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+
+    return { chartData: chart, tableData: table, total };
+  }, [v2Data, isAdmin, facilityType, dbMunicipalities, user]);
+
+  // --- FIX: FORCE CURRENT TOTAL TO EXACTLY MATCH THE CHART TOTAL ---
+  const currentTotal = locationInfo.total;
+
+  // --- FIX: CALCULATE EXACT YTD DIRECTLY FROM V2 DATA ---
   const calculatedYTD = useMemo(() => {
       let targetMonths = MONTHS;
       if (periodType === 'Monthly') targetMonths = MONTHS.slice(0, MONTHS.indexOf(month) + 1);
       else if (periodType === 'Quarterly') targetMonths = MONTHS.slice(0, (QUARTERS.indexOf(quarter) * 3) + 3);
       
-      return full24MonthData
-          .filter(d => d.year === year && targetMonths.includes(d.month))
-          .reduce((sum, d) => sum + (Number(d.raw) || 0), 0);
-  }, [periodType, full24MonthData, month, quarter, year]);
-
-  const currentTotal = useMemo(() => {
-      if (periodType === 'Monthly') return full24MonthData.find(d => d.year === year && d.month === month)?.raw || 0;
-      if (periodType === 'Quarterly') {
-          const targetMonths = [MONTHS[QUARTERS.indexOf(quarter)*3], MONTHS[QUARTERS.indexOf(quarter)*3+1], MONTHS[QUARTERS.indexOf(quarter)*3+2]];
-          return full24MonthData.filter(d => d.year === year && targetMonths.includes(d.month)).reduce((a, b) => a + (b.raw || 0), 0);
-      }
-      return calculatedYTD; 
-  }, [full24MonthData, periodType, year, month, quarter, calculatedYTD]);
+      return v2AllYearData
+          .filter(r => targetMonths.includes(r.month) && r.location_name && !r.location_name.includes('Outside Catchment'))
+          .reduce((sum, row) => {
+              const n = (v) => Number(v) || 0;
+              return sum + n(row.cat1) + n(row.cat2_elig_pri) + n(row.cat2_elig_boost) + n(row.cat2_non_elig) + n(row.cat3_elig_pri) + n(row.cat3_elig_boost) + n(row.cat3_non_elig);
+          }, 0);
+  }, [periodType, v2AllYearData, month, quarter]);
 
   const comparisonData = useMemo(() => {
       let prevTotal = 0; let label = `vs Last ${periodType === 'Monthly' ? 'Month' : periodType === 'Quarterly' ? 'Quarter' : 'Year'}`;
@@ -191,42 +238,6 @@ export default function AnalyticsOverview({
       let delta = isValid && prevYoyTotal > 0 ? ((currentTotal - prevYoyTotal) / prevYoyTotal) * 100 : 0;
       return { delta, isValid };
   }, [full24MonthData, periodType, month, quarter, year, currentTotal]);
-
-  // Transform V2 Flat Data into Chart Arrays
-  const locationInfo = useMemo(() => {
-    if (!v2Data || v2Data.length === 0) return { chartData: [], tableData: [], total: 0 };
-    
-    const chartMap = {}; const tableMap = {}; let total = 0;
-    const isConsolidatedView = isAdmin;
-    const hostMuni = dbMunicipalities.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
-    
-    v2Data.forEach(row => {
-        if (!row.location_name || row.location_name.includes('Outside Catchment')) return;
-        
-        const num = (v) => Number(v) || 0;
-        const cases = num(row.cat1) + num(row.cat2_elig_pri) + num(row.cat2_elig_boost) + num(row.cat2_non_elig) + num(row.cat3_elig_pri) + num(row.cat3_elig_boost) + num(row.cat3_non_elig);
-        
-        if (cases > 0) {
-            total += cases;
-            
-            // If admin or viewing hospitals, chart is municipalities. If RHU, chart is barangays.
-            if (isConsolidatedView || facilityType === 'Hospital') {
-               chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
-            } else {
-               if (dbMunicipalities.includes(row.location_name) && row.location_name !== hostMuni) {
-                   tableMap[row.location_name] = (tableMap[row.location_name] || 0) + cases;
-               } else {
-                   chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
-               }
-            }
-        }
-    });
-
-    const chart = Object.entries(chartMap).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name));
-    const table = Object.entries(tableMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-
-    return { chartData: chart, tableData: table, total };
-  }, [v2Data, isAdmin, facilityType, dbMunicipalities, user]);
 
   const safeTotals = useMemo(() => {
       let sums = { male: 0, female: 0, ageLt15: 0, ageGt15: 0, cat1: 0, cat2: 0, cat3: 0, dog: 0, cat: 0, others: 0 };
@@ -275,7 +286,9 @@ export default function AnalyticsOverview({
   const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : hasAnyData);
 
   const renderDataCompletenessBanner = () => {
-    if (locationInfo.total === 0 && reportStatus === 'Draft') return null;
+    // Hide the banner completely if no reports exist (it will show the empty state instead)
+    if (v2Data.length === 0) return null; 
+
     const isComplete = isAdmin ? complianceRate === 100 : reportStatus === 'Approved';
     return (
       <div className={`mb-6 p-4 rounded-xl border flex items-start sm:items-center gap-3 shadow-sm ${isComplete ? 'bg-emerald-50/80 border-emerald-200/60' : 'bg-amber-50/80 border-amber-200/60'}`}>
@@ -464,7 +477,7 @@ export default function AnalyticsOverview({
               </div>
           </div>
 
-          {locationInfo.total === 0 ? (
+          {v2Data.length === 0 ? (
               reportStatus !== 'Draft' ? (
                   <div className="h-96 flex flex-col items-center justify-center bg-emerald-50 rounded-2xl border border-emerald-200 border-dashed text-center p-6 animate-in fade-in zoom-in-95 duration-500">
                       <div className="bg-emerald-100 p-5 rounded-full mb-4 text-emerald-600 shadow-sm">
