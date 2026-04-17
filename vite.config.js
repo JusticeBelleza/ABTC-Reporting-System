@@ -93,5 +93,12 @@ export default defineConfig({
 
   worker: {
     format: 'es'
+  },
+
+  // --- ADDED: VITEST CONFIGURATION ---
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
   }
 })

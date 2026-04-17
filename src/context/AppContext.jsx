@@ -10,7 +10,7 @@ export function AppProvider({ children }) {
   const [profileLoading, setProfileLoading] = useState(true); 
   const [facilities, setFacilities] = useState([]); 
   const [facilityBarangays, setFacilityBarangays] = useState({}); 
-  const [facilityDetails, setFacilityDetails] = useState({}); // <-- ADDED STATE
+  const [facilityDetails, setFacilityDetails] = useState({}); 
   const [globalSettings, setGlobalSettings] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
 
@@ -23,13 +23,18 @@ export function AppProvider({ children }) {
         return; 
     }
     
-    supabase.auth.getSession().then(({ data: { session } }) => { 
+    supabase.auth.getSession().then(({ data: { session }, error }) => { 
+        if (error) console.warn("Auth session error (likely offline):", error.message);
         if (session?.access_token !== lastTokenRef.current) {
             lastTokenRef.current = session?.access_token;
             setSession(session); 
         }
         if (!session) setProfileLoading(false);
         setLoading(false); 
+    }).catch(() => {
+        // Fallback for hard network failure during init
+        setLoading(false);
+        setProfileLoading(false);
     });
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -52,33 +57,51 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (session) {
       setProfileLoading(true);
-      supabase.from('settings').select('*').single().then(({data}) => { if(data) setGlobalSettings(data); });
       
-      // Fetch the secure profile from the DB
-      supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({data, error}) => { 
-          if(data) setUserProfile(data); 
-          if(error) console.error("Error fetching profile:", error);
-          setProfileLoading(false); // Mark profile as loaded
-      });
-      
+      const fetchUserData = async () => {
+          // 1. Fetch Settings Gracefully
+          try {
+              const { data, error } = await supabase.from('settings').select('*').single();
+              if (data) setGlobalSettings(data);
+          } catch (err) {
+              console.warn("Could not fetch settings. App is likely offline.");
+          }
+
+          // 2. Fetch Profile Gracefully
+          try {
+              const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+              if (data) setUserProfile(data);
+              if (error && error.code !== 'PGRST116') { // Ignore typical "no rows" error
+                  console.warn("Database error fetching profile:", error.message);
+              }
+          } catch (err) {
+              console.warn("Could not fetch profile. App is likely offline.");
+          } finally {
+              // ALWAYS set to false, even if offline, so the app doesn't hang!
+              setProfileLoading(false); 
+          }
+      };
+
+      fetchUserData();
       fetchFacilitiesList();
     }
   }, [session]);
 
   const fetchFacilitiesList = async () => {
     try {
-      const { data } = await supabase.from('facilities').select('*');
+      const { data, error } = await supabase.from('facilities').select('*');
+      if (error) throw error;
+
       const dbFacilities = [];
       const dbBarangays = {};
-      const dbDetails = {}; // <-- ADDED VARIABLE
+      const dbDetails = {}; 
       
       if (data && data.length > 0) {
         data.sort((a, b) => a.name.localeCompare(b.name));
         data.forEach(f => { 
             dbFacilities.push(f.name);
             
-            // <-- ADDED TO STORE TYPE AND OWNERSHIP
-            dbDetails[f.name] = { type: f.type, ownership: f.ownership }; 
+            dbDetails[f.name] = { type: f.type, ownership: f.ownership, municipality: f.municipality }; 
 
             let bList = [];
             if (Array.isArray(f.barangays)) {
@@ -93,14 +116,16 @@ export function AppProvider({ children }) {
       }
       setFacilities(dbFacilities);
       setFacilityBarangays(dbBarangays);
-      setFacilityDetails(dbDetails); // <-- ADDED STATE UPDATE
-    } catch (err) { console.error("Error loading facilities", err); }
+      setFacilityDetails(dbDetails); 
+    } catch (err) { 
+      console.warn("Could not load facilities list. App is likely offline."); 
+    }
   };
 
   // SECURE USER OBJECT: Strictly relies on database profiles, not client metadata
   const user = useMemo(() => {
     if (!session) return null;
-    if (profileLoading) return null; // Wait until DB profile is fetched
+    if (profileLoading) return null; // Wait until DB profile is fetched (or fails gracefully)
     
     return {
       id: session.user.id,
@@ -125,7 +150,7 @@ export function AppProvider({ children }) {
     setFacilities,
     facilityBarangays,
     setFacilityBarangays,
-    facilityDetails, // <-- EXPORTED NEW STATE
+    facilityDetails, 
     globalSettings,
     setGlobalSettings,
     userProfile,

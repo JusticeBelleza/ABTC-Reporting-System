@@ -230,9 +230,15 @@ function DashboardContent() {
     if (deleteFacilityInput !== 'delete') { toast.error('Please type "delete" to confirm'); return; }
     setIsDeletingFacility(true);
     try {
-        await supabase.from('abtc_reports').delete().eq('facility', facilityToDelete);
-        await supabase.from('abtc_cohort_reports').delete().eq('facility', facilityToDelete);
+        // FIX: Delete strictly from the new V2 table
+        await supabase.from('abtc_reports_v2').delete().eq('facility', facilityToDelete);
+        
+        // Delete the facility metadata
         await supabase.from('facilities').delete().eq('name', facilityToDelete);
+        
+        // Detach any users mapped to this facility so they aren't orphaned
+        await supabase.from('profiles').update({ facility_name: null }).eq('facility_name', facilityToDelete);
+
         setFacilities(prev => prev.filter(f => f !== facilityToDelete));
         toast.success("Facility and reports deleted successfully."); 
         setFacilityToDelete(null);
@@ -284,7 +290,7 @@ function DashboardContent() {
 
           <div className="flex items-center justify-end gap-2 sm:gap-3 w-1/3">
             <div className="hidden xl:flex items-center bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200 shadow-inner gap-2" title="Philippine Standard Time (Server Synced)">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)] shrink-0"></div>
               <span className="text-[11px] font-bold text-slate-600 tracking-wide uppercase whitespace-nowrap">{formattedPHT}</span>
             </div>
 

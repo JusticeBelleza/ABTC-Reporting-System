@@ -309,6 +309,50 @@ export default function AdminDashboard({
       }
   }, [year, month, quarter, periodType]);
 
+  // --- STRICT EXPORT LOCK FOR CONSOLIDATED VIEW ---
+  // Calculates whether ALL active facilities have an 'Approved' report for the selected period
+  const activeFacilities = facilities.filter(f => {
+      const meta = facilityMeta.find(m => m.name === f);
+      return (meta?.status || 'Active') === 'Active';
+  });
+
+  const dedupedYearlyStats = {};
+  yearlyStats.main.forEach(r => {
+      const key = `${r.facility}_${r.month}`;
+      if (!dedupedYearlyStats[key] || r.status === 'Approved') dedupedYearlyStats[key] = r;
+  });
+  const flatYearlyStats = Object.values(dedupedYearlyStats);
+
+  let exportTargetMonths = [];
+  if (periodType === 'Quarterly') {
+      const qIdx = QUARTERS.indexOf(quarter);
+      exportTargetMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
+  } else if (periodType === 'Annual') {
+      exportTargetMonths = MONTHS;
+  }
+
+  const totalExpected = activeFacilities.length * exportTargetMonths.length;
+  const actualApproved = flatYearlyStats.filter(r =>
+      r.status === 'Approved' &&
+      exportTargetMonths.includes(r.month) &&
+      activeFacilities.includes(r.facility)
+  ).length;
+
+  let canExportConsolidated = true;
+  let exportWarning = "";
+
+  if (periodType === 'Monthly') {
+      canExportConsolidated = false;
+      exportWarning = "Consolidated export is only available for Quarterly and Annual reports.";
+  } else if (totalExpected === 0) {
+      canExportConsolidated = false;
+      exportWarning = "No active facilities found to export.";
+  } else if (actualApproved < totalExpected) {
+      canExportConsolidated = false;
+      exportWarning = `Cannot export: Only ${actualApproved}/${totalExpected} facility reports are approved for this ${periodType}.`;
+  }
+  // ------------------------------------------------
+
   const handleExportConsolidated = async () => {
     setIsExportingConsolidated(true);
     try {
@@ -356,7 +400,7 @@ export default function AdminDashboard({
             otherRowKeys: [], 
             populations: formPopulations,
             periodType, quarter, month, year,
-            facilityName: "PROVINCE OF ABRA (CONSOLIDATED)",
+            facilityName: "Provincial Health Office",
             globalSettings, userProfile,
             rawData: rawDataForAnnual
         });
@@ -389,7 +433,12 @@ export default function AdminDashboard({
                           </div>
                       </div>
                       <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 relative z-10 w-full xl:w-auto shrink-0">
-                          <button disabled={isExportingConsolidated} onClick={handleExportConsolidated} className="w-full sm:w-auto bg-yellow-400 text-black px-5 py-2.5 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                          <button 
+                              disabled={isExportingConsolidated || !canExportConsolidated} 
+                              title={exportWarning}
+                              onClick={handleExportConsolidated} 
+                              className="w-full sm:w-auto bg-yellow-400 text-black px-5 py-2.5 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                          >
                               {isExportingConsolidated ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
                               {isExportingConsolidated ? 'Aggregating...' : 'Export Excel'}
                           </button>

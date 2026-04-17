@@ -1,13 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { toInt, getComputations, hasData } from './utils';
 
-// Dummy initial state to prevent import errors in the test example
+// Dummy initial state matching the V2 structure
 const INITIAL_ROW_STATE = { 
-    male: '', female: '', ageLt15: '', ageGt15: '', 
-    cat1: '', cat2: '', cat3: '', dog: '', cat: '', othersCount: '', washed: '' 
+  male: '', female: '', ageUnder15: '', ageOver15: '', 
+  cat1: '', cat2EligPri: '', cat2EligBoost: '', cat2NonElig: '',
+  cat3EligPri: '', cat3EligBoost: '', cat3NonElig: '',
+  compCat2Pri: '', compCat2Boost: '', compCat3PriErig: '', compCat3PriHrig: '', compCat3Boost: '',
+  typeDog: '', typeCat: '', typeOthers: '',
+  statusPet: '', statusStray: '', statusUnk: '',
+  rabiesCases: '' 
 };
 
-describe('Reporting Math Calculations', () => {
+describe('Reporting Math Calculations (V2 Format)', () => {
     
     it('toInt should safely convert strings and blanks to numbers', () => {
         expect(toInt("5")).toBe(5);
@@ -28,41 +33,61 @@ describe('Reporting Math Calculations', () => {
     it('getComputations should accurately calculate category and animal totals', () => {
         const mockRow = {
             ...INITIAL_ROW_STATE,
-            male: "5", female: "3", ageLt15: "4", ageGt15: "4",
-            cat1: "1", cat2: "5", cat3: "2",
-            dog: "6", cat: "1", othersCount: "0", washed: "7"
+            male: "5", female: "3", 
+            ageUnder15: "4", ageOver15: "4",
+            cat1: "1", cat2EligPri: "2", cat2EligBoost: "2", cat2NonElig: "1", // cat2 total = 5
+            cat3EligPri: "1", cat3EligBoost: "1", cat3NonElig: "0", // cat3 total = 2. Total cases = 8
+            typeDog: "6", typeCat: "1", typeOthers: "1", // total animals = 8
+            statusPet: "4", statusStray: "2", statusUnk: "2" // total status = 8
         };
 
         const totals = getComputations(mockRow);
 
-        expect(totals.sexTotal).toBe(8);
-        expect(totals.catTotal).toBe(8);
-        expect(totals.animalTotal).toBe(7); // 6 dogs + 1 cat
-        expect(totals.percent).toBe('100%'); // 7 washed / 7 animals = 100%
+        expect(totals.totalSex).toBe(8);
+        expect(totals.totalAge).toBe(8);
+        expect(totals.totalCases).toBe(8); 
+        expect(totals.totalAnimals).toBe(8); 
+        expect(totals.totalStatus).toBe(8); 
+        // Since all totals are exactly 8, isMismatch should be false
+        expect(totals.isMismatch).toBeFalsy();
+    });
+
+    it('getComputations should correctly flag a DOH validation mismatch', () => {
+        const invalidRow = {
+            ...INITIAL_ROW_STATE,
+            male: "5", female: "5", // Total Sex = 10
+            typeDog: "5", typeCat: "0", typeOthers: "0" // Total Animals = 5
+        };
+
+        const totals = getComputations(invalidRow);
+        
+        expect(totals.totalSex).toBe(10);
+        expect(totals.totalAnimals).toBe(5);
+        // Because Sex (10) does not match Animals (5), DOH validation must fail
+        expect(totals.isMismatch).toBeTruthy();
     });
 
     it('should correctly sum consolidated report totals across multiple facilities', () => {
-        // FIXED: Changed facility1 'washed' to 13 so it logically matches the 13 animals (10 dogs + 3 cats)
-        const facility1 = { ...INITIAL_ROW_STATE, male: "10", female: "5", cat1: "2", cat2: "8", cat3: "5", dog: "10", cat: "3", othersCount: "0", washed: "13" };
-        const facility2 = { ...INITIAL_ROW_STATE, male: "20", female: "15", cat1: "0", cat2: "20", cat3: "15", dog: "25", cat: "10", othersCount: "0", washed: "35" };
+        const facility1 = { ...INITIAL_ROW_STATE, male: "10", female: "5", cat1: "2", typeDog: "10", typeCat: "5", statusPet: "15", ageUnder15: "10", ageOver15: "5" };
+        const facility2 = { ...INITIAL_ROW_STATE, male: "20", female: "15", cat1: "0", typeDog: "25", typeCat: "10", statusPet: "35", ageUnder15: "20", ageOver15: "15" };
 
         const consolidatedRow = {
             male: toInt(facility1.male) + toInt(facility2.male),
             female: toInt(facility1.female) + toInt(facility2.female),
             cat1: toInt(facility1.cat1) + toInt(facility2.cat1),
-            cat2: toInt(facility1.cat2) + toInt(facility2.cat2),
-            cat3: toInt(facility1.cat3) + toInt(facility2.cat3),
-            dog: toInt(facility1.dog) + toInt(facility2.dog),
-            cat: toInt(facility1.cat) + toInt(facility2.cat),
-            othersCount: toInt(facility1.othersCount) + toInt(facility2.othersCount),
-            washed: toInt(facility1.washed) + toInt(facility2.washed),
+            typeDog: toInt(facility1.typeDog) + toInt(facility2.typeDog),
+            typeCat: toInt(facility1.typeCat) + toInt(facility2.typeCat),
+            statusPet: toInt(facility1.statusPet) + toInt(facility2.statusPet),
+            ageUnder15: toInt(facility1.ageUnder15) + toInt(facility2.ageUnder15),
+            ageOver15: toInt(facility1.ageOver15) + toInt(facility2.ageOver15),
         };
 
         const totals = getComputations(consolidatedRow);
-        expect(totals.sexTotal).toBe(50);         // 15 + 35
-        expect(totals.catTotal).toBe(50);         // 15 + 35
-        expect(totals.animalTotal).toBe(48);      // 13 + 35 = 48
-        expect(totals.percent).toBe('100%');      // 48 washed / 48 total = 100%
+        expect(totals.totalSex).toBe(50);         // (10+5) + (20+15)
+        expect(totals.totalCases).toBe(2);        // 2 + 0
+        expect(totals.totalAnimals).toBe(50);     // (10+5) + (25+10)
+        expect(totals.totalStatus).toBe(50);      // 15 + 35
+        expect(totals.totalAge).toBe(50);         // (10+5) + (20+15)
     });
 });
 

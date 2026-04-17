@@ -154,9 +154,10 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
       setType(newType);
 
       if (newType === 'Hospital' || newType === 'Clinic') {
-          setSelectedMunicipality(''); // Clear it, they don't need it
+          setSelectedMunicipality(''); 
           setName(''); 
-          setBarangays('Province-wide Catchment Area'); 
+          // FIX: Explicitly include Non-Abra in the catchment area text
+          setBarangays('Province-wide Catchment Area, Non-Abra'); 
           if (newType === 'Clinic') setOwnership('Private');
           else setOwnership('Government'); 
       } else if (newType === 'RHU') {
@@ -175,7 +176,6 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
   const handlePreSubmit = (e) => {
     e.preventDefault();
     if (!type) { toast.error("Please select a Facility Type."); return; }
-    // Only require Municipality if it's an RHU
     if (type === 'RHU' && !selectedMunicipality) { toast.error("Please select the Municipality."); return; }
     if (!name.trim()) { toast.error("Please provide a Facility Name."); return; }
     setShowConfirmModal(true);
@@ -183,7 +183,6 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
 
   const confirmSubmit = () => {
     setShowConfirmModal(false);
-    // Send `null` for the municipality if it's a Hospital or Clinic
     onAdd(name, type, barangays, type === 'RHU' ? selectedMunicipality : null, ownership);
   };
 
@@ -240,7 +239,6 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
                 </div>
 
                 <div className={`grid gap-4 ${type === 'RHU' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-                    
                     {/* ONLY SHOW MUNICIPALITY IF TYPE IS RHU */}
                     {type === 'RHU' && (
                         <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${!selectedMunicipality ? 'border-rose-200 bg-rose-50/20' : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md'}`}>

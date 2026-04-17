@@ -73,19 +73,20 @@ export default function FacilityDashboard({
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
+  // Determine facility type at the component level so we can use it to hide the UI later
+  let currentFacilityType = facilityDetails?.[activeFacilityName]?.type;
+  if (!currentFacilityType && activeFacilityName) {
+      if (activeFacilityName.includes('Hospital') || activeFacilityName === 'APH') currentFacilityType = 'Hospital';
+      else if (activeFacilityName.includes('Clinic') || activeFacilityName === 'AMDC') currentFacilityType = 'Clinic';
+      else currentFacilityType = 'RHU';
+  }
+
   useEffect(() => {
     const fetchV2Data = async () => {
       if (!activeFacilityName) return;
       setIsFetchingV2(true); 
       
       try {
-        let facilityType = facilityDetails?.[activeFacilityName]?.type;
-        if (!facilityType) {
-            if (activeFacilityName.includes('Hospital') || activeFacilityName === 'APH') facilityType = 'Hospital';
-            else if (activeFacilityName.includes('Clinic') || activeFacilityName === 'AMDC') facilityType = 'Clinic';
-            else facilityType = 'RHU';
-        }
-
         const { data: popData, error: popError } = await supabase.from('populations').select('municipality, barangay_name, population, year');
         if (popError) throw popError;
 
@@ -109,7 +110,7 @@ export default function FacilityDashboard({
                 if (brgy && brgy.toLowerCase() !== 'all') muniPopSums[muni] = (muniPopSums[muni] || 0) + pop;
                 if (!brgy || brgy.toLowerCase() === 'all') fullPopMap[muni] = pop;
 
-                if (facilityType !== 'Hospital' && facilityType !== 'Clinic') {
+                if (currentFacilityType !== 'Hospital' && currentFacilityType !== 'Clinic') {
                     if (muni.toLowerCase() === (currentHostMunicipality || '').toLowerCase()) {
                         if (brgy && brgy.toLowerCase() !== 'all') { baseKeys.add(brgy); popMap[brgy] = pop; fullPopMap[brgy] = pop; }
                     }
@@ -121,7 +122,7 @@ export default function FacilityDashboard({
             allMunicipalities.forEach(m => {
                 if (fullPopMap[m] === undefined) {
                     fullPopMap[m] = muniPopSums[m] || 0;
-                    if ((facilityType === 'Hospital' || facilityType === 'Clinic') && popMap[m] === undefined) popMap[m] = muniPopSums[m] || 0;
+                    if ((currentFacilityType === 'Hospital' || currentFacilityType === 'Clinic') && popMap[m] === undefined) popMap[m] = muniPopSums[m] || 0;
                 }
             });
         }
@@ -231,7 +232,18 @@ export default function FacilityDashboard({
         }
 
         const sortedBaseKeys = Array.from(baseKeys).sort((a, b) => a.localeCompare(b));
-        const sortedOtherKeys = Array.from(otherKeys).sort((a, b) => (a === "Non-Abra") ? 1 : (b === "Non-Abra") ? -1 : a.localeCompare(b));
+        
+        if (currentFacilityType === 'Hospital' || currentFacilityType === 'Clinic') {
+            if (!sortedBaseKeys.includes("Non-Abra")) {
+                sortedBaseKeys.push("Non-Abra");
+            }
+            popMap["Non-Abra"] = 0; 
+        }
+
+        const sortedOtherKeys = Array.from(otherKeys)
+            .filter(k => !sortedBaseKeys.includes(k))
+            .sort((a, b) => (a === "Non-Abra") ? 1 : (b === "Non-Abra") ? -1 : a.localeCompare(b));
+            
         const combinedKeys = [...sortedBaseKeys, ...sortedOtherKeys];
         const availableMunis = Array.from(allMunicipalities).filter(m => !combinedKeys.includes(m) && m.toLowerCase() !== (currentHostMunicipality || '').toLowerCase()).sort();
         if (!combinedKeys.includes("Non-Abra")) availableMunis.push("Non-Abra");
@@ -253,7 +265,7 @@ export default function FacilityDashboard({
       }
     };
     fetchV2Data();
-  }, [activeFacilityName, currentHostMunicipality, year, month, quarter, periodType, facilityDetails, setInitialData]);
+  }, [activeFacilityName, currentHostMunicipality, year, month, quarter, periodType, facilityDetails, setInitialData, currentFacilityType]);
 
   useEffect(() => {
     const fetchYearlyStats = async () => {
@@ -279,24 +291,20 @@ export default function FacilityDashboard({
       }
   };
   
-  // Kept for the UI progress bar (Pending + Approved counts as "Submitted")
   const submittedMonthsCount = MONTHS.filter(m => ['Pending', 'Approved'].includes(getMonthStatus(m))).length;
 
-  // --- STRICT EXPORT LOCK LOGIC (APPROVED ONLY) ---
   let canExportExcel = true;
   let exportWarning = "";
 
   if (periodType === 'Quarterly') {
       const qIdx = QUARTERS.indexOf(quarter);
       const qMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
-      // Strictly requires Approved
       const completeMonths = qMonths.filter(m => getMonthStatus(m) === 'Approved').length;
       if (completeMonths < 3) {
           canExportExcel = false;
           exportWarning = `Cannot export: Only ${completeMonths}/3 months approved for this quarter.`;
       }
   } else if (periodType === 'Annual') {
-      // Strictly requires Approved
       const approvedMonthsCount = MONTHS.filter(m => getMonthStatus(m) === 'Approved').length;
       if (approvedMonthsCount < 12) {
           canExportExcel = false;
@@ -648,7 +656,8 @@ export default function FacilityDashboard({
                             onDeleteOtherRow={(loc) => setDeleteRowModal({ isOpen: true, location: loc })}
                         />
                         
-                        {!isConsolidatedView && !isAnyAdmin && !isAggregationMode && v2Status !== 'Approved' && v2Status !== 'Pending' && (
+                        {/* FIX: Hide Add Patient Origin if facility is Hospital or Clinic */}
+                        {!isConsolidatedView && !isAnyAdmin && !isAggregationMode && v2Status !== 'Approved' && v2Status !== 'Pending' && currentFacilityType === 'RHU' && (
                             <div className="bg-white border-t border-slate-100 px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
                                 <div className="flex items-center gap-3">
                                     <div className="text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100"><MapPin size={16} strokeWidth={2.5}/></div>
@@ -680,13 +689,131 @@ export default function FacilityDashboard({
                             <FileDown size={24} strokeWidth={2.5} />
                         </div>
                         <h3 className="text-xl font-bold mb-2 text-slate-900">Export as Excel?</h3>
-                        <p className="text-sm text-slate-500 mb-6">This will generate a highly detailed Animal Bite and Rabies Report Form in Excel format.</p>
+                        <p className="text-sm text-slate-500 mb-6">This will generate a highly detailed DOH Form 1 Accomplishment Report in Excel format.</p>
                         <div className="flex gap-3">
                             <button onClick={() => setShowExportModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
                             <button onClick={handleExportExcel} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm flex justify-center items-center gap-2">
                                 {isExporting ? <Loader2 size={16} className="animate-spin"/> : null} 
                                 Generate Excel
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </ModalPortal>
+        )}
+
+        {/* --- DELETE OTHER ROW MODAL --- */}
+        {deleteRowModal.isOpen && (
+            <ModalPortal>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                        <div className="mx-auto w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
+                            <Trash2 size={24} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-slate-900">Remove Row?</h3>
+                        <p className="text-sm text-slate-500 mb-6">Are you sure you want to remove <strong>{deleteRowModal.location}</strong> from the report? This will clear its data.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setDeleteRowModal({ isOpen: false, location: null })} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
+                            <button onClick={confirmDeleteOtherRow} className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition-all shadow-sm">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            </ModalPortal>
+        )}
+
+        {/* --- DRAFT MODAL --- */}
+        {showDraftModal && (
+            <ModalPortal>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                        <div className="mx-auto w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mb-4">
+                            <Save size={24} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-slate-900">Save Draft?</h3>
+                        <p className="text-sm text-slate-500 mb-6">You can return and edit this report later before submitting it to the Provincial Health Office.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowDraftModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
+                            <button onClick={confirmSaveDraft} className="flex-1 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all shadow-sm">Save Draft</button>
+                        </div>
+                    </div>
+                </div>
+            </ModalPortal>
+        )}
+
+        {/* --- SUBMIT MODAL --- */}
+        {showSubmitModal && (
+            <ModalPortal>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                        <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                            <CheckCircle size={24} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-slate-900">Submit Report?</h3>
+                        {isZeroSubmit ? (
+                            <p className="text-sm text-rose-500 font-medium mb-6 bg-rose-50 p-2 rounded-lg border border-rose-100">Warning: You are submitting a completely blank (ZERO) report.</p>
+                        ) : (
+                            <p className="text-sm text-slate-500 mb-6">Once submitted, this report will be locked for review by the Provincial Health Office.</p>
+                        )}
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowSubmitModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
+                            <button onClick={confirmSubmit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm">Submit Now</button>
+                        </div>
+                    </div>
+                </div>
+            </ModalPortal>
+        )}
+
+        {/* --- APPROVE MODAL --- */}
+        {showApproveModal && (
+            <ModalPortal>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                        <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                            <CheckCircle size={24} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-slate-900">Approve Report?</h3>
+                        <p className="text-sm text-slate-500 mb-6">This will mark the report as completed and include it in the consolidated analytics.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowApproveModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
+                            <button onClick={confirmApprove} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all shadow-sm">Approve</button>
+                        </div>
+                    </div>
+                </div>
+            </ModalPortal>
+        )}
+
+        {/* --- REJECT MODAL --- */}
+        {showRejectModal && (
+            <ModalPortal>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                        <div className="mx-auto w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
+                            <XCircle size={24} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-slate-900">Reject Report?</h3>
+                        <p className="text-sm text-slate-500 mb-6">This will return the report to the facility encoder for corrections.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowRejectModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
+                            <button onClick={confirmRejection} className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition-all shadow-sm">Reject</button>
+                        </div>
+                    </div>
+                </div>
+            </ModalPortal>
+        )}
+
+        {/* --- DELETE REPORT MODAL --- */}
+        {showDeleteReportModal && (
+            <ModalPortal>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                        <div className="mx-auto w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
+                            <Trash2 size={24} strokeWidth={2.5} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-slate-900">Delete Report?</h3>
+                        <p className="text-sm text-slate-500 mb-6">Are you sure you want to completely erase this month's report? This action cannot be undone.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowDeleteReportModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
+                            <button onClick={handleDeleteV2Report} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-sm">Delete</button>
                         </div>
                     </div>
                 </div>
