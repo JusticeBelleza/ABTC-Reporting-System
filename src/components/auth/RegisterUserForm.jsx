@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { Mail, KeyRound, Loader2, UserPlus, AlertCircle, Eye, EyeOff, User, Briefcase, Phone, Shield, Wand2, Copy } from 'lucide-react';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { Turnstile } from '@marsidev/react-turnstile'; // --- UPDATED IMPORT ---
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import ModalPortal from '../modals/ModalPortal';
 import { useApp } from '../../context/AppContext';
 
-const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
+// --- UPDATED ENV VARIABLE ---
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
 // --- COMPACT FLOATING LABEL INPUT ---
 const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, required, disabled, minLength, rightElement, hasError }) => (
@@ -101,8 +102,8 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
         return;
     }
 
-    if (HCAPTCHA_SITE_KEY && !captchaToken) {
-        toast.error("Please complete the captcha verification.");
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+        toast.error("Please complete the security verification.");
         return;
     }
 
@@ -144,13 +145,15 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
          toast.info("User registration initiated. Check email for confirmation if required.");
       }
 
-      if (captcha.current) captcha.current.resetCaptcha();
+      // --- UPDATED RESET METHOD ---
+      if (captcha.current) captcha.current.reset();
       setCaptchaToken(null);
 
     } catch (err) {
       console.error("Registration Error:", err);
       toast.error(err.message || "Failed to create user");
-      if (captcha.current) captcha.current.resetCaptcha();
+      // --- UPDATED RESET METHOD ---
+      if (captcha.current) captcha.current.reset();
       setCaptchaToken(null);
     } finally {
       setLoading(false);
@@ -314,14 +317,18 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
 
         {/* --- CAPTCHA & SUBMIT --- */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-4">
-            <div className="w-full sm:w-auto">
-                {HCAPTCHA_SITE_KEY ? (
-                    <div className="overflow-hidden rounded-lg shadow-sm border border-slate-200 inline-block bg-white">
-                        <HCaptcha ref={captcha} sitekey={HCAPTCHA_SITE_KEY} onVerify={(token) => setCaptchaToken(token)} />
-                    </div>
+            <div className="w-full sm:w-auto overflow-hidden rounded-lg">
+                {TURNSTILE_SITE_KEY ? (
+                    /* --- UPDATED TURNSTILE COMPONENT --- */
+                    <Turnstile
+                      ref={captcha}
+                      siteKey={TURNSTILE_SITE_KEY}
+                      onSuccess={(token) => setCaptchaToken(token)}
+                      options={{ theme: 'light', size: 'normal' }}
+                    />
                 ) : (
                     <div className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
-                        <AlertCircle size={12}/> Captcha Disabled
+                        <AlertCircle size={12}/> Security Disabled
                     </div>
                 )}
             </div>

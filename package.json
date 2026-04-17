@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@hcaptcha/react-hcaptcha": "^2.0.2",
+    "@marsidev/react-turnstile": "^1.5.0",
     "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/postcss": "^4.1.18",
     "exceljs": "^4.4.0",

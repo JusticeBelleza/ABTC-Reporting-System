@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, AlertCircle, ArrowLeft, Eye, EyeOff, ShieldAlert, CheckCircle } from 'lucide-react';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { Turnstile } from '@marsidev/react-turnstile'; // --- UPDATED IMPORT ---
 import { supabase } from '../../lib/supabase';
 
-const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
+// --- UPDATED ENV VARIABLE ---
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY; 
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -40,7 +41,8 @@ export default function Login() {
 
     } catch (err) {
       setError(err.message);
-      if (captcha.current) captcha.current.resetCaptcha();
+      // --- UPDATED RESET METHOD ---
+      if (captcha.current) captcha.current.reset();
       setCaptchaToken(null);
     } finally {
       setLoading(false);
@@ -61,7 +63,8 @@ export default function Login() {
       setError(err.message); 
     } finally { 
       setLoading(false); 
-      if (captcha.current) captcha.current.resetCaptcha();
+      // --- UPDATED RESET METHOD ---
+      if (captcha.current) captcha.current.reset();
       setCaptchaToken(null);
     }
   };
@@ -161,10 +164,15 @@ export default function Login() {
             </div>
 
             <div className={`flex justify-center py-2 origin-center transition-all duration-700 delay-300 ${isMounted ? 'opacity-100 scale-95' : 'opacity-0 scale-90'}`}>
-              <HCaptcha
+              {/* --- UPDATED TURNSTILE COMPONENT --- */}
+              <Turnstile
                 ref={captcha}
-                sitekey={HCAPTCHA_SITE_KEY}
-                onVerify={(token) => setCaptchaToken(token)}
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={(token) => setCaptchaToken(token)}
+                options={{
+                  theme: 'light',
+                  size: 'normal'
+                }}
               />
             </div>
 
@@ -217,10 +225,15 @@ export default function Login() {
               </div>
               
               <div className="flex justify-center py-2 scale-95 origin-center">
-                <HCaptcha
+                {/* --- UPDATED TURNSTILE COMPONENT --- */}
+                <Turnstile
                   ref={captcha}
-                  sitekey={HCAPTCHA_SITE_KEY}
-                  onVerify={(token) => setCaptchaToken(token)}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => setCaptchaToken(token)}
+                  options={{
+                    theme: 'light',
+                    size: 'normal'
+                  }}
                 />
               </div>
               
