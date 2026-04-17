@@ -14,7 +14,8 @@ const COLORS = {
   male: '#3B82F6', female: '#F43F5E',
   ageLt15: '#10B981', ageGt15: '#F59E0B',
   cat1: '#14B8A6', cat2: '#F59E0B', cat3: '#EF4444',
-  dog: '#6366F1', cat: '#8B5CF6', other: '#64748B'
+  dog: '#6366F1', cat: '#8B5CF6', other: '#64748B',
+  pet: '#10B981', stray: '#F43F5E', unk: '#94A3B8' // Added Status Colors
 };
 
 const TOOLTIP_STYLE = {
@@ -47,6 +48,14 @@ const renderDynamicBarLabel = (props) => {
     </text>
   );
 };
+
+const calcTotal = (rows) => rows.reduce((sum, r) => {
+    if (!r.location_name || r.location_name.includes('Outside Catchment')) return sum;
+    const n = (v) => Number(v) || 0;
+    const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
+    const cat3Tot = n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
+    return sum + n(r.cat1) + cat2Tot + cat3Tot;
+}, 0);
 
 export default function AnalyticsOverview({ 
   periodType, setPeriodType, year, setYear, month, setMonth, 
@@ -84,9 +93,8 @@ export default function AnalyticsOverview({
     return QUARTERS;
   }, [year, currentRealYear, currentQuarterIndex]);
 
-  // V2 Data States
-  const [v2AllYearData, setV2AllYearData] = useState([]); // Stores the whole year for precise YTD calculations
-  const [v2Data, setV2Data] = useState([]); // Stores just the active period (month/quarter)
+  const [v2AllYearData, setV2AllYearData] = useState([]); 
+  const [v2Data, setV2Data] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [reportStatus, setReportStatus] = useState('Not Submitted');
 
@@ -94,9 +102,7 @@ export default function AnalyticsOverview({
       const fetchV2Analytics = async () => {
           setLoading(true);
           try {
-              // 1. Fetch the ENTIRE year's data so we can perfectly calculate YTD including Non-Abra
-              let query = supabase.from('abtc_reports_v2').select('*').eq('year', year);
-
+              let query = supabase.from('abtc_reports_v2').select('*').in('year', [year, year - 1]);
               if (isAdmin) query = query.eq('status', 'Approved');
               else query = query.eq('facility', user?.facility);
 
@@ -105,7 +111,6 @@ export default function AnalyticsOverview({
               
               setV2AllYearData(data || []);
               
-              // 2. Filter down to just the active period for the charts
               let targetMonths = [];
               if (periodType === 'Monthly') targetMonths = [month];
               else if (periodType === 'Quarterly') {
@@ -115,10 +120,9 @@ export default function AnalyticsOverview({
                   targetMonths = MONTHS;
               }
 
-              const currentPeriodData = (data || []).filter(d => targetMonths.includes(d.month));
+              const currentPeriodData = (data || []).filter(d => d.year === year && targetMonths.includes(d.month));
               setV2Data(currentPeriodData);
               
-              // 3. Set the official status
               if (currentPeriodData && currentPeriodData.length > 0) {
                   setReportStatus(isAdmin ? 'Approved' : currentPeriodData[0].status || 'Draft');
               } else {
@@ -144,21 +148,16 @@ export default function AnalyticsOverview({
 
   const locationInfo = useMemo(() => {
     if (!v2Data || v2Data.length === 0) return { chartData: [], tableData: [], total: 0 };
-    
     const chartMap = {}; const tableMap = {}; let total = 0;
-    const isConsolidatedView = isAdmin;
-    const hostMuni = dbMunicipalities.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
     
     v2Data.forEach(row => {
         if (!row.location_name || row.location_name.includes('Outside Catchment')) return;
-        
         const num = (v) => Number(v) || 0;
         const cases = num(row.cat1) + num(row.cat2_elig_pri) + num(row.cat2_elig_boost) + num(row.cat2_non_elig) + num(row.cat3_elig_pri) + num(row.cat3_elig_boost) + num(row.cat3_non_elig);
         
         if (cases > 0) {
             total += cases;
-            
-            if (isConsolidatedView || facilityType === 'Hospital') {
+            if (isAdmin || facilityType === 'Hospital') {
                 if (dbMunicipalities.includes(row.location_name) || row.location_name === 'Non-Abra') {
                     chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
                 } else {
@@ -167,80 +166,89 @@ export default function AnalyticsOverview({
                     chartMap[targetName] = (chartMap[targetName] || 0) + cases;
                 }
             } else {
-               if (dbMunicipalities.includes(row.location_name) && row.location_name !== hostMuni) {
-                   tableMap[row.location_name] = (tableMap[row.location_name] || 0) + cases;
-               } else {
-                   chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
-               }
+               chartMap[row.location_name] = (chartMap[row.location_name] || 0) + cases;
             }
         }
     });
 
-    const chart = Object.entries(chartMap).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name));
+    const chart = Object.entries(chartMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => {
+            if (a.name === 'Non-Abra') return 1;
+            if (b.name === 'Non-Abra') return -1;
+            return a.name.localeCompare(b.name);
+        });
+
     const table = Object.entries(tableMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-
+    
     return { chartData: chart, tableData: table, total };
-  }, [v2Data, isAdmin, facilityType, dbMunicipalities, user]);
+  }, [v2Data, isAdmin, facilityType, dbMunicipalities]);
 
-  // --- FIX: FORCE CURRENT TOTAL TO EXACTLY MATCH THE CHART TOTAL ---
   const currentTotal = locationInfo.total;
 
-  // --- FIX: CALCULATE EXACT YTD DIRECTLY FROM V2 DATA ---
   const calculatedYTD = useMemo(() => {
-      let targetMonths = MONTHS;
-      if (periodType === 'Monthly') targetMonths = MONTHS.slice(0, MONTHS.indexOf(month) + 1);
-      else if (periodType === 'Quarterly') targetMonths = MONTHS.slice(0, (QUARTERS.indexOf(quarter) * 3) + 3);
+      let ytdMonths = MONTHS;
+      if (periodType === 'Monthly') ytdMonths = MONTHS.slice(0, MONTHS.indexOf(month) + 1);
+      else if (periodType === 'Quarterly') ytdMonths = MONTHS.slice(0, (QUARTERS.indexOf(quarter) * 3) + 3);
       
-      return v2AllYearData
-          .filter(r => targetMonths.includes(r.month) && r.location_name && !r.location_name.includes('Outside Catchment'))
-          .reduce((sum, row) => {
-              const n = (v) => Number(v) || 0;
-              return sum + n(row.cat1) + n(row.cat2_elig_pri) + n(row.cat2_elig_boost) + n(row.cat2_non_elig) + n(row.cat3_elig_pri) + n(row.cat3_elig_boost) + n(row.cat3_non_elig);
-          }, 0);
-  }, [periodType, v2AllYearData, month, quarter]);
+      const rows = v2AllYearData.filter(d => d.year === year && ytdMonths.includes(d.month));
+      return calcTotal(rows);
+  }, [periodType, v2AllYearData, month, quarter, year]);
 
-  const comparisonData = useMemo(() => {
-      let prevTotal = 0; let label = `vs Last ${periodType === 'Monthly' ? 'Month' : periodType === 'Quarterly' ? 'Quarter' : 'Year'}`;
-      let isValid = false;
-
-      if (full24MonthData.length > 0) {
-          if (periodType === 'Monthly') {
-              const mIdx = MONTHS.indexOf(month);
-              const prevMonthData = full24MonthData.find(d => d.month === (mIdx === 0 ? MONTHS[11] : MONTHS[mIdx - 1]) && d.year === (mIdx === 0 ? year - 1 : year));
-              if (prevMonthData && prevMonthData.raw > 0) { prevTotal = prevMonthData.raw; isValid = true; }
-          } else if (periodType === 'Quarterly') {
-              const qIdx = QUARTERS.indexOf(quarter);
-              const prevQIdx = qIdx === 0 ? 3 : qIdx - 1;
-              const targetMonths = [MONTHS[prevQIdx*3], MONTHS[prevQIdx*3+1], MONTHS[prevQIdx*3+2]];
-              const sum = full24MonthData.filter(d => d.year === (qIdx === 0 ? year - 1 : year) && targetMonths.includes(d.month)).reduce((a, b) => a + (Number(b.raw) || 0), 0);
-              if (sum > 0) { prevTotal = sum; isValid = true; }
-          } else if (periodType === 'Annual') {
-              const sum = full24MonthData.filter(d => d.year === year - 1).reduce((a, b) => a + (Number(b.raw) || 0), 0);
-              if (sum > 0) { prevTotal = sum; isValid = true; }
-          }
+  const previousPeriodComparison = useMemo(() => {
+      let prevMonths = []; let prevYear = year; let label = '';
+      if (periodType === 'Monthly') {
+          const mIdx = MONTHS.indexOf(month);
+          if (mIdx === 0) { prevMonths = [MONTHS[11]]; prevYear = year - 1; }
+          else { prevMonths = [MONTHS[mIdx - 1]]; prevYear = year; }
+          label = `vs ${prevMonths[0].substring(0,3)} ${prevYear}`;
+      } else if (periodType === 'Quarterly') {
+          const qIdx = QUARTERS.indexOf(quarter);
+          if (qIdx === 0) { prevMonths = [MONTHS[9], MONTHS[10], MONTHS[11]]; prevYear = year - 1; }
+          else { prevMonths = [MONTHS[(qIdx-1)*3], MONTHS[(qIdx-1)*3+1], MONTHS[(qIdx-1)*3+2]]; prevYear = year; }
+          label = `vs Q${qIdx === 0 ? 4 : qIdx} ${prevYear}`;
+      } else {
+          prevMonths = MONTHS; prevYear = year - 1;
+          label = `vs ${prevYear}`;
       }
-      let delta = isValid && prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
-      return { delta, label, isValid };
-  }, [full24MonthData, periodType, month, quarter, year, currentTotal]);
+      
+      const rows = v2AllYearData.filter(d => d.year === prevYear && prevMonths.includes(d.month));
+      
+      if (rows.length === 0) return { hasData: false, label };
 
-  const yoyComparisonData = useMemo(() => {
-      let prevYoyTotal = 0; let isValid = false;
-      if (full24MonthData.length > 0) {
-          if (periodType === 'Monthly') {
-              const prevData = full24MonthData.find(d => d.month === month && d.year === year - 1);
-              if (prevData && prevData.raw > 0) { prevYoyTotal = prevData.raw; isValid = true; }
-          } else if (periodType === 'Quarterly') {
-              const targetMonths = [MONTHS[QUARTERS.indexOf(quarter)*3], MONTHS[QUARTERS.indexOf(quarter)*3+1], MONTHS[QUARTERS.indexOf(quarter)*3+2]];
-              const sum = full24MonthData.filter(d => d.year === year - 1 && targetMonths.includes(d.month)).reduce((a, b) => a + (Number(b.raw) || 0), 0);
-              if (sum > 0) { prevYoyTotal = sum; isValid = true; }
-          }
+      const prevTotal = calcTotal(rows);
+      const diff = currentTotal - prevTotal;
+      const sign = diff > 0 ? '+' : '';
+      return { hasData: true, diff, display: `${sign}${diff} cases`, label };
+  }, [v2AllYearData, periodType, month, quarter, year, currentTotal]);
+
+  const samePeriodLastYear = useMemo(() => {
+      if (periodType === 'Annual') return null;
+      
+      let targetMonths = [];
+      let label = '';
+      
+      if (periodType === 'Monthly') {
+          targetMonths = [month];
+          label = `vs ${month.substring(0,3)} ${year - 1}`;
+      } else {
+          const qIdx = QUARTERS.indexOf(quarter);
+          targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
+          label = `vs Q${qIdx + 1} ${year - 1}`;
       }
-      let delta = isValid && prevYoyTotal > 0 ? ((currentTotal - prevYoyTotal) / prevYoyTotal) * 100 : 0;
-      return { delta, isValid };
-  }, [full24MonthData, periodType, month, quarter, year, currentTotal]);
+
+      const rows = v2AllYearData.filter(d => d.year === year - 1 && targetMonths.includes(d.month));
+      
+      if (rows.length === 0) return { hasData: false, label };
+
+      const prevTotal = calcTotal(rows);
+      const diff = currentTotal - prevTotal;
+      const sign = diff > 0 ? '+' : '';
+      return { hasData: true, diff, display: `${sign}${diff} cases`, label };
+  }, [v2AllYearData, periodType, month, quarter, year, currentTotal]);
 
   const safeTotals = useMemo(() => {
-      let sums = { male: 0, female: 0, ageLt15: 0, ageGt15: 0, cat1: 0, cat2: 0, cat3: 0, dog: 0, cat: 0, others: 0 };
+      let sums = { male: 0, female: 0, ageLt15: 0, ageGt15: 0, cat1: 0, cat2: 0, cat3: 0, dog: 0, cat: 0, others: 0, pet: 0, stray: 0, unk: 0 };
       v2Data.forEach(r => {
           if (r.location_name.includes('Outside Catchment')) return;
           const n = (v) => Number(v) || 0;
@@ -250,6 +258,7 @@ export default function AnalyticsOverview({
           sums.cat2 += n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
           sums.cat3 += n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
           sums.dog += n(r.type_dog); sums.cat += n(r.type_cat); sums.others += n(r.type_others);
+          sums.pet += n(r.status_pet); sums.stray += n(r.status_stray); sums.unk += n(r.status_unk);
       });
       return sums;
   }, [v2Data]);
@@ -270,10 +279,20 @@ export default function AnalyticsOverview({
     return res.sort((a, b) => b.value - a.value);
   }, [safeTotals]);
 
+  // --- NEW: Status Data Construction ---
+  const statusData = useMemo(() => {
+    const res = [];
+    if (safeTotals.pet > 0) res.push({ name: 'Pet', value: safeTotals.pet, fill: COLORS.pet });
+    if (safeTotals.stray > 0) res.push({ name: 'Stray', value: safeTotals.stray, fill: COLORS.stray });
+    if (safeTotals.unk > 0) res.push({ name: 'Unknown', value: safeTotals.unk, fill: COLORS.unk });
+    return res.sort((a, b) => b.value - a.value);
+  }, [safeTotals]);
+
   const categoryTotal = useMemo(() => categoryData.reduce((sum, item) => sum + item.value, 0), [categoryData]);
   const sexTotal = useMemo(() => demographicsSexData.reduce((sum, item) => sum + item.value, 0), [demographicsSexData]);
   const ageTotal = useMemo(() => demographicsAgeData.reduce((sum, item) => sum + item.value, 0), [demographicsAgeData]);
   const animalTotal = useMemo(() => animalData.reduce((sum, item) => sum + item.value, 0), [animalData]);
+  const statusTotal = useMemo(() => statusData.reduce((sum, item) => sum + item.value, 0), [statusData]);
 
   const handleDownload = async (id, name) => {
     const el = document.getElementById(id);
@@ -282,13 +301,10 @@ export default function AnalyticsOverview({
     const link = document.createElement('a'); link.download = name; link.href = url; link.click();
   };
 
-  const hasAnyData = full24MonthData.some(d => d.year === year && d.raw !== null);
-  const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : hasAnyData);
+  const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : v2Data.length > 0);
 
   const renderDataCompletenessBanner = () => {
-    // Hide the banner completely if no reports exist (it will show the empty state instead)
     if (v2Data.length === 0) return null; 
-
     const isComplete = isAdmin ? complianceRate === 100 : reportStatus === 'Approved';
     return (
       <div className={`mb-6 p-4 rounded-xl border flex items-start sm:items-center gap-3 shadow-sm ${isComplete ? 'bg-emerald-50/80 border-emerald-200/60' : 'bg-amber-50/80 border-amber-200/60'}`}>
@@ -299,8 +315,8 @@ export default function AnalyticsOverview({
           <h4 className={`text-sm font-bold ${isComplete ? 'text-emerald-900' : 'text-amber-900'}`}>{isComplete ? 'Complete Verified Data' : 'Incomplete Data Warning'}</h4>
           <p className={`text-xs font-medium mt-0.5 ${isComplete ? 'text-emerald-700' : 'text-amber-700'}`}>
             {isAdmin 
-              ? (isComplete ? 'All authorized facilities have submitted approved reports for this period. Analytics reflect a highly accurate baseline.' : `Only ${complianceRate}% of facilities have submitted approved reports. Analytics and predictive models may not reflect the actual provincial totals until all reports are in.`)
-              : (isComplete ? 'Your facility report has been approved and verified for this period.' : 'Your facility report is still pending or in draft. Analytics may be incomplete.')
+              ? (isComplete ? 'All authorized facilities have submitted approved reports for this period.' : `Only ${complianceRate}% of facilities have submitted approved reports.`)
+              : (isComplete ? 'Your facility report has been approved and verified for this period.' : 'Your facility report is still pending or in draft.')
             }
           </p>
         </div>
@@ -392,51 +408,50 @@ export default function AnalyticsOverview({
                   <div className="flex items-end justify-between">
                       <h3 className="text-3xl font-black text-slate-900">{currentTotal}</h3>
                       
-                      <div className={`flex flex-col items-end gap-1.5`}>
-                          {currentTotal === 0 ? (
-                              <div className="flex flex-col items-end">
-                                  {reportStatus !== 'Draft' ? (
-                                      <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg text-[10px] font-bold">VERIFIED ZERO</div>
-                                  ) : (
-                                      <div className="bg-amber-50 text-amber-600 px-2 py-1 rounded-lg text-[10px] font-bold">AWAITING DATA</div>
-                                  )}
-                                  <span className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                                      {reportStatus !== 'Draft' ? 'OFFICIAL RECORD' : 'PENDING REPORT'}
-                                  </span>
-                              </div>
-                          ) : (
-                              <div className="flex flex-col items-end gap-1">
-                                  
-                                  <div className="flex items-center gap-1.5 justify-end w-full">
-                                      {comparisonData.isValid ? (
-                                          <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${comparisonData.delta >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                              {comparisonData.delta >= 0 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
-                                              {Math.abs(comparisonData.delta).toFixed(1)}%
-                                          </div>
-                                      ) : (
-                                          <span className="text-xs text-slate-300 font-bold">—</span>
-                                      )}
-                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider w-[130px] text-right whitespace-nowrap">
-                                          {comparisonData.label}
-                                      </span>
-                                  </div>
-
-                                  {periodType !== 'Annual' && (
-                                      <div className="flex items-center gap-1.5 justify-end w-full">
-                                          {yoyComparisonData.isValid ? (
-                                              <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${yoyComparisonData.delta >= 0 ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                  {yoyComparisonData.delta >= 0 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
-                                                  {Math.abs(yoyComparisonData.delta).toFixed(1)}%
-                                              </div>
-                                          ) : (
-                                              <span className="text-xs text-slate-300 font-bold">—</span>
-                                          )}
-                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider w-[130px] text-right whitespace-nowrap">
-                                              {periodType === 'Monthly' ? 'vs Same Month Last Yr' : 'vs Same Qtr Last Yr'}
-                                          </span>
+                      <div className="flex flex-col items-end gap-1 min-w-[130px]">
+                          {/* --- ROW 1: PREVIOUS PERIOD --- */}
+                          <div className="flex items-center justify-end w-full">
+                              {previousPeriodComparison.hasData ? (
+                                  <>
+                                      <div className={`px-2 py-0.5 rounded-md text-[10px] font-black min-w-[40px] text-center flex items-center justify-center gap-1 ${previousPeriodComparison.diff > 0 ? 'bg-rose-50 text-rose-600' : (previousPeriodComparison.diff < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600')}`}>
+                                          {previousPeriodComparison.diff > 0 ? <TrendingUp size={10} strokeWidth={3}/> : (previousPeriodComparison.diff < 0 ? <TrendingDown size={10} strokeWidth={3}/> : null)}
+                                          {previousPeriodComparison.display}
                                       </div>
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right whitespace-nowrap min-w-[90px] ml-2">
+                                          {previousPeriodComparison.label}
+                                      </span>
+                                  </>
+                              ) : (
+                                  <>
+                                      <div className="px-2 py-0.5 rounded-md text-[10px] font-black min-w-[40px] text-center bg-slate-50 text-slate-400">—</div>
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right whitespace-nowrap min-w-[90px] ml-2">
+                                          {previousPeriodComparison.label}
+                                      </span>
+                                  </>
+                              )}
+                          </div>
+
+                          {/* --- ROW 2: SAME PERIOD LAST YEAR --- */}
+                          {samePeriodLastYear && (
+                              <div className="flex items-center justify-end w-full mt-1">
+                                  {samePeriodLastYear.hasData ? (
+                                      <>
+                                          <div className={`px-2 py-0.5 rounded-md text-[10px] font-black min-w-[40px] text-center flex items-center justify-center gap-1 ${samePeriodLastYear.diff > 0 ? 'bg-rose-50 text-rose-600' : (samePeriodLastYear.diff < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600')}`}>
+                                              {samePeriodLastYear.diff > 0 ? <TrendingUp size={10} strokeWidth={3}/> : (samePeriodLastYear.diff < 0 ? <TrendingDown size={10} strokeWidth={3}/> : null)}
+                                              {samePeriodLastYear.display}
+                                          </div>
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right whitespace-nowrap min-w-[90px] ml-2">
+                                              {samePeriodLastYear.label}
+                                          </span>
+                                      </>
+                                  ) : (
+                                      <>
+                                          <div className="px-2 py-0.5 rounded-md text-[10px] font-black min-w-[40px] text-center bg-slate-50 text-slate-400">—</div>
+                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right whitespace-nowrap min-w-[90px] ml-2">
+                                              {samePeriodLastYear.label}
+                                          </span>
+                                      </>
                                   )}
-                                  
                               </div>
                           )}
                       </div>
@@ -450,15 +465,9 @@ export default function AnalyticsOverview({
                           {calculatedYTD}
                       </h3>
                       <div className="flex flex-col items-end">
-                          {calculatedYTD === 0 ? (
-                              reportStatus !== 'Draft' ? (
-                                  <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg text-[10px] font-bold">VERIFIED ZERO</div>
-                              ) : (
-                                  <div className="bg-amber-50 text-amber-600 px-2 py-1 rounded-lg text-[10px] font-bold">AWAITING DATA</div>
-                              )
-                          ) : (
-                              <div className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold">CASES IN {year}</div>
-                          )}
+                          <div className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold uppercase">
+                              Cumulative in {year}
+                          </div>
                       </div>
                   </div>
               </div>
@@ -505,6 +514,7 @@ export default function AnalyticsOverview({
               <DemographicCharts 
                 locationTitleBase={locationTitleBase} locationTotal={locationInfo.total} locationData={locationInfo.chartData} tableData={locationInfo.tableData}
                 categoryTotal={categoryTotal} categoryData={categoryData} animalTotal={animalTotal} animalData={animalData}
+                statusTotal={statusTotal} statusData={statusData} // <--- Passed new data
                 sexTotal={sexTotal} demographicsSexData={demographicsSexData} ageTotal={ageTotal} demographicsAgeData={demographicsAgeData}
                 handleDownload={handleDownload} renderDynamicBarLabel={renderDynamicBarLabel} renderCustomizedLabel={renderCustomizedLabel}
                 COLORS={COLORS} TOOLTIP_STYLE={TOOLTIP_STYLE}

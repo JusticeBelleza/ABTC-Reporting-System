@@ -16,6 +16,9 @@ export function useForecastingMetrics({
   const [projectedNextMonth, setProjectedNextMonth] = useState(null);
   const [modelMetrics, setModelMetrics] = useState({ mae: 0, mape: 0, accuracy: 0, validMonths: 0 });
 
+  const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
+  const areaText = (isAdmin || facilityType === 'Hospital' || facilityType === 'Clinic') ? 'the province' : 'the municipality';
+
   useEffect(() => {
     const fetchHistory = async () => {
       setLoadingHistory(true);
@@ -23,8 +26,13 @@ export function useForecastingMetrics({
         const { data: popData } = await supabase.from('populations').select('municipality').not('municipality', 'is', null);
         const dynamicMunicipalities = popData ? Array.from(new Set(popData.map(p => p.municipality))) : [];
 
-        const query = supabase.from('abtc_reports_v2').select('*').eq('status', 'Approved');
-        if (!isAdmin) query.eq('facility', user?.facility);
+        let query = supabase.from('abtc_reports_v2').select('*');
+        
+        if (isAdmin) {
+            query = query.eq('status', 'Approved');
+        } else {
+            query = query.eq('facility', user?.facility);
+        }
         
         const { data: reports, error } = await query;
 
@@ -71,38 +79,47 @@ export function useForecastingMetrics({
                 const isPastOrCurrent = y < currentRealYear || (y === currentRealYear && mIdx <= currentDate.getMonth());
                 const isAfterFirstReport = firstReportDate && (y > firstReportDate.year || (y === firstReportDate.year && mIdx >= firstReportDate.monthIdx));
                 
-                let total = null; 
+                let totalRaw = null; 
+                let totalCat3 = 0;
+                let totalStray = 0;
                 
                 if (hasData) {
-                    total = periodReports.reduce((sum, r) => {
+                    const sums = periodReports.reduce((acc, r) => {
                         const fName = String(r.facility || '').trim();
-                        // Filter out Admin accounts
                         if (isAdmin && (fName === 'PHO' || fName.toLowerCase().includes('provincial') || fName.toLowerCase().includes('admin'))) {
-                            return sum;
+                            return acc;
                         }
 
-                        // --- FIX: DO NOT ADD 'NON-ABRA' CASES TO THE TOTAL ---
-                        if (r.location_name && (r.location_name === 'Non-Abra' || r.location_name.includes('Outside Catchment'))) {
-                            return sum;
+                        if (r.location_name && r.location_name.includes('Outside Catchment')) {
+                            return acc;
                         }
 
-                        const rMale = Number(r.male) || 0;
-                        const rFemale = Number(r.female) || 0;
-                        
-                        const cat2Tot = (Number(r.cat2_elig_pri) || 0) + (Number(r.cat2_elig_boost) || 0) + (Number(r.cat2_non_elig) || 0);
-                        const cat3Tot = (Number(r.cat3_elig_pri) || 0) + (Number(r.cat3_elig_boost) || 0) + (Number(r.cat3_non_elig) || 0);
-                        const rTotCases = (Number(r.cat1) || 0) + cat2Tot + cat3Tot;
+                        const n = (v) => Number(v) || 0;
+                        const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
+                        const cat3Tot = n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
+                        const rTotCases = n(r.cat1) + cat2Tot + cat3Tot;
 
-                        const dSex = rMale + rFemale;
-                        const rTotal = Math.max(dSex, rTotCases);
+                        acc.raw += rTotCases;
+                        acc.cat3 += cat3Tot; 
+                        acc.stray += n(r.status_stray);
 
-                        return sum + rTotal;
-                    }, 0);
+                        return acc;
+                    }, { raw: 0, cat3: 0, stray: 0 });
+
+                    totalRaw = sums.raw;
+                    totalCat3 = sums.cat3;
+                    totalStray = sums.stray;
                 } else if (isPastOrCurrent && isAfterFirstReport) {
-                    total = 0; 
+                    totalRaw = 0; 
                 }
                 
-                allMonthsRaw.push({ year: y, month: m, raw: total, display: `${m.substring(0,3)} ${y}` });
+                allMonthsRaw.push({ 
+                    year: y, month: m, 
+                    raw: totalRaw, 
+                    cat3: totalCat3, 
+                    stray: totalStray,
+                    display: `${m.substring(0,3)} ${y}` 
+                });
              });
           });
 
@@ -119,6 +136,8 @@ export function useForecastingMetrics({
               const win6 = getAdaptiveWindow(6);
               const sma6 = win6 ? Math.round(win6.reduce((a, b) => a + b, 0) / win6.length) : null;
 
+              const current_hr = item.raw !== null ? (item.cat3 + item.stray) : null;
+
               const win12 = getAdaptiveWindow(12);
               const sma12 = win12 ? Math.round(win12.reduce((a, b) => a + b, 0) / win12.length) : null;
 
@@ -129,7 +148,7 @@ export function useForecastingMetrics({
                   else if (win3.length === 1) wma3 = win3[0];
               }
 
-              return { ...item, sma3, wma3, sma6, sma12, forecast: null }; 
+              return { ...item, sma3, wma3, sma6, sma12, current_hr, forecast: null }; 
           });
 
           const lastValidIdx = processed24Months.findLastIndex(d => d.raw !== null);
@@ -208,7 +227,11 @@ export function useForecastingMetrics({
               let isHighRisk = false;
 
               if (latest.raw && latest.sma6 && latest.raw > (latest.sma6 * OUTBREAK_SENSITIVITY)) {
-                  alerts.push({ type: 'critical', title: 'Outbreak Anomaly Detected', desc: `Current case volume is over ${(OUTBREAK_SENSITIVITY - 1) * 100}% higher than the 6-month baseline. Immediate review recommended.` });
+                  alerts.push({ 
+                      type: 'critical', 
+                      title: 'Volume Anomaly Detected', 
+                      desc: `Current total case volume is over ${(OUTBREAK_SENSITIVITY - 1) * 100}% higher than the 6-month baseline. Immediate review recommended.` 
+                  });
                   isHighRisk = true;
               }
 
@@ -243,7 +266,7 @@ export function useForecastingMetrics({
       finally { setLoadingHistory(false); }
     };
     fetchHistory();
-  }, [year, month, quarter, periodType, facilities.length, user, isAdmin, currentDate, currentRealYear, OUTBREAK_SENSITIVITY, TREND_SENSITIVITY]);
+  }, [year, month, quarter, periodType, facilities.length, user, isAdmin, currentDate, currentRealYear, OUTBREAK_SENSITIVITY, TREND_SENSITIVITY, areaText]);
 
   return { historicalData, full24MonthData, loadingHistory, smartAlerts, complianceRate, riskLevel, projectedNextMonth, modelMetrics };
 }

@@ -12,10 +12,6 @@ export default function PredictiveModel({
   
   const chartDisplayData = full24MonthData.slice(-13);
   
-  const exactChartTotal = chartDisplayData
-    .filter(d => d.year === year) 
-    .reduce((sum, d) => sum + (d.raw || 0), 0);
-
   const validDataCount = full24MonthData.filter(d => d.raw !== null).length;
   const hasEnoughData = validDataCount >= 3 && projectedNextMonth !== null;
   
@@ -25,14 +21,13 @@ export default function PredictiveModel({
     <>
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group" id="chart-predictive">
           
-          {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
               <div>
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <BrainCircuit size={18} className="text-blue-600"/> 
                       24-Month Forecasting Model & Analytics
-                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 text-[10px] ml-1 flex items-center h-fit" title="Total actual cases currently displayed in this chart">
-                          N = {exactChartTotal}
+                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 text-[10px] ml-1 flex items-center h-fit" title="Year-to-Date total cases">
+                          N = {currentTotal}
                       </span>
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-1">Multi-layered moving averages (Adaptive) for short-term reaction and long-term seasonality.</p>
@@ -48,7 +43,6 @@ export default function PredictiveModel({
               </div>
           </div>
 
-          {/* Clean UI Metrics Section (Uniform Font Size) */}
           <div className="mb-6">
               {isCalibratingAccuracy ? (
                   <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-sm font-medium text-amber-700 shadow-sm w-fit">
@@ -57,21 +51,16 @@ export default function PredictiveModel({
                   </div>
               ) : (
                   <div className="flex flex-col md:flex-row md:flex-wrap gap-y-3 gap-x-8">
-                      {/* Metric 1 */}
                       <div className="flex items-center gap-2 text-sm">
                           <Target size={16} className="text-blue-500 shrink-0" />
                           <span className="text-slate-600 font-medium">Derived from historical accuracy</span>
                           <span className="font-bold text-slate-900">{modelMetrics.accuracy}%</span>
                       </div>
-                      
-                      {/* Metric 2 */}
                       <div className="flex items-center gap-2 text-sm">
                           <ActivitySquare size={16} className="text-slate-500 shrink-0" />
                           <span className="text-slate-600 font-medium">Mean Absolute Error</span>
                           <span className="font-bold text-slate-900">±{modelMetrics.mae} cases</span>
                       </div>
-                      
-                      {/* Metric 3 */}
                       <div className="flex items-center gap-2 text-sm">
                           <TrendingUp size={16} className="text-slate-500 shrink-0" />
                           <span className="text-slate-600 font-medium">Symmetric Mean Absolute Percentage Error</span>
@@ -81,11 +70,9 @@ export default function PredictiveModel({
               )}
           </div>
 
-          {/* Chart Area */}
           <div className="h-[400px] w-full">
               <ResponsiveContainer>
                   <ComposedChart data={chartDisplayData} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
-                      {/* UPDATED GRIDLINES: Both horizontal and vertical lines turned on with a clean slate-200 color */}
                       <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="#7398c9" />
                       
                       <XAxis dataKey="display" tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 700}} axisLine={false} tickLine={false} />
@@ -93,7 +80,7 @@ export default function PredictiveModel({
                       <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                       <Legend verticalAlign="top" align="right" wrapperStyle={{paddingBottom: '20px', fontSize: '11px', fontWeight: 'bold', color: '#1E293B'}} />
                       
-                      <Bar dataKey="raw" name="Actual Cases" fill="#3B82F6" radius={[4,4,0,0]} barSize={20} isAnimationActive={false} />
+                      <Bar dataKey="raw" name="Total Actual Cases" fill="#3B82F6" radius={[4,4,0,0]} barSize={20} isAnimationActive={false} />
                       <Line type="monotone" dataKey="sma12" name="12M SMA (Seasonality)" stroke="#000000" strokeWidth={2} dot={false} strokeDasharray="5 5" isAnimationActive={false} connectNulls={true} />
                       <Line type="monotone" dataKey="sma6" name="6M SMA (Mid-Term)" stroke="#F59E0B" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
                       <Line type="monotone" dataKey="sma3" name="3M SMA (Short-Term)" stroke="#10B981" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
@@ -103,7 +90,6 @@ export default function PredictiveModel({
               </ResponsiveContainer>
           </div>
           
-          {/* Chart Interpretation Footer */}
           <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><BrainCircuit size={14}/> Algorithmic Chart Interpretation</h4>
               
@@ -113,7 +99,7 @@ export default function PredictiveModel({
                         Based on recent trajectory data, the mathematical model projects an estimated <strong className="text-slate-900">{projectedNextMonth !== null ? projectedNextMonth : '--'} cases</strong> for the upcoming reporting period. 
                       </p>
                       <p>
-                        Current case volume is classified as a <strong className={`px-1.5 py-0.5 rounded ${riskLevel === 'HIGH' ? 'bg-red-100 text-red-700' : riskLevel === 'MODERATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{riskLevel || 'LOW'} RISK</strong> event. This indicates that the active reporting volume is {riskLevel === 'HIGH' ? 'significantly exceeding normal baselines, suggesting a potential outbreak anomaly' : riskLevel === 'MODERATE' ? 'accelerating faster than the short-term average, indicating a rising trend' : 'stable and tracking normally within established historical baselines'}.
+                        Current case volume is classified as a <strong className={`px-1.5 py-0.5 rounded ${riskLevel === 'HIGH' ? 'bg-red-100 text-red-700' : riskLevel === 'MODERATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{riskLevel || 'LOW'} RISK</strong> event. This indicates that the active reporting volume is {riskLevel === 'HIGH' ? 'significantly exceeding normal baselines or showing critical indicators, suggesting a potential outbreak anomaly' : riskLevel === 'MODERATE' ? 'accelerating faster than the short-term average, indicating a rising trend' : 'stable and tracking normally within established historical baselines'}.
                       </p>
                       
                       <div className="mt-3 pt-3 border-t border-slate-200/60">
@@ -136,7 +122,6 @@ export default function PredictiveModel({
           </div>
       </div>
 
-      {/* Mathematical Formulas Modal */}
       {showMathModal && (
         <ModalPortal>
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -166,7 +151,7 @@ export default function PredictiveModel({
                             <div className="flex gap-3 items-start bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                 <div className="w-4 h-4 rounded-sm bg-blue-500 shrink-0 mt-0.5 shadow-sm"></div>
                                 <div>
-                                    <h5 className="font-bold text-xs text-slate-900 mb-0.5">Actual Cases</h5>
+                                    <h5 className="font-bold text-xs text-slate-900 mb-0.5">Total Actual Cases</h5>
                                     <p className="text-[11px] text-slate-600 leading-relaxed">The confirmed, true number of animal bite patients recorded and approved in the system for that specific month.</p>
                                 </div>
                             </div>
@@ -240,6 +225,24 @@ export default function PredictiveModel({
                                     <span className="text-[11px] italic opacity-80 mt-2 block">*Notice the WMA (16) is slightly higher than the SMA (15) because it mathematically paid more attention to the recent spikes.</span>
                                 </div>
                             </div>
+                            
+                            {/* --- NEW HIGH RISK FORMULA SECTION --- */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <h5 className="font-bold text-sm text-slate-900 mb-1">High-Risk Rabies Indicator</h5>
+                                <p className="text-xs text-slate-600 mb-3">Isolates the most severe exposure types (Category 3 and Stray Animals) to detect potential rabid animal incidents before total volume spikes.</p>
+                                <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 font-mono text-sm sm:text-base font-semibold text-slate-800 flex flex-col items-center shadow-sm gap-1.5 text-center">
+                                    <span>High-Risk Score = Category 3 Cases + Stray Animal Bites</span>
+                                    <span className="text-[10px] sm:text-xs font-normal text-slate-400 mt-1 italic">Alert Threshold: Current Score &gt; (SMA<sub>6</sub> of Score × {OUTBREAK_SENSITIVITY})</span>
+                                </div>
+                                <div className="mt-3 p-4 bg-red-50 border border-red-100 rounded-lg text-xs text-red-900 font-medium leading-relaxed shadow-sm">
+                                    <strong className="block mb-1">Step-by-Step Example:</strong> 
+                                    If the 6-month average (SMA) of high-risk cases is <strong>4</strong>, and sensitivity is set to <strong>{(OUTBREAK_SENSITIVITY * 100).toFixed(0)}% ({OUTBREAK_SENSITIVITY})</strong>:<br/>
+                                    Step 1: Calculate Threshold: 4 × {OUTBREAK_SENSITIVITY} = <strong>{4 * OUTBREAK_SENSITIVITY} allowed cases</strong>.<br/>
+                                    Step 2: If the current month has <strong>8</strong> high-risk cases, the system triggers a <strong>CRITICAL ALERT</strong> because 8 is greater than the threshold.<br/>
+                                    <span className="text-[11px] italic opacity-80 mt-2 block">*Note: The system requires a minimum of 3 high-risk cases in a month to trigger, preventing false alarms in low-volume clinics.</span>
+                                </div>
+                            </div>
+
                         </div>
                     </section>
 
@@ -297,11 +300,22 @@ export default function PredictiveModel({
                             <div className="flex gap-3 items-start bg-red-50 p-3.5 rounded-xl border border-red-100">
                                 <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5"/>
                                 <div>
-                                    <h5 className="font-bold text-xs text-red-900 mb-1">Outbreak Anomaly Detected (HIGH RISK)</h5>
+                                    <h5 className="font-bold text-xs text-red-900 mb-1">High-Risk Rabies Indicator (CRITICAL RISK)</h5>
                                     <div className="font-mono text-xs sm:text-sm font-semibold bg-white border border-red-200 px-2.5 py-1.5 rounded inline-block text-red-800 mb-1.5">
-                                        Condition: Actual Cases &gt; (SMA<sub>6</sub> × {OUTBREAK_SENSITIVITY})
+                                        Condition: (Cat 3 + Strays) &gt; (SMA<sub>6</sub> Cat 3 + Strays × {OUTBREAK_SENSITIVITY})
                                     </div>
-                                    <p className="text-[11px] text-red-700 leading-relaxed">Triggers when current cases exceed the mid-term 6-month baseline by the threshold defined in settings (currently {(OUTBREAK_SENSITIVITY - 1) * 100}%).</p>
+                                    <p className="text-[11px] text-red-700 leading-relaxed">A specialized alert that tracks the highest-risk exposure types. Triggers when the combined volume of Category 3 cases and stray animal bites suddenly spikes above its historical 6-month average, indicating a high probability of a rabid animal incident.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-red-50 p-3.5 rounded-xl border border-red-100">
+                                <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5"/>
+                                <div>
+                                    <h5 className="font-bold text-xs text-red-900 mb-1">Volume Anomaly Detected (HIGH RISK)</h5>
+                                    <div className="font-mono text-xs sm:text-sm font-semibold bg-white border border-red-200 px-2.5 py-1.5 rounded inline-block text-red-800 mb-1.5">
+                                        Condition: Total Cases &gt; (SMA<sub>6</sub> × {OUTBREAK_SENSITIVITY})
+                                    </div>
+                                    <p className="text-[11px] text-red-700 leading-relaxed">Triggers when total current cases exceed the general mid-term 6-month baseline by the threshold defined in settings (currently {(OUTBREAK_SENSITIVITY - 1) * 100}%).</p>
                                 </div>
                             </div>
                             
