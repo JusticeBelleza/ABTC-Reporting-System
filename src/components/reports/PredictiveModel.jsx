@@ -5,7 +5,7 @@ import ModalPortal from '../modals/ModalPortal';
 
 export default function PredictiveModel({
   year, full24MonthData, handleDownload, showMathModal, setShowMathModal,
-  OUTBREAK_SENSITIVITY, TREND_SENSITIVITY, TOOLTIP_STYLE,
+  OUTBREAK_SENSITIVITY, TREND_SENSITIVITY, HIGH_RISK_SENSITIVITY = 1.25, TOOLTIP_STYLE,
   projectedNextMonth, riskLevel, currentTotal = 0,
   modelMetrics = { accuracy: 0, mae: 0, mape: 0, validMonths: 0 } 
 }) {
@@ -210,6 +210,7 @@ export default function PredictiveModel({
                                     SMA = (10 + 20 + 15) ÷ 3 months = <strong>15 average cases</strong>.
                                 </div>
                             </div>
+
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                 <h5 className="font-bold text-sm text-slate-900 mb-1">Weighted Moving Average (WMA 3)</h5>
                                 <p className="text-xs text-slate-600 mb-3">A "Fast Signal" indicator that gives higher mathematical weight to more recent months to detect sudden changes faster than a standard SMA.</p>
@@ -226,20 +227,19 @@ export default function PredictiveModel({
                                 </div>
                             </div>
                             
-                            {/* --- NEW HIGH RISK FORMULA SECTION --- */}
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                <h5 className="font-bold text-sm text-slate-900 mb-1">High-Risk Rabies Indicator</h5>
+                                <h5 className="font-bold text-sm text-slate-900 mb-1">High-Risk Rabies Indicator (Score)</h5>
                                 <p className="text-xs text-slate-600 mb-3">Isolates the most severe exposure types (Category 3 and Stray Animals) to detect potential rabid animal incidents before total volume spikes.</p>
                                 <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 font-mono text-sm sm:text-base font-semibold text-slate-800 flex flex-col items-center shadow-sm gap-1.5 text-center">
                                     <span>High-Risk Score = Category 3 Cases + Stray Animal Bites</span>
-                                    <span className="text-[10px] sm:text-xs font-normal text-slate-400 mt-1 italic">Alert Threshold: Current Score &gt; (SMA<sub>6</sub> of Score × {OUTBREAK_SENSITIVITY})</span>
+                                    <span className="text-[10px] sm:text-xs font-normal text-slate-400 mt-1 italic">Alert Threshold: Current Score &gt; (SMA<sub>6</sub> of Score × {HIGH_RISK_SENSITIVITY})</span>
                                 </div>
                                 <div className="mt-3 p-4 bg-red-50 border border-red-100 rounded-lg text-xs text-red-900 font-medium leading-relaxed shadow-sm">
                                     <strong className="block mb-1">Step-by-Step Example:</strong> 
-                                    If the 6-month average (SMA) of high-risk cases is <strong>4</strong>, and sensitivity is set to <strong>{(OUTBREAK_SENSITIVITY * 100).toFixed(0)}% ({OUTBREAK_SENSITIVITY})</strong>:<br/>
-                                    Step 1: Calculate Threshold: 4 × {OUTBREAK_SENSITIVITY} = <strong>{4 * OUTBREAK_SENSITIVITY} allowed cases</strong>.<br/>
-                                    Step 2: If the current month has <strong>8</strong> high-risk cases, the system triggers a <strong>CRITICAL ALERT</strong> because 8 is greater than the threshold.<br/>
-                                    <span className="text-[11px] italic opacity-80 mt-2 block">*Note: The system requires a minimum of 3 high-risk cases in a month to trigger, preventing false alarms in low-volume clinics.</span>
+                                    If the 6-month average (SMA) of high-risk cases is <strong>4</strong>, and your system's high-risk sensitivity is <strong>{((HIGH_RISK_SENSITIVITY - 1) * 100).toFixed(0)}% ({HIGH_RISK_SENSITIVITY})</strong>:<br/>
+                                    Step 1: Calculate Threshold: 4 × {HIGH_RISK_SENSITIVITY} = <strong>{4 * HIGH_RISK_SENSITIVITY} allowed high-risk cases</strong>.<br/>
+                                    Step 2: If the current month reports <strong>8</strong> high-risk cases (e.g. 5 Cat 3 + 3 Strays), the system triggers a <strong>CRITICAL ALERT</strong> because 8 is greater than the allowed threshold.<br/>
+                                    <span className="text-[11px] italic opacity-80 mt-2 block">*Note: The system requires a minimum of 3 high-risk cases in a given month to trigger, preventing false alarms in low-volume clinics.</span>
                                 </div>
                             </div>
 
@@ -302,7 +302,7 @@ export default function PredictiveModel({
                                 <div>
                                     <h5 className="font-bold text-xs text-red-900 mb-1">High-Risk Rabies Indicator (CRITICAL RISK)</h5>
                                     <div className="font-mono text-xs sm:text-sm font-semibold bg-white border border-red-200 px-2.5 py-1.5 rounded inline-block text-red-800 mb-1.5">
-                                        Condition: (Cat 3 + Strays) &gt; (SMA<sub>6</sub> Cat 3 + Strays × {OUTBREAK_SENSITIVITY})
+                                        Condition: (Cat 3 + Strays) &gt; (SMA<sub>6</sub> Cat 3 + Strays × {HIGH_RISK_SENSITIVITY})
                                     </div>
                                     <p className="text-[11px] text-red-700 leading-relaxed">A specialized alert that tracks the highest-risk exposure types. Triggers when the combined volume of Category 3 cases and stray animal bites suddenly spikes above its historical 6-month average, indicating a high probability of a rabid animal incident.</p>
                                 </div>

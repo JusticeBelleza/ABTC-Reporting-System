@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, X, ImageIcon, Plus, Loader2, User, Briefcase, Bookmark, CheckCircle, BrainCircuit, Activity } from 'lucide-react';
+import { Settings, X, ImageIcon, Plus, Loader2, User, Briefcase, Bookmark, CheckCircle, BrainCircuit, Activity, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import ModalPortal from './ModalPortal';
@@ -44,7 +44,12 @@ const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, 
 );
 
 export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, userProfile, onSaveProfile, isAdmin }) {
-  const [logoForm, setLogoForm] = useState(globalSettings || { logo_base64: '', outbreak_threshold_percent: 50, trend_alert_percent: 10 });
+  const [logoForm, setLogoForm] = useState({
+      logo_base64: globalSettings?.logo_base64 || '',
+      outbreak_threshold_percent: globalSettings?.outbreak_threshold_percent ?? 50,
+      trend_alert_percent: globalSettings?.trend_alert_percent ?? 10,
+      high_risk_threshold_percent: globalSettings?.high_risk_threshold_percent ?? 25 // NEW: High Risk Default
+  });
   const [signatories, setSignatories] = useState(userProfile?.signatories || []);
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -81,7 +86,8 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
         const payload = { 
             logo_base64: logoForm.logo_base64,
             outbreak_threshold_percent: Number(logoForm.outbreak_threshold_percent || 50),
-            trend_alert_percent: Number(logoForm.trend_alert_percent || 10)
+            trend_alert_percent: Number(logoForm.trend_alert_percent || 10),
+            high_risk_threshold_percent: Number(logoForm.high_risk_threshold_percent || 25) // NEW: Save to DB
         };
 
         if(existing) await supabase.from('settings').update(payload).eq('id', existing.id);
@@ -171,6 +177,22 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
                                 icon={Activity} 
                                 value={logoForm.outbreak_threshold_percent} 
                                 onChange={(e) => setLogoForm({...logoForm, outbreak_threshold_percent: e.target.value})} 
+                            />
+                        </div>
+
+                        {/* --- NEW HIGH RISK THRESHOLD --- */}
+                        <div className="flex flex-col gap-1 p-4 rounded-xl border border-red-100 bg-red-50/30">
+                            <label className="text-xs font-bold text-red-900">High-Risk Sensitivity (%)</label>
+                            <p className="text-[10px] text-red-700/80 mb-2">Triggers a CRITICAL alert when severe exposures (Category 3 + Stray Animals) exceed the 6-month average by this percentage. (Default: 25%)</p>
+                            <FloatingInput 
+                                id="high_risk_threshold" 
+                                type="number" 
+                                min="1"
+                                max="500"
+                                label="High-Risk Threshold (%)" 
+                                icon={AlertTriangle} 
+                                value={logoForm.high_risk_threshold_percent} 
+                                onChange={(e) => setLogoForm({...logoForm, high_risk_threshold_percent: e.target.value})} 
                             />
                         </div>
 

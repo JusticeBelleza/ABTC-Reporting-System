@@ -16,8 +16,12 @@ export function useForecastingMetrics({
   const [projectedNextMonth, setProjectedNextMonth] = useState(null);
   const [modelMetrics, setModelMetrics] = useState({ mae: 0, mape: 0, accuracy: 0, validMonths: 0 });
 
+  // --- DYNAMIC TEXT & NEW SENSITIVITY ---
   const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
   const areaText = (isAdmin || facilityType === 'Hospital' || facilityType === 'Clinic') ? 'the province' : 'the municipality';
+  
+  // High-Risk specific threshold (Defaults to 25% if not set in Global Settings)
+  const HIGH_RISK_SENSITIVITY = 1 + ((globalSettings?.high_risk_threshold_percent ?? 25) / 100);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -130,12 +134,20 @@ export function useForecastingMetrics({
                   return window.length > 0 ? window : null;
               };
 
+              const getAdaptiveWindowHighRisk = (size) => {
+                  const startIdx = Math.max(0, idx - size + 1);
+                  const window = arr.slice(startIdx, idx + 1).filter(x => x.raw !== null).map(x => x.cat3 + x.stray);
+                  return window.length > 0 ? window : null;
+              };
+
               const win3 = getAdaptiveWindow(3);
               const sma3 = win3 ? Math.round(win3.reduce((a, b) => a + b, 0) / win3.length) : null;
               
               const win6 = getAdaptiveWindow(6);
               const sma6 = win6 ? Math.round(win6.reduce((a, b) => a + b, 0) / win6.length) : null;
 
+              const win6_hr = getAdaptiveWindowHighRisk(6);
+              const sma6_hr = win6_hr ? Math.round(win6_hr.reduce((a, b) => a + b, 0) / win6_hr.length) : null;
               const current_hr = item.raw !== null ? (item.cat3 + item.stray) : null;
 
               const win12 = getAdaptiveWindow(12);
@@ -148,7 +160,7 @@ export function useForecastingMetrics({
                   else if (win3.length === 1) wma3 = win3[0];
               }
 
-              return { ...item, sma3, wma3, sma6, sma12, current_hr, forecast: null }; 
+              return { ...item, sma3, wma3, sma6, sma12, sma6_hr, current_hr, forecast: null }; 
           });
 
           const lastValidIdx = processed24Months.findLastIndex(d => d.raw !== null);
@@ -226,6 +238,18 @@ export function useForecastingMetrics({
 
               let isHighRisk = false;
 
+              // --- HIGH RISK RABIES INDICATOR (CAT 3 + STRAY) ---
+              if (latest.current_hr !== null && latest.sma6_hr !== null && latest.current_hr >= 3) {
+                  if (latest.current_hr > (latest.sma6_hr * HIGH_RISK_SENSITIVITY)) {
+                      alerts.unshift({ 
+                          type: 'critical', 
+                          title: 'High-Risk Rabies Indicator', 
+                          desc: `Critical spike in Category 3 exposures and Stray Animal bites detected. High probability of a rabid animal incident in ${areaText}.` 
+                      });
+                      isHighRisk = true;
+                  }
+              }
+
               if (latest.raw && latest.sma6 && latest.raw > (latest.sma6 * OUTBREAK_SENSITIVITY)) {
                   alerts.push({ 
                       type: 'critical', 
@@ -266,7 +290,7 @@ export function useForecastingMetrics({
       finally { setLoadingHistory(false); }
     };
     fetchHistory();
-  }, [year, month, quarter, periodType, facilities.length, user, isAdmin, currentDate, currentRealYear, OUTBREAK_SENSITIVITY, TREND_SENSITIVITY, areaText]);
+  }, [year, month, quarter, periodType, facilities.length, user, isAdmin, currentDate, currentRealYear, OUTBREAK_SENSITIVITY, TREND_SENSITIVITY, HIGH_RISK_SENSITIVITY, areaText]);
 
   return { historicalData, full24MonthData, loadingHistory, smartAlerts, complianceRate, riskLevel, projectedNextMonth, modelMetrics };
 }
