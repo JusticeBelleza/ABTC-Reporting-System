@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, Clock } from 'lucide-react'; 
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -9,40 +9,8 @@ export default function NotificationBell({ user }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
 
-  // FIX: Allow BOTH admin and SYSADMIN to receive the 'PHO Admin' provincial notifications
   const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
   const recipient = isAnyAdmin ? 'PHO Admin' : user?.name;
-
-  useEffect(() => {
-    if (!recipient) return;
-    fetchNotifications();
-
-    const subscription = supabase
-      .channel('public:notifications')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'notifications',
-        filter: `recipient=eq.${recipient}` 
-      }, (payload) => {
-        setNotifications((prev) => [payload.new, ...prev]);
-        setUnreadCount((prev) => prev + 1);
-        toast.info("New Notification received");
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(subscription); };
-  }, [recipient]);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownRef]);
 
   const fetchNotifications = async () => {
     try {
@@ -60,6 +28,55 @@ export default function NotificationBell({ user }) {
       console.error('Error fetching notifications:', error);
     }
   };
+
+  useEffect(() => {
+    if (!recipient) return;
+    
+    fetchNotifications();
+
+    let isMounted = true;
+    let channel = null;
+
+    const connectionTimer = setTimeout(() => {
+      if (!isMounted) return;
+
+      const safeChannelId = `notif-${recipient.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+      channel = supabase
+        .channel(safeChannelId)
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'notifications',
+          filter: `recipient=eq.${recipient}` 
+        }, (payload) => {
+          setNotifications((prev) => [payload.new, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+          toast.info("New Notification", {
+            description: "Check your bell icon for a new update."
+          });
+        })
+        .subscribe(); // Removed the console.log here!
+    }, 500); 
+
+    return () => {
+      isMounted = false;
+      clearTimeout(connectionTimer); 
+      if (channel) {
+        supabase.removeChannel(channel); 
+      }
+    };
+  }, [recipient]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownRef]);
 
   const markAllAsRead = async () => {
     const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
@@ -112,18 +129,23 @@ export default function NotificationBell({ user }) {
             </button>
           </div>
 
-          <div className="max-h-[60vh] overflow-y-auto bg-slate-50">
+          <div className="max-h-[60vh] overflow-y-auto bg-slate-50 custom-scrollbar">
             {notifications.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 text-sm font-medium">No notifications yet</div>
+              <div className="p-8 text-center flex flex-col items-center">
+                 <Bell size={32} className="text-slate-300 mb-3" />
+                 <p className="text-slate-500 text-sm font-bold">No notifications yet</p>
+                 <p className="text-slate-400 text-xs mt-1">You're all caught up!</p>
+              </div>
             ) : (
               <div className="divide-y divide-slate-100">
                 {notifications.map((n) => (
                   <div key={n.id} className={`p-4 hover:bg-slate-100 transition-colors flex gap-4 ${!n.read ? 'bg-blue-50/40' : 'bg-white'}`}>
                     <div className="flex-1">
-                      <p className={`text-[13px] leading-relaxed ${!n.read ? 'text-slate-900 font-medium' : 'text-slate-500 font-medium'}`}>
+                      <p className={`text-[13px] leading-relaxed ${!n.read ? 'text-slate-900 font-bold' : 'text-slate-600 font-medium'}`}>
                         {n.message || n.content}
                       </p>
-                      <p className="text-[10px] font-medium text-slate-400 mt-1.5 uppercase tracking-wider">
+                      <p className="text-[10px] font-bold text-slate-400 mt-1.5 uppercase tracking-wider flex items-center gap-1.5">
+                        <Clock size={10} />
                         {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                       </p>
                     </div>

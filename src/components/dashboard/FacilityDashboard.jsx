@@ -73,13 +73,33 @@ export default function FacilityDashboard({
   const isConsolidatedView = adminViewMode === 'consolidated';
   const isAggregationMode = periodType !== 'Monthly';
 
-  // Determine facility type at the component level so we can use it to hide the UI later
   let currentFacilityType = facilityDetails?.[activeFacilityName]?.type;
   if (!currentFacilityType && activeFacilityName) {
       if (activeFacilityName.includes('Hospital') || activeFacilityName === 'APH') currentFacilityType = 'Hospital';
       else if (activeFacilityName.includes('Clinic') || activeFacilityName === 'AMDC') currentFacilityType = 'Clinic';
       else currentFacilityType = 'RHU';
   }
+
+  // --- FIXED: AUDIT LOGGER MATCHING YOUR EXACT DATABASE COLUMNS ---
+  const logAuditAction = async (actionType, actionDetails) => {
+    if (!navigator.onLine) return; 
+    try {
+        const currentPeriodStr = periodType === 'Monthly' ? month : periodType === 'Quarterly' ? formatQuarterName(quarter) : 'Annual';
+        
+        const { error } = await supabase.from('audit_logs').insert({
+            user_id: user?.id || null, // Using user_id instead of role
+            actor_name: user?.fullName || user?.name || 'Unknown User', // Using actor_name instead of user_name
+            facility_name: activeFacilityName, 
+            action: actionType,
+            report_type: 'Animal Bite and Rabies Report Form', 
+            period_info: `${currentPeriodStr} ${year}`,
+            details: actionDetails
+        });
+        if (error) console.error("Failed to log audit action:", error);
+    } catch (err) {
+        console.error("Audit Log Exception:", err);
+    }
+  };
 
   useEffect(() => {
     const fetchV2Data = async () => {
@@ -383,8 +403,45 @@ export default function FacilityDashboard({
       const { error } = await supabase.from('abtc_reports_v2').upsert(payload, { onConflict: 'year, month, facility, location_name' });
       if (error) throw error;
       
-      toast.success(`Report successfully marked as ${status}`);
       setV2Status(status);
+      toast.success(`Report successfully marked as ${status}`);
+
+      let logActionName = status === 'Pending' ? 'SUBMITTED' : status.toUpperCase();
+      let logDetails = `The Animal Bite and Rabies Report Form was marked as ${status}.`;
+      if (status === 'Rejected') logDetails += ` Reason: "${reason}"`;
+      await logAuditAction(logActionName, logDetails);
+
+      if (status === 'Pending' || status === 'Approved' || status === 'Rejected') {
+          
+          let notifRecipient = 'PHO Admin'; 
+          let notifTitle = '';
+          let notifMessage = '';
+
+          if (status === 'Pending') {
+              notifTitle = 'New Report Submitted';
+              notifMessage = `${activeFacilityName} has submitted their Animal Bite and Rabies Report Form for ${currentPeriod} ${year}. It is now pending your review.`;
+          } else if (status === 'Approved') {
+              notifRecipient = activeFacilityName; 
+              notifTitle = 'Report Approved';
+              notifMessage = `Your Animal Bite and Rabies Report Form for ${currentPeriod} ${year} has been reviewed and APPROVED by the Provincial Health Office.`;
+          } else if (status === 'Rejected') {
+              notifRecipient = activeFacilityName; 
+              notifTitle = 'Report Rejected';
+              notifMessage = `ACTION REQUIRED: Your Animal Bite and Rabies Report Form for ${currentPeriod} ${year} has been REJECTED. Reason: "${reason}". Please review the data, correct any errors, and resubmit.`;
+          }
+
+          const { error: notifError } = await supabase
+              .from('notifications')
+              .insert({
+                  recipient: notifRecipient,
+                  title: notifTitle, 
+                  message: notifMessage,
+                  read: false
+              });
+
+          if (notifError) console.error("Failed to send notification:", notifError);
+      }
+
     } catch (err) { toast.error("Failed to save report."); }
   };
 
@@ -401,6 +458,9 @@ export default function FacilityDashboard({
         if (error) throw error;
         
         toast.success("Report deleted successfully.");
+        
+        await logAuditAction('DELETED', `Permanently deleted the Animal Bite and Rabies Report Form.`);
+        
         window.location.reload(); 
     } catch (err) {
         toast.error("Failed to delete report.");
@@ -440,6 +500,9 @@ export default function FacilityDashboard({
           });
           
           toast.success("Excel file generated successfully!");
+          
+          await logAuditAction('EXPORTED', `Exported the Animal Bite and Rabies Report Form to Excel.`);
+
       } catch (error) {
           console.error(error);
           toast.error("Failed to generate Excel file. Ensure doh_template.xlsx is in the public folder.");
@@ -477,9 +540,13 @@ export default function FacilityDashboard({
   };
 
   const confirmApprove = async () => { setShowApproveModal(false); await saveV2Report('Approved'); };
+  
   const confirmRejection = async () => { 
-    setShowRejectModal(false); await saveV2Report('Rejected', 'N/A'); 
+      if (!rejectionReason.trim()) { toast.error("Please provide a reason for rejection."); return; }
+      setShowRejectModal(false); 
+      await saveV2Report('Rejected', rejectionReason); 
   };
+  
   const confirmSubmit = async () => { setShowSubmitModal(false); await saveV2Report('Pending'); };
   
   const confirmSaveDraft = async () => { 
@@ -504,7 +571,7 @@ export default function FacilityDashboard({
             <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden">
                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
                 <div className="flex items-start sm:items-center gap-4 relative z-10">
-                    {isAnyAdmin && <button onClick={onBack} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all"><ArrowLeft size={20}/></button>}
+                    {isAnyAdmin && <button onClick={onBack} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white active:scale-95 transition-all duration-200"><ArrowLeft size={20}/></button>}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
                         <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">{activeFacilityName}</h2>
                         {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && <StatusBadge status={v2Status} />}
@@ -517,7 +584,7 @@ export default function FacilityDashboard({
                             disabled={isExporting || !canExportExcel} 
                             title={exportWarning}
                             onClick={() => setShowExportModal(true)} 
-                            className="w-full sm:w-auto bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                            className="w-full sm:w-auto bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-700 active:scale-95 active:bg-slate-900 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 whitespace-nowrap"
                         >
                             {isExporting ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} Export Excel
                         </button>
@@ -530,21 +597,21 @@ export default function FacilityDashboard({
                             <button 
                                 onClick={() => onSaveClick('Approved')} 
                                 disabled={loading || isFetchingV2 || isSaving || v2Status !== 'Pending'} 
-                                className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-600 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
+                                className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-600 active:scale-95 active:bg-emerald-700 transition-all duration-200 disabled:opacity-50 disabled:grayscale disabled:pointer-events-none whitespace-nowrap"
                             >
                                 Approve
                             </button>
                             <button 
                                 onClick={() => onSaveClick('Rejected')} 
                                 disabled={loading || isFetchingV2 || isSaving || (v2Status !== 'Pending' && v2Status !== 'Approved')} 
-                                className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-700 text-rose-400 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-rose-600 hover:text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-300 transition-all whitespace-nowrap"
+                                className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-700 text-rose-400 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-rose-600 hover:text-white active:scale-95 active:bg-rose-700 transition-all duration-200 disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-300 disabled:pointer-events-none whitespace-nowrap"
                             >
                                 Reject
                             </button>
                             <button 
                                 onClick={() => setShowDeleteReportModal(true)} 
                                 disabled={loading || isFetchingV2 || isSaving || v2Status === 'Draft'} 
-                                className="flex-none justify-center flex items-center bg-white border border-slate-200 text-slate-400 px-3 py-2.5 rounded-xl hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 disabled:opacity-50 disabled:grayscale transition-all shadow-sm"
+                                className="flex-none justify-center flex items-center bg-white border border-slate-200 text-slate-400 px-3 py-2.5 rounded-xl hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 active:scale-90 active:bg-rose-100 transition-all duration-200 disabled:opacity-50 disabled:grayscale disabled:pointer-events-none shadow-sm"
                                 title="Delete Report"
                             >
                                 <Trash2 size={16} />
@@ -552,10 +619,10 @@ export default function FacilityDashboard({
                             </>
                         ) : (
                             <>
-                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isFetchingV2 || isSaving || v2Status === 'Approved' || v2Status === 'Pending'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-700 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap">
+                            <button onClick={() => onSaveClick('Draft')} disabled={loading || isFetchingV2 || isSaving || v2Status === 'Approved' || v2Status === 'Pending'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-700 text-slate-300 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-700 active:scale-95 active:bg-slate-900 transition-all duration-200 disabled:opacity-50 disabled:grayscale disabled:pointer-events-none whitespace-nowrap">
                                 {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Draft
                             </button>
-                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isFetchingV2 || isSaving || v2Status === 'Pending' || v2Status === 'Approved'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50 disabled:grayscale whitespace-nowrap">
+                            <button onClick={() => onSaveClick('Pending')} disabled={loading || isFetchingV2 || isSaving || v2Status === 'Pending' || v2Status === 'Approved'} className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 active:scale-95 active:bg-blue-800 shadow-sm transition-all duration-200 disabled:opacity-50 disabled:grayscale disabled:pointer-events-none whitespace-nowrap">
                                 {isSaving ? <Loader2 size={16} className="animate-spin"/> : null} Submit Report
                             </button>
                             </>
@@ -656,7 +723,6 @@ export default function FacilityDashboard({
                             onDeleteOtherRow={(loc) => setDeleteRowModal({ isOpen: true, location: loc })}
                         />
                         
-                        {/* FIX: Hide Add Patient Origin if facility is Hospital or Clinic */}
                         {!isConsolidatedView && !isAnyAdmin && !isAggregationMode && v2Status !== 'Approved' && v2Status !== 'Pending' && currentFacilityType === 'RHU' && (
                             <div className="bg-white border-t border-slate-100 px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
                                 <div className="flex items-center gap-3">
@@ -671,7 +737,7 @@ export default function FacilityDashboard({
                                         </select>
                                         <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                     </div>
-                                    <button onClick={handleAddRow} disabled={!selectedLocationToAdd} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50 disabled:hover:bg-white text-sm font-bold px-4 py-2 rounded-lg transition-all shadow-sm whitespace-nowrap flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"><Plus size={14} strokeWidth={2.5}/> Add</button>
+                                    <button onClick={handleAddRow} disabled={!selectedLocationToAdd} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:scale-95 active:bg-slate-100 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none text-sm font-bold px-4 py-2 rounded-lg shadow-sm whitespace-nowrap flex items-center gap-1.5 cursor-pointer"><Plus size={14} strokeWidth={2.5}/> Add</button>
                                 </div>
                             </div>
                         )}
@@ -691,8 +757,8 @@ export default function FacilityDashboard({
                         <h3 className="text-xl font-bold mb-2 text-slate-900">Export as Excel?</h3>
                         <p className="text-sm text-slate-500 mb-6">This will generate a highly detailed DOH Form 1 Accomplishment Report in Excel format.</p>
                         <div className="flex gap-3">
-                            <button onClick={() => setShowExportModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
-                            <button onClick={handleExportExcel} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm flex justify-center items-center gap-2">
+                            <button onClick={() => setShowExportModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 active:bg-slate-200 transition-all duration-200">Cancel</button>
+                            <button onClick={handleExportExcel} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 active:bg-blue-800 transition-all duration-200 shadow-sm flex justify-center items-center gap-2">
                                 {isExporting ? <Loader2 size={16} className="animate-spin"/> : null} 
                                 Generate Excel
                             </button>
@@ -706,15 +772,15 @@ export default function FacilityDashboard({
         {deleteRowModal.isOpen && (
             <ModalPortal>
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
                             <Trash2 size={24} strokeWidth={2.5} />
                         </div>
                         <h3 className="text-xl font-bold mb-2 text-slate-900">Remove Row?</h3>
                         <p className="text-sm text-slate-500 mb-6">Are you sure you want to remove <strong>{deleteRowModal.location}</strong> from the report? This will clear its data.</p>
                         <div className="flex gap-3">
-                            <button onClick={() => setDeleteRowModal({ isOpen: false, location: null })} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
-                            <button onClick={confirmDeleteOtherRow} className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition-all shadow-sm">Remove</button>
+                            <button onClick={() => setDeleteRowModal({ isOpen: false, location: null })} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 active:bg-slate-200 transition-all duration-200">Cancel</button>
+                            <button onClick={confirmDeleteOtherRow} className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 active:scale-95 active:bg-rose-700 transition-all duration-200 shadow-sm">Remove</button>
                         </div>
                     </div>
                 </div>
@@ -725,15 +791,15 @@ export default function FacilityDashboard({
         {showDraftModal && (
             <ModalPortal>
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mb-4">
                             <Save size={24} strokeWidth={2.5} />
                         </div>
                         <h3 className="text-xl font-bold mb-2 text-slate-900">Save Draft?</h3>
                         <p className="text-sm text-slate-500 mb-6">You can return and edit this report later before submitting it to the Provincial Health Office.</p>
                         <div className="flex gap-3">
-                            <button onClick={() => setShowDraftModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
-                            <button onClick={confirmSaveDraft} className="flex-1 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all shadow-sm">Save Draft</button>
+                            <button onClick={() => setShowDraftModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 active:bg-slate-200 transition-all duration-200">Cancel</button>
+                            <button onClick={confirmSaveDraft} className="flex-1 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 active:scale-95 active:bg-black transition-all duration-200 shadow-sm">Save Draft</button>
                         </div>
                     </div>
                 </div>
@@ -744,7 +810,7 @@ export default function FacilityDashboard({
         {showSubmitModal && (
             <ModalPortal>
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
                             <CheckCircle size={24} strokeWidth={2.5} />
                         </div>
@@ -755,8 +821,8 @@ export default function FacilityDashboard({
                             <p className="text-sm text-slate-500 mb-6">Once submitted, this report will be locked for review by the Provincial Health Office.</p>
                         )}
                         <div className="flex gap-3">
-                            <button onClick={() => setShowSubmitModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
-                            <button onClick={confirmSubmit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm">Submit Now</button>
+                            <button onClick={() => setShowSubmitModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 active:bg-slate-200 transition-all duration-200">Cancel</button>
+                            <button onClick={confirmSubmit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 active:bg-blue-800 transition-all duration-200 shadow-sm">Submit Now</button>
                         </div>
                     </div>
                 </div>
@@ -767,15 +833,15 @@ export default function FacilityDashboard({
         {showApproveModal && (
             <ModalPortal>
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
                             <CheckCircle size={24} strokeWidth={2.5} />
                         </div>
                         <h3 className="text-xl font-bold mb-2 text-slate-900">Approve Report?</h3>
                         <p className="text-sm text-slate-500 mb-6">This will mark the report as completed and include it in the consolidated analytics.</p>
                         <div className="flex gap-3">
-                            <button onClick={() => setShowApproveModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
-                            <button onClick={confirmApprove} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all shadow-sm">Approve</button>
+                            <button onClick={() => setShowApproveModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 active:bg-slate-200 transition-all duration-200">Cancel</button>
+                            <button onClick={confirmApprove} className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 active:scale-95 active:bg-emerald-700 transition-all duration-200 shadow-sm">Approve</button>
                         </div>
                     </div>
                 </div>
@@ -786,15 +852,28 @@ export default function FacilityDashboard({
         {showRejectModal && (
             <ModalPortal>
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
                         <div className="mx-auto w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
                             <XCircle size={24} strokeWidth={2.5} />
                         </div>
                         <h3 className="text-xl font-bold mb-2 text-slate-900">Reject Report?</h3>
-                        <p className="text-sm text-slate-500 mb-6">This will return the report to the facility encoder for corrections.</p>
+                        <p className="text-sm text-slate-500 mb-4">This will return the report to the facility encoder for corrections.</p>
+                        
+                        <div className="text-left mb-6">
+                            <label className="block text-xs font-bold text-slate-700 mb-1.5 ml-1">Reason for Rejection <span className="text-rose-500">*</span></label>
+                            <textarea 
+                                value={rejectionReason}
+                                onChange={(e) => setRejectionReason(e.target.value)}
+                                placeholder="E.g., Please double-check the Category 2 animal count."
+                                className="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none resize-none transition-all shadow-sm"
+                                rows={3}
+                                required
+                            />
+                        </div>
+
                         <div className="flex gap-3">
-                            <button onClick={() => setShowRejectModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
-                            <button onClick={confirmRejection} className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition-all shadow-sm">Reject</button>
+                            <button onClick={() => setShowRejectModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 active:bg-slate-200 transition-all duration-200">Cancel</button>
+                            <button onClick={confirmRejection} disabled={!rejectionReason.trim()} className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 active:scale-95 active:bg-rose-700 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none shadow-sm">Reject</button>
                         </div>
                     </div>
                 </div>
@@ -805,15 +884,15 @@ export default function FacilityDashboard({
         {showDeleteReportModal && (
             <ModalPortal>
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95">
+                    <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
                             <Trash2 size={24} strokeWidth={2.5} />
                         </div>
                         <h3 className="text-xl font-bold mb-2 text-slate-900">Delete Report?</h3>
                         <p className="text-sm text-slate-500 mb-6">Are you sure you want to completely erase this month's report? This action cannot be undone.</p>
                         <div className="flex gap-3">
-                            <button onClick={() => setShowDeleteReportModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 transition-all">Cancel</button>
-                            <button onClick={handleDeleteV2Report} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-sm">Delete</button>
+                            <button onClick={() => setShowDeleteReportModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 active:bg-slate-200 transition-all duration-200">Cancel</button>
+                            <button onClick={handleDeleteV2Report} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 active:scale-95 active:bg-red-800 transition-all duration-200 shadow-sm">Delete</button>
                         </div>
                     </div>
                 </div>
