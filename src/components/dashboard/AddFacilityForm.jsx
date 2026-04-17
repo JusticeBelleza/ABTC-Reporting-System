@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, PlusCircle, Building2, MapPin, Building, Activity, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ModalPortal from '../modals/ModalPortal';
-import { supabase } from '../../lib/supabase'; // IMPORT SUPABASE
+import { supabase } from '../../lib/supabase';
 
 // --- FLOATING TEXT INPUT ---
 const FloatingInput = ({ id, label, icon: Icon, type = "text", value, onChange, disabled = false, required, placeholder = " " }) => (
@@ -77,14 +77,12 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
   const [barangays, setBarangays] = useState('');
   const [selectedMunicipality, setSelectedMunicipality] = useState('');
   
-  // New V2 State for Database-Fetched Locations
   const [dbMunicipalities, setDbMunicipalities] = useState([]);
   const [dbCatchments, setDbCatchments] = useState({});
   const [isFetchingLocations, setIsFetchingLocations] = useState(true);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Fetch Locations directly from Supabase 'populations' table
   useEffect(() => {
     const fetchLocations = async () => {
       try {
@@ -99,7 +97,7 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
         const catchments = {};
 
         data.forEach(item => {
-          if (item.municipality && item.municipality !== 'Non-Abra') {
+          if (item.municipality) {
             munis.add(item.municipality);
             if (item.barangay_name && item.barangay_name !== 'All') {
               if (!catchments[item.municipality]) catchments[item.municipality] = [];
@@ -108,7 +106,10 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
           }
         });
 
-        const sortedMunis = Array.from(munis).sort();
+        // Ensure Non-Abra is always at the very bottom of the list
+        const sortedMunis = Array.from(munis).filter(m => m !== 'Non-Abra').sort();
+        sortedMunis.push('Non-Abra');
+        
         Object.keys(catchments).forEach(m => catchments[m].sort());
 
         setDbMunicipalities(sortedMunis);
@@ -125,7 +126,9 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
   }, []);
 
   const normalizedFacilities = facilities.map(f => typeof f === 'string' ? f.trim().toLowerCase() : '');
+  
   const availableMunicipalities = dbMunicipalities.filter(m => {
+      if (type !== 'RHU') return true; 
       const expectedRhuName = `${m} RHU`.toLowerCase();
       return !normalizedFacilities.includes(expectedRhuName);
   });
@@ -151,29 +154,37 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
       setType(newType);
 
       if (newType === 'Hospital' || newType === 'Clinic') {
-          setSelectedMunicipality('');
-          setName('');
-          setBarangays(dbMunicipalities.join(', '));
+          setSelectedMunicipality(''); // Clear it, they don't need it
+          setName(''); 
+          setBarangays('Province-wide Catchment Area'); 
           if (newType === 'Clinic') setOwnership('Private');
           else setOwnership('Government'); 
       } else if (newType === 'RHU') {
           setOwnership('Government');
-          setBarangays('');
-          setName('');
-          setSelectedMunicipality('');
+          if (selectedMunicipality) {
+              setName(`${selectedMunicipality} RHU`);
+              const catchments = dbCatchments[selectedMunicipality] || [];
+              setBarangays(catchments.join(', '));
+          } else {
+              setName('');
+              setBarangays('');
+          }
       }
   };
 
   const handlePreSubmit = (e) => {
     e.preventDefault();
     if (!type) { toast.error("Please select a Facility Type."); return; }
-    if (type === 'RHU' && !selectedMunicipality) { toast.error("Please select a Municipality."); return; }
+    // Only require Municipality if it's an RHU
+    if (type === 'RHU' && !selectedMunicipality) { toast.error("Please select the Municipality."); return; }
+    if (!name.trim()) { toast.error("Please provide a Facility Name."); return; }
     setShowConfirmModal(true);
   };
 
   const confirmSubmit = () => {
     setShowConfirmModal(false);
-    onAdd(name, type, barangays, selectedMunicipality, ownership);
+    // Send `null` for the municipality if it's a Hospital or Clinic
+    onAdd(name, type, barangays, type === 'RHU' ? selectedMunicipality : null, ownership);
   };
 
   return (
@@ -228,8 +239,10 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {type === 'RHU' ? (
+                <div className={`grid gap-4 ${type === 'RHU' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                    
+                    {/* ONLY SHOW MUNICIPALITY IF TYPE IS RHU */}
+                    {type === 'RHU' && (
                         <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${!selectedMunicipality ? 'border-rose-200 bg-rose-50/20' : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md'}`}>
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                                 <MapPin size={14} className={`transition-colors duration-300 ${!selectedMunicipality ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900 group-focus-within:scale-110'}`} />
@@ -238,7 +251,7 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
                                 Municipality <span className="text-red-500 ml-0.5">*</span>
                             </label>
                             <select 
-                                required
+                                required={type === 'RHU'}
                                 value={selectedMunicipality} 
                                 onChange={handleMunicipalityChange}
                                 className={`block w-full pl-8 pr-8 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${selectedMunicipality ? 'text-slate-900' : 'text-slate-400'}`}
@@ -256,43 +269,44 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                             </div>
                         </div>
-                    ) : (
-                        <div className="relative w-full shadow-sm rounded-lg border border-slate-200 bg-white hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md transition-all duration-300 overflow-hidden group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                <Building size={14} className="text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300 group-focus-within:scale-110" />
-                            </div>
-                            <label className="absolute text-[9px] duration-300 transform -translate-y-1 top-2 z-10 origin-[0] left-8 pointer-events-none font-bold tracking-wide text-slate-500 group-focus-within:text-slate-900">
-                                Ownership
-                            </label>
-                            <select 
-                                value={ownership} 
-                                onChange={e => setOwnership(e.target.value)} 
-                                className="block w-full pl-8 pr-8 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer text-slate-900"
-                            >
-                                <option value="Government">Government</option>
-                                <option value="Private">Private</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-900">
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                            </div>
-                        </div>
                     )}
 
-                    <FloatingInput 
-                        id="facilityName" 
-                        label="Facility Name" 
-                        icon={Building2} 
-                        required 
-                        value={name} 
-                        onChange={e => setName(e.target.value)} 
-                        placeholder=" "  
-                    />
+                    <div className="relative w-full shadow-sm rounded-lg border border-slate-200 bg-white hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md transition-all duration-300 overflow-hidden group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                            <Building size={14} className="text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300 group-focus-within:scale-110" />
+                        </div>
+                        <label className="absolute text-[9px] duration-300 transform -translate-y-1 top-2 z-10 origin-[0] left-8 pointer-events-none font-bold tracking-wide text-slate-500 group-focus-within:text-slate-900">
+                            Ownership
+                        </label>
+                        <select 
+                            value={ownership} 
+                            onChange={e => setOwnership(e.target.value)} 
+                            className="block w-full pl-8 pr-8 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer text-slate-900"
+                        >
+                            <option value="Government">Government</option>
+                            <option value="Private">Private</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-900">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                    </div>
                 </div>
+
+                <FloatingInput 
+                    id="facilityName" 
+                    label="Facility Name" 
+                    icon={Building2} 
+                    required 
+                    value={name} 
+                    disabled={type === 'RHU'} 
+                    onChange={e => setName(e.target.value)} 
+                    placeholder=" "  
+                />
                 
                 <div>
                     <FloatingTextarea 
                         id="catchmentArea" 
-                        label={type === 'RHU' ? "Catchment Area (Auto-filled by Municipality)" : "Catchment Area (Province-wide)"} 
+                        label={type === 'RHU' ? "Catchment Area (Auto-filled by Municipality)" : "Catchment Area"} 
                         icon={MapPin} 
                         value={barangays} 
                         disabled={true} 
@@ -324,7 +338,7 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 tracking-tight">Register Facility?</h3>
                       <p className="text-sm text-slate-500 mt-2 mb-6 leading-relaxed">
-                          Are you sure you want to register <strong className="text-slate-900">{name}</strong> as a new <strong>ABTC Facility</strong>?
+                          Are you sure you want to register <strong className="text-slate-900">{name}</strong> as a new <strong>ABTC Facility</strong>{type === 'RHU' ? ` located in ${selectedMunicipality}` : ''}?
                       </p>
                       <div className="flex flex-col sm:flex-row gap-3 w-full">
                           <button 

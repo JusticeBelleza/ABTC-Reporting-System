@@ -79,7 +79,7 @@ export default function AdminDashboard({
 
   const fetchFacilityMeta = async () => {
     try {
-      const { data } = await supabase.from('facilities').select('name, status, type, ownership, host_municipality');
+      const { data } = await supabase.from('facilities').select('name, status, type, ownership, municipality');
       if (data) setFacilityMeta(data);
     } catch (err) { console.error("Error fetching facility meta", err); }
   };
@@ -212,7 +212,6 @@ export default function AdminDashboard({
             targetMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
         } else targetMonths = MONTHS;
 
-        // FIX: STRICTLY PULLS ONLY 'Approved' REPORTS
         const { data: reports, error: repError } = await supabase.from('abtc_reports_v2')
             .select('*')
             .eq('year', year)
@@ -259,12 +258,12 @@ export default function AdminDashboard({
                 targetMuni = "Non-Abra"; 
             } else {
                 const fMeta = facilityMeta.find(m => m.name === facName);
-                if (fMeta && fMeta.host_municipality && ABRA_MUNICIPALITIES.includes(fMeta.host_municipality)) {
-                    targetMuni = fMeta.host_municipality;
+                if (fMeta && fMeta.municipality && ABRA_MUNICIPALITIES.includes(fMeta.municipality)) {
+                    targetMuni = fMeta.municipality;
                 } else {
                     const fCtx = facilityDetails?.[facName];
-                    if (fCtx && fCtx.host_municipality && ABRA_MUNICIPALITIES.includes(fCtx.host_municipality)) {
-                        targetMuni = fCtx.host_municipality;
+                    if (fCtx && fCtx.municipality && ABRA_MUNICIPALITIES.includes(fCtx.municipality)) {
+                        targetMuni = fCtx.municipality;
                     } else {
                         const guessed = ABRA_MUNICIPALITIES.find(m => facName.includes(m));
                         if (guessed) targetMuni = guessed;
@@ -317,7 +316,6 @@ export default function AdminDashboard({
 
         let rawDataForAnnual = null;
         if (periodType === 'Annual') {
-            // FIX: STRICTLY PULLS ONLY 'Approved' REPORTS FOR RAW DATA
             const { data: rd, error } = await supabase.from('abtc_reports_v2')
                 .select('*')
                 .eq('year', year)
@@ -336,12 +334,12 @@ export default function AdminDashboard({
                     targetMuni = "Non-Abra"; 
                 } else {
                     const fMeta = facilityMeta.find(m => m.name === facName);
-                    if (fMeta && fMeta.host_municipality && ABRA_MUNICIPALITIES.includes(fMeta.host_municipality)) {
-                        targetMuni = fMeta.host_municipality;
+                    if (fMeta && fMeta.municipality && ABRA_MUNICIPALITIES.includes(fMeta.municipality)) {
+                        targetMuni = fMeta.municipality;
                     } else {
                         const fCtx = facilityDetails?.[facName];
-                        if (fCtx && fCtx.host_municipality && ABRA_MUNICIPALITIES.includes(fCtx.host_municipality)) {
-                            targetMuni = fCtx.host_municipality;
+                        if (fCtx && fCtx.municipality && ABRA_MUNICIPALITIES.includes(fCtx.municipality)) {
+                            targetMuni = fCtx.municipality;
                         } else {
                             const guessed = ABRA_MUNICIPALITIES.find(m => facName.includes(m));
                             if (guessed) targetMuni = guessed;

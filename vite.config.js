@@ -15,7 +15,7 @@ export default defineConfig({
         name: `ABTC Reporting System v${packageInfo.version}`,
         short_name: `ABTC v${packageInfo.version}`,
         description: 'Provincial Rabies Registry and Reporting System',
-        theme_color: '#0f172a',
+        theme_color: '#0f172A',
         background_color: '#f8fafc',
         display: 'standalone',
         icons: [
@@ -34,24 +34,25 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        // --- ADDED: BACKGROUND SYNC CONFIGURATION ---
+        // --- ADDED: Increase precache limit to 4MB for safety ---
+        maximumFileSizeToCacheInBytes: 4194304, 
+        
+        // --- BACKGROUND SYNC CONFIGURATION ---
         runtimeCaching: [
           {
-            // Match any request going to your Supabase REST API
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/,
-            handler: 'NetworkOnly', // Only try to use the network for database writes
-            method: 'POST', // Specifically queue POST (insert) requests
+            handler: 'NetworkOnly',
+            method: 'POST',
             options: {
               backgroundSync: {
-                name: 'abtc-offline-queue', // Name of the IndexedDB queue Workbox creates
+                name: 'abtc-offline-queue',
                 options: {
-                  maxRetentionTime: 24 * 60, // Keep in queue for up to 24 hours
+                  maxRetentionTime: 24 * 60,
                 },
               },
             },
           },
           {
-            // Also match PATCH (update) requests for when they edit drafts
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/,
             handler: 'NetworkOnly',
             method: 'PATCH',
@@ -66,14 +67,30 @@ export default defineConfig({
           }
         ]
       },
-      // --- TURN THIS OFF FOR LOCAL DEVELOPMENT ---
       devOptions: {
         enabled: false, 
         type: 'module',
       }
     })
   ],
-  // --- Fix for Web Worker build formatting ---
+  
+  // --- OPTION 2: MANUAL CHUNKING (CODE SPLITTING) ---
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split heavy reporting and DB libraries into their own files
+          'vendor-excel': ['exceljs', 'file-saver'],
+          'vendor-db': ['@supabase/supabase-js'],
+          // Optional: group core react icons if used heavily
+          'vendor-react': ['react', 'react-dom'],
+        },
+      },
+    },
+    // Optional: raise warning threshold to 1MB instead of default 500kb
+    chunkSizeWarningLimit: 1000, 
+  },
+
   worker: {
     format: 'es'
   }
