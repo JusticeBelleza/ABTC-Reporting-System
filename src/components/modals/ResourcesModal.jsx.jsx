@@ -9,7 +9,7 @@ export default function ResourcesModal({ onClose }) {
       title: "Guide on Animal Bite and Rabies Report Form",
       description: "Official guidelines on how to correctly fill out the Animal Bite and Rabies Report Form.",
       icon: FileText,
-      iconBg: "bg-red-50 text-red-600 border-red-100", // PDF Red
+      iconBg: "bg-red-50 text-red-600 border-red-100", 
       filename: "Guide on Animal Bite and Rabies Report Form.pdf",
       path: "/forms/Guide on Animal Bite and Rabies Report Form.pdf",
       type: "PDF Document"
@@ -19,7 +19,7 @@ export default function ResourcesModal({ onClose }) {
       title: "Rabies PEP Decision Tree",
       description: "Standardized flowchart for assessing patient exposure and determining the correct Post-Exposure Prophylaxis (PEP).",
       icon: Presentation,
-      iconBg: "bg-orange-50 text-orange-600 border-orange-100", // PowerPoint Orange
+      iconBg: "bg-orange-50 text-orange-600 border-orange-100", 
       filename: "Rabies PEP Decision Tree.pptx",
       path: "/forms/Rabies PEP Decision Tree.pptx",
       type: "PowerPoint Presentation"
@@ -29,7 +29,7 @@ export default function ResourcesModal({ onClose }) {
       title: "Potential Rabies Exposure Registry (PDF Format)",
       description: "Printable registry template for daily logging of animal bite patients before aggregation.",
       icon: FileText,
-      iconBg: "bg-red-50 text-red-600 border-red-100", // PDF Red
+      iconBg: "bg-red-50 text-red-600 border-red-100", 
       filename: "Potential Rabies Exposure Registry for ABTC_ABC.pdf",
       path: "/forms/Potential Rabies Exposure Registry for ABTC_ABC.pdf",
       type: "PDF Document"
@@ -39,7 +39,7 @@ export default function ResourcesModal({ onClose }) {
       title: "Potential Rabies Exposure Registry (Excel Format)",
       description: "Digital spreadsheet registry template for daily logging of animal bite patients before aggregation.",
       icon: FileSpreadsheet,
-      iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100", // Excel Green
+      iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100", 
       filename: "Potential Rabies Exposure Registry for ABTC_ABC.xlsx",
       path: "/forms/Potential Rabies Exposure Registry for ABTC_ABC.xlsx",
       type: "Excel Spreadsheet"
@@ -89,8 +89,9 @@ export default function ResourcesModal({ onClose }) {
                          </div>
                          
                          <div className="flex items-center sm:justify-end shrink-0 mt-2 sm:mt-0">
+                            {/* FIX APPLIED HERE: encodeURI(res.path) safely handles the spaces for iPhones! */}
                             <a
-                              href={res.path}
+                              href={encodeURI(res.path)}
                               download={res.filename}
                               target="_blank"
                               rel="noopener noreferrer"
