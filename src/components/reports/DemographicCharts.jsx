@@ -6,6 +6,7 @@ export default function DemographicCharts({
   locationTitleBase, locationTotal, locationData, tableData,
   categoryTotal, categoryData,
   animalTotal, animalData,
+  statusTotal, statusData, // RESTORED PROPS
   sexTotal, demographicsSexData,
   ageTotal, demographicsAgeData,
   handleDownload, renderDynamicBarLabel, renderCustomizedLabel,
@@ -14,7 +15,7 @@ export default function DemographicCharts({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
         
-        {/* ROW 1: Location Volume (FULL WIDTH) */}
+        {/* ROW 1: Location Volume (FULL WIDTH) & Text Chips */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow flex flex-col h-full lg:col-span-6" id="chart-location">
             <div className="flex justify-between items-start mb-6 shrink-0">
                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
@@ -38,7 +39,7 @@ export default function DemographicCharts({
                 </ResponsiveContainer>
             </div>
 
-            {/* --- FIX: OTHER MUNICIPALITIES / NON-ABRA RENDERED AS TEXT CHIPS --- */}
+            {/* EXTERNAL CATCHMENT CHIPS */}
             {tableData.length > 0 && (
                 <div className="mt-8 border-t border-slate-100 pt-4 shrink-0">
                     <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -56,8 +57,8 @@ export default function DemographicCharts({
             )}
         </div>
 
-        {/* ROW 2: Exposure Category | Biting Animal */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-3" id="chart-cat">
+        {/* ROW 2: Exposure Category | Biting Animal | Animal Status */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-2" id="chart-cat">
             <div className="flex justify-between items-start mb-6">
                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                    Exposure Category <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={categoryTotal})</span>
@@ -80,7 +81,7 @@ export default function DemographicCharts({
             </div>
         </div>
         
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-3" id="chart-animal">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-2" id="chart-animal">
             <div className="flex justify-between items-start mb-6">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                     Biting Animal <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={animalTotal})</span>
@@ -96,6 +97,30 @@ export default function DemographicCharts({
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                         <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={100}>
                             {animalData.map((e, i) => <Cell key={`cell-${i}`} fill={e.fill} />)}
+                            <LabelList dataKey="value" content={renderDynamicBarLabel} />
+                        </Bar>
+                    </RechartsBarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+
+        {/* RESTORED: ANIMAL STATUS CHART */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-2" id="chart-status">
+            <div className="flex justify-between items-start mb-6">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+                    Animal Status <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={statusTotal})</span>
+                </h3>
+                <button onClick={() => handleDownload('chart-status', `Animal_Status.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+            </div>
+            <div className="h-[280px] mt-2">
+                <ResponsiveContainer>
+                    <RechartsBarChart data={statusData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                        <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 700}} />
+                        <YAxis tick={{fontSize: 10}} />
+                        <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                        <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={100}>
+                            {statusData.map((e, i) => <Cell key={`status-cell-${i}`} fill={e.fill} />)}
                             <LabelList dataKey="value" content={renderDynamicBarLabel} />
                         </Bar>
                     </RechartsBarChart>

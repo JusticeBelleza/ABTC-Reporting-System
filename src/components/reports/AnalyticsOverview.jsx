@@ -14,7 +14,8 @@ const COLORS = {
   male: '#3B82F6', female: '#F43F5E',
   ageLt15: '#10B981', ageGt15: '#F59E0B',
   cat1: '#14B8A6', cat2: '#F59E0B', cat3: '#EF4444',
-  dog: '#6366F1', cat: '#8B5CF6', other: '#64748B'
+  dog: '#6366F1', cat: '#8B5CF6', other: '#64748B',
+  pet: '#10B981', stray: '#F43F5E', unk: '#94A3B8' // RESTORED STATUS COLORS
 };
 
 const TOOLTIP_STYLE = {
@@ -149,7 +150,6 @@ export default function AnalyticsOverview({
     if (!v2Data || v2Data.length === 0) return { chartData: [], tableData: [], total: 0 };
     const chartMap = {}; const tableMap = {}; let total = 0;
     
-    // Identify the specific municipality this RHU belongs to
     const hostMuni = dbMunicipalities.find(m => user?.facility?.toLowerCase().includes(m.toLowerCase()));
 
     v2Data.forEach(row => {
@@ -168,7 +168,6 @@ export default function AnalyticsOverview({
                     chartMap[targetName] = (chartMap[targetName] || 0) + cases;
                 }
             } else {
-               // --- FIX: RHU Logic - Filter Non-Abra and Other Municipalities OUT of the bar chart ---
                if ((dbMunicipalities.includes(row.location_name) && row.location_name !== hostMuni) || row.location_name === 'Non-Abra') {
                    tableMap[row.location_name] = (tableMap[row.location_name] || 0) + cases;
                } else {
@@ -186,7 +185,6 @@ export default function AnalyticsOverview({
             return a.name.localeCompare(b.name);
         });
 
-    // Sort the external data so Non-Abra is always last
     const table = Object.entries(tableMap)
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => {
@@ -261,8 +259,9 @@ export default function AnalyticsOverview({
       return { hasData: true, diff, display: `${sign}${diff} cases`, label };
   }, [v2AllYearData, periodType, month, quarter, year, currentTotal]);
 
+  // --- RESTORED STATUS CALCULATION ---
   const safeTotals = useMemo(() => {
-      let sums = { male: 0, female: 0, ageLt15: 0, ageGt15: 0, cat1: 0, cat2: 0, cat3: 0, dog: 0, cat: 0, others: 0 };
+      let sums = { male: 0, female: 0, ageLt15: 0, ageGt15: 0, cat1: 0, cat2: 0, cat3: 0, dog: 0, cat: 0, others: 0, pet: 0, stray: 0, unk: 0 };
       v2Data.forEach(r => {
           if (r.location_name.includes('Outside Catchment')) return;
           const n = (v) => Number(v) || 0;
@@ -272,6 +271,7 @@ export default function AnalyticsOverview({
           sums.cat2 += n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
           sums.cat3 += n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
           sums.dog += n(r.type_dog); sums.cat += n(r.type_cat); sums.others += n(r.type_others);
+          sums.pet += n(r.status_pet); sums.stray += n(r.status_stray); sums.unk += n(r.status_unk);
       });
       return sums;
   }, [v2Data]);
@@ -292,10 +292,19 @@ export default function AnalyticsOverview({
     return res.sort((a, b) => b.value - a.value);
   }, [safeTotals]);
 
+  const statusData = useMemo(() => {
+    const res = [];
+    if (safeTotals.pet > 0) res.push({ name: 'Pet', value: safeTotals.pet, fill: COLORS.pet });
+    if (safeTotals.stray > 0) res.push({ name: 'Stray', value: safeTotals.stray, fill: COLORS.stray });
+    if (safeTotals.unk > 0) res.push({ name: 'Unknown', value: safeTotals.unk, fill: COLORS.unk });
+    return res.sort((a, b) => b.value - a.value);
+  }, [safeTotals]);
+
   const categoryTotal = useMemo(() => categoryData.reduce((sum, item) => sum + item.value, 0), [categoryData]);
   const sexTotal = useMemo(() => demographicsSexData.reduce((sum, item) => sum + item.value, 0), [demographicsSexData]);
   const ageTotal = useMemo(() => demographicsAgeData.reduce((sum, item) => sum + item.value, 0), [demographicsAgeData]);
   const animalTotal = useMemo(() => animalData.reduce((sum, item) => sum + item.value, 0), [animalData]);
+  const statusTotal = useMemo(() => statusData.reduce((sum, item) => sum + item.value, 0), [statusData]);
 
   const handleDownload = async (id, name) => {
     const el = document.getElementById(id);
@@ -515,6 +524,7 @@ export default function AnalyticsOverview({
               <DemographicCharts 
                 locationTitleBase={locationTitleBase} locationTotal={locationInfo.total} locationData={locationInfo.chartData} tableData={locationInfo.tableData}
                 categoryTotal={categoryTotal} categoryData={categoryData} animalTotal={animalTotal} animalData={animalData}
+                statusTotal={statusTotal} statusData={statusData} // RESTORED PASSING STATUS DATA
                 sexTotal={sexTotal} demographicsSexData={demographicsSexData} ageTotal={ageTotal} demographicsAgeData={demographicsAgeData}
                 handleDownload={handleDownload} renderDynamicBarLabel={renderDynamicBarLabel} renderCustomizedLabel={renderCustomizedLabel}
                 COLORS={COLORS} TOOLTIP_STYLE={TOOLTIP_STYLE}
