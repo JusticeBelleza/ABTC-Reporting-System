@@ -31,7 +31,17 @@ VITE_SUPABASE_ANON_KEY=your-secure-anon-key
 
 ---
 
-## Step 2: Build the Application
+## Step 2: Run Unit Tests (Mathematical Verification)
+
+Before building for production, ensure the predictive engine and moving average calculations are mathematically sound.
+
+1. Open your terminal and run:
+   npm run test
+2. Ensure all tests (specifically `useForecastingMetrics.test.js`) pass with a green checkmark. If tests fail, do not deploy.
+
+---
+
+## Step 3: Build the Application
 
 Compile and optimize the React app before deployment.
 
@@ -42,7 +52,7 @@ Compile and optimize the React app before deployment.
 
 ---
 
-## Step 3: Deploy to Hostinger
+## Step 4: Deploy to Hostinger
 
 Method A: Hostinger File Manager (hPanel)
 
