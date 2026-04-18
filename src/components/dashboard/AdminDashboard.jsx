@@ -425,8 +425,8 @@ export default function AdminDashboard({
                       <div className="flex items-start sm:items-center gap-4 relative z-10">
                           <button onClick={() => setIsViewingConsolidated(false)} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ArrowLeft size={20}/></button>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
-                              <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">Province-Wide Consolidated</h2>
-                              <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1.5"><Layers size={14}/> Province Data</div>
+                              <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">Province-Wide Consolidated Report</h2>
+                              <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1.5"><Layers size={14}/> Provincial Data</div>
                           </div>
                       </div>
                       <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 relative z-10 w-full xl:w-auto shrink-0">
