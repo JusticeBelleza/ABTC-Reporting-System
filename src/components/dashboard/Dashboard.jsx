@@ -19,10 +19,8 @@ import LicenseModal from '../modals/LicenseModal';
 import AuditLogsModal from '../modals/AuditLogsModal'; 
 import ErrorBoundary from '../ErrorBoundary';
 import AnalyticsOverview from '../reports/AnalyticsOverview'; 
-
-// NEW: Import the EULA Modal
 import PostLoginEula from '../auth/PostLoginEula';
-
+import UserManualModal from '../modals/ResourcesModal.jsx';
 import packageInfo from '../../../package.json';
 
 const getInitials = (name) => {
@@ -207,6 +205,7 @@ function DashboardContent() {
   const [showLicense, setShowLicense] = useState(false); 
   const [showLogoutModal, setShowLogoutModal] = useState(false); 
   const [showAuditLogs, setShowAuditLogs] = useState(false); 
+  const [showUserManual, setShowUserManual] = useState(false); // NEW STATE
   
   const [facilityToDelete, setFacilityToDelete] = useState(null);
   const [deleteFacilityInput, setDeleteFacilityInput] = useState('');
@@ -230,13 +229,10 @@ function DashboardContent() {
     if (deleteFacilityInput !== 'delete') { toast.error('Please type "delete" to confirm'); return; }
     setIsDeletingFacility(true);
     try {
-        // FIX: Delete strictly from the new V2 table
         await supabase.from('abtc_reports_v2').delete().eq('facility', facilityToDelete);
         
-        // Delete the facility metadata
         await supabase.from('facilities').delete().eq('name', facilityToDelete);
         
-        // Detach any users mapped to this facility so they aren't orphaned
         await supabase.from('profiles').update({ facility_name: null }).eq('facility_name', facilityToDelete);
 
         setFacilities(prev => prev.filter(f => f !== facilityToDelete));
@@ -246,7 +242,6 @@ function DashboardContent() {
     setIsDeletingFacility(false);
   };
 
-  // Show a professional loading spinner while verifying the database for EULA consent
   if (checkingConsent) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -373,6 +368,7 @@ function DashboardContent() {
         {showProfileModal && <ProfileModal userId={user.id} onClose={() => setShowProfileModal(false)} isSelf={true} />}
         {showAddFacilityModal && <AddFacilityForm onAdd={handleAddFacility} loading={false} facilities={facilities} onClose={() => setShowAddFacilityModal(false)} />}
         {showAuditLogs && <AuditLogsModal onClose={() => setShowAuditLogs(false)} />}
+        {showUserManual && <UserManualModal onClose={() => setShowUserManual(false)} />} 
         
         {facilityToDelete && (
           <ModalPortal>
@@ -432,7 +428,7 @@ function DashboardContent() {
               <button onClick={() => setShowPrivacyPolicy(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Privacy</button>
               <button onClick={() => setShowTermsOfUse(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Terms</button>
               <button onClick={() => setShowLicense(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">License</button>
-              <a href="/images/abtc-guide.pdf" target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">User Manual</a>
+              <button onClick={() => setShowUserManual(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Resources</button>
               <span className="text-[10px] font-bold text-slate-500 tracking-widest cursor-default">ABTC-RS v.{packageInfo.version}</span>
             </div>
             <div className="hidden md:block w-px h-3 bg-slate-700"></div>

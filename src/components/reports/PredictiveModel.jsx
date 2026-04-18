@@ -26,7 +26,7 @@ export default function PredictiveModel({
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <BrainCircuit size={18} className="text-blue-600"/> 
                       24-Month Forecasting Model & Analytics
-                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 text-[10px] ml-1 flex items-center h-fit" title="Year-to-Date total cases">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 text-[10px] ml-1 flex items-center h-fit" title={`Total cases for ${year}`}>
                           N = {currentTotal}
                       </span>
                   </h3>

@@ -15,7 +15,7 @@ const COLORS = {
   ageLt15: '#10B981', ageGt15: '#F59E0B',
   cat1: '#14B8A6', cat2: '#F59E0B', cat3: '#EF4444',
   dog: '#6366F1', cat: '#8B5CF6', other: '#64748B',
-  pet: '#10B981', stray: '#F43F5E', unk: '#94A3B8' // RESTORED STATUS COLORS
+  pet: '#10B981', stray: '#F43F5E', unk: '#94A3B8'
 };
 
 const TOOLTIP_STYLE = {
@@ -207,6 +207,12 @@ export default function AnalyticsOverview({
       return calcTotal(rows);
   }, [periodType, v2AllYearData, month, quarter, year]);
 
+  // --- NEW: Annual Total exclusively for Predictive Model ---
+  const annualTotal = useMemo(() => {
+      const rows = v2AllYearData.filter(d => d.year === year);
+      return calcTotal(rows);
+  }, [v2AllYearData, year]);
+
   const previousPeriodComparison = useMemo(() => {
       let prevMonths = []; let prevYear = year; let label = '';
       if (periodType === 'Monthly') {
@@ -259,7 +265,6 @@ export default function AnalyticsOverview({
       return { hasData: true, diff, display: `${sign}${diff} cases`, label };
   }, [v2AllYearData, periodType, month, quarter, year, currentTotal]);
 
-  // --- RESTORED STATUS CALCULATION ---
   const safeTotals = useMemo(() => {
       let sums = { male: 0, female: 0, ageLt15: 0, ageGt15: 0, cat1: 0, cat2: 0, cat3: 0, dog: 0, cat: 0, others: 0, pet: 0, stray: 0, unk: 0 };
       v2Data.forEach(r => {
@@ -524,7 +529,7 @@ export default function AnalyticsOverview({
               <DemographicCharts 
                 locationTitleBase={locationTitleBase} locationTotal={locationInfo.total} locationData={locationInfo.chartData} tableData={locationInfo.tableData}
                 categoryTotal={categoryTotal} categoryData={categoryData} animalTotal={animalTotal} animalData={animalData}
-                statusTotal={statusTotal} statusData={statusData} // RESTORED PASSING STATUS DATA
+                statusTotal={statusTotal} statusData={statusData}
                 sexTotal={sexTotal} demographicsSexData={demographicsSexData} ageTotal={ageTotal} demographicsAgeData={demographicsAgeData}
                 handleDownload={handleDownload} renderDynamicBarLabel={renderDynamicBarLabel} renderCustomizedLabel={renderCustomizedLabel}
                 COLORS={COLORS} TOOLTIP_STYLE={TOOLTIP_STYLE}
@@ -539,7 +544,7 @@ export default function AnalyticsOverview({
               year={year} full24MonthData={full24MonthData} handleDownload={handleDownload} showMathModal={showMathModal} setShowMathModal={setShowMathModal}
               OUTBREAK_SENSITIVITY={OUTBREAK_SENSITIVITY} TREND_SENSITIVITY={TREND_SENSITIVITY} TOOLTIP_STYLE={TOOLTIP_STYLE}
               projectedNextMonth={projectedNextMonth} riskLevel={riskLevel} modelMetrics={modelMetrics}
-              currentTotal={calculatedYTD} 
+              currentTotal={annualTotal} 
             />
         </div>
       )}
