@@ -29,6 +29,8 @@ To ensure strict compliance with **RA 10173 (Data Privacy Act of 2012)**, the sy
 
 ### 📈 Predictive Analytics & Algorithmic Forecasting (NEW)
 * **Algorithmic Trend Analysis:** Utilizes a custom multi-layered statistical engine (Adaptive Simple Moving Averages and Weighted Moving Averages) to calculate short-term reactions, mid-term baselines, and 12-month seasonality.
+* **High-Risk Rabies Indicator:** A specialized, highly sensitive alert threshold that isolates severe exposures (Category 3 + Stray Animals) to detect probable rabid animal incidents before total clinic volume spikes.
+* **PIDSR Mortality Tracking:** Built-in tracking for Confirmed Human Rabies cases, automatically calculating the Incidence Proportion (per 1,000,000 population) for standardized public health reporting.
 * **Smart Alert Engine:** Automatically scans real-time data to detect epidemiological threats. Triggers specific, color-coded alerts for **Outbreak Anomalies**, **Sustained Risks**, and **Rising Trends** based on user-defined sensitivity thresholds.
 * **Forecast Error Tracking:** Transparently grades its own predictive accuracy using real-time **MAE** (Mean Absolute Error) and **MAPE** (Mean Absolute Percentage Error) calculations, ensuring health officers always know the confidence level of the data.
 * **Dynamic "Snowball" YTD:** Employs strict, rolling Year-To-Date calculations that accurately track case accumulation month-by-month and quarter-by-quarter.
@@ -64,6 +66,7 @@ To ensure strict compliance with **RA 10173 (Data Privacy Act of 2012)**, the sy
 | **Data Visualization** | Recharts, HTML-to-Image |
 | **Statistical Engine** | Custom JS Math Hooks (SMA, WMA, MAE, MAPE) |
 | **Background Processing** | Web Workers (PDF Generation) |
+| **Testing Framework** | Vitest, React Testing Library (Mathematical Model Verification) |
 | **Hosting** | Hostinger (Production Environment) |
 
 ---
