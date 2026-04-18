@@ -21,7 +21,7 @@ Stores the official registry of all Animal Bite Treatment Centers (ABTC) in the 
 
 ---
 
-## 2. `abtc_reports_v2` (Form 1 - Granular Data)
+## 2. `abtc_reports_v2` (Animal Bite and Rabies Report Form - Granular Data)
 The core reporting table. Stores granular, location-based monthly demographic, animal, and post-exposure prophylaxis (PEP) data. **No Patient Identifiable Information (PII) is stored here.**
 
 | Column Name | Data Type | Description |
