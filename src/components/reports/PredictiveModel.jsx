@@ -71,7 +71,7 @@ export default function PredictiveModel({
           </div>
 
           <div className="h-[400px] w-full">
-              <ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                   <ComposedChart data={chartDisplayData} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="#7398c9" />
                       
