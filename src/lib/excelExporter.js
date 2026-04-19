@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { supabase } from './supabase'; // <-- Added to fetch true facility type
 
 const getCleanBase64 = (dataUrl) => {
     if (!dataUrl) return null;
@@ -43,6 +44,30 @@ export const exportToExcelTemplate = async ({
     globalSettings, userProfile, rawData
 }) => {
     try {
+        // ==========================================
+        // 🚨 BULLETPROOF DATABASE LOOKUP 🚨
+        // ==========================================
+        let trueFacilityType = facilityType;
+        
+        // If type isn't provided, fetch it directly from the Supabase facilities table
+        if (!trueFacilityType && facilityName && facilityName !== 'Provincial Health Office') {
+            try {
+                const { data: facData } = await supabase
+                    .from('facilities')
+                    .select('type')
+                    .eq('name', facilityName)
+                    .single();
+                if (facData) trueFacilityType = facData.type;
+            } catch (err) {
+                console.warn("Could not fetch facility type for Excel export", err);
+            }
+        }
+
+        const isHospitalOrClinic = trueFacilityType === 'Hospital' || trueFacilityType === 'Clinic';
+        const isConsolReport = isConsolidated === true || (facilityName && facilityName.toLowerCase().includes('province'));
+
+        // ==========================================
+
         const response = await fetch('/doh_template.xlsx');
         if (!response.ok) throw new Error("Template file not found in public folder");
         
@@ -70,14 +95,13 @@ export const exportToExcelTemplate = async ({
             worksheet.getRow(14).height = 35;
             worksheet.getRow(15).height = 35;
 
-            // FIX 1: Moved logos to Row 1 so they act as a top-right letterhead, completely avoiding the headers.
-            if (sysImageId) worksheet.addImage(sysImageId, { tl: { col: 18, row: 8 }, ext: { width: 140, height: 140 }, editAs: 'oneCell' });
-            if (facImageId) worksheet.addImage(facImageId, { tl: { col: 20, row: 8 }, ext: { width: 140, height: 140 }, editAs: 'oneCell' });
+            if (sysImageId) worksheet.addImage(sysImageId, { tl: { col: 34, row: 1 }, ext: { width: 85, height: 85 }, editAs: 'oneCell' });
+            if (facImageId) worksheet.addImage(facImageId, { tl: { col: 37, row: 1 }, ext: { width: 85, height: 85 }, editAs: 'oneCell' });
 
             let currentRow = 16; 
             const maxTemplateDataRow = 65; 
 
-            // 1. PRINT BASE MUNICIPALITIES
+            // 1. PRINT BASE LOCATIONS
             fKeys.forEach(loc => {
                 const rowData = sheetData[loc] || {};
                 const pop = populations[loc] || 0;
@@ -114,16 +138,7 @@ export const exportToExcelTemplate = async ({
                 currentRow++;
             });
 
-            // ==========================================
-            // FIX 2: Bulletproof check for Consolidated Reports
-            // ==========================================
-            const isConsolReport = isConsolidated === true || 
-                                   (facilityName && facilityName.toLowerCase().includes('province')) || 
-                                   (facilityName && facilityName.toLowerCase().includes('consolidated'));
-
-            const isHospitalOrClinic = facilityType === 'Hospital' || facilityType === 'Clinic' || 
-                (facilityName && (facilityName.toLowerCase().includes('hospital') || facilityName.toLowerCase().includes('clinic')));
-
+            // 🚨 STRICT CHECK: ONLY PRINT SUBTOTAL IF IT IS AN RHU 🚨
             if (fKeys.length > 0 && !isHospitalOrClinic && !isConsolReport) {
                 const subTotalRow = worksheet.getRow(currentRow);
                 let subPop = 0;
@@ -135,7 +150,6 @@ export const exportToExcelTemplate = async ({
                     typeDog: 0, typeCat: 0, typeOthers: 0, statusPet: 0, statusStray: 0, statusUnk: 0, rabiesCases: 0
                 };
 
-                // Tally the base municipality columns
                 fKeys.forEach(loc => {
                     subPop += (populations[loc] || 0);
                     const rData = sheetData[loc] || {};
@@ -144,7 +158,6 @@ export const exportToExcelTemplate = async ({
                     });
                 });
 
-                // Injecting plain raw values
                 subTotalRow.getCell(1).value = 'SUB TOTAL';
                 subTotalRow.getCell(2).value = subPop;
                 subTotalRow.getCell(3).value = subData.male;
@@ -174,17 +187,15 @@ export const exportToExcelTemplate = async ({
                 currentRow++;
             }
 
-            // 2. INJECT SECTION HEADER LABEL & OTHER MUNICIPALITIES
+            // 2. PRINT OTHER MUNICIPALITIES
             if (oKeys && oKeys.length > 0) {
                 const labelRow = worksheet.getRow(currentRow);
-                
                 labelRow.getCell(1).value = 'Other Municipalities / Non-Abra';
                 currentRow++;
 
                 oKeys.forEach(loc => {
                     const rowData = sheetData[loc] || {};
                     const pop = populations[loc] || 0;
-                    
                     const r = worksheet.getRow(currentRow);
                     const toNum = (val) => (val === '' || val === undefined || val === null) ? 0 : parseInt(val, 10);
 

@@ -25,7 +25,6 @@ const STYLES = {
   tdGrandTotal: { border: `1px solid ${BORDER_COLOR}`, padding: '4px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', fontWeight: '800', backgroundColor: GRAND_TOTAL_BG, color: '#0F172A' }
 };
 
-// FIX: Accept isConsolidated prop so the table knows it's being viewed in the Admin Consolidated view
 const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = false }) => {
   const [activeTab, setActiveTab] = useState('tab1');
   const [activeLocation, setActiveLocation] = useState(null); 
@@ -192,6 +191,10 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
       );
   }
 
+  // Heuristic: If the report covers many municipalities (e.g., >20), it's a province-wide report.
+  const isProvinceWideCatchment = baseRowKeys.length > 20;
+  const showSubTotal = baseRowKeys.length > 0 && !isHospitalOrClinic && !isConsolidated && !isProvinceWideCatchment;
+
   return (
     <div className="flex flex-col w-full bg-slate-100 h-[600px] lg:h-[calc(100vh-260px)] 2xl:h-[calc(100vh-240px)]">
       <style>{`
@@ -249,8 +252,7 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
             
             {baseRowKeys.map((location, index) => renderRow(location, index, false))}
             
-            {/* FIX: The !isConsolidated flag will now hide this row when viewing Admin Reports */}
-            {baseRowKeys.length > 0 && !isHospitalOrClinic && !isConsolidated && (
+            {showSubTotal && (
                 <tr className="border-b-[2px] border-slate-400 border-t-[2px]">
                    <td style={{...STYLES.tdGrandTotal, textAlign: 'left', padding: '6px 10px', backgroundColor: GRAND_TOTAL_BG, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
                      <span className="font-black text-slate-900">SUB TOTAL</span>
