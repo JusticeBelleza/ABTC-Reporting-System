@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X, CheckCircle, XCircle, TrendingUp, ChevronRight, ChevronLeft, FileDown, Loader2, ArrowLeft, Activity } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X, CheckCircle, XCircle, TrendingUp, ChevronRight, ChevronLeft, FileDown, Loader2, ArrowLeft, Activity, Database, Upload } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import Papa from 'papaparse';
 
 import ModalPortal from '../modals/ModalPortal';
 import { exportToExcelTemplate } from '../../lib/excelExporter';
@@ -20,6 +21,209 @@ const ABRA_MUNICIPALITIES = [
     "Tineg", "Tubo", "Villaviciosa"
 ];
 
+// ==========================================
+// ROW-BASED POPULATION UPLOAD MODAL
+// ==========================================
+const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
+    const [uploadedYears, setUploadedYears] = useState([]);
+    const [uploadingYear, setUploadingYear] = useState(null);
+    const [targetYear, setTargetYear] = useState(null);
+    const fileInputRef = useRef(null);
+
+    // Dynamic Years: Strictly start at 2026, up to Current Year.
+    const currentYear = new Date().getFullYear();
+    const maxYear = Math.max(2026, currentYear);
+    const years = Array.from({ length: maxYear - 2026 + 1 }, (_, i) => 2026 + i);
+
+    // Fetch existing years to color-code the badges
+    useEffect(() => {
+        if (!isOpen) return;
+        const fetchExistingYears = async () => {
+            const { data } = await supabase.from('populations').select('year');
+            if (data) {
+                const uniqueYears = [...new Set(data.map(d => d.year))].filter(Boolean);
+                setUploadedYears(uniqueYears);
+            }
+        };
+        fetchExistingYears();
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    const downloadTemplate = () => {
+        const csvContent = "municipality,barangay_name,population\nBangued,Agtangao,2295\nBangued,Angad,2813\nDolores,Mudiit,1564\n";
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "population_template.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const triggerUpload = (year) => {
+        setTargetYear(year);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''; 
+            fileInputRef.current.click();
+        }
+    };
+
+    const handleFileChange = (e) => {
+        const uploadedFile = e.target.files[0];
+        if (!uploadedFile || !targetYear) return;
+
+        setUploadingYear(targetYear);
+
+        Papa.parse(uploadedFile, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                const headers = results.meta.fields || [];
+                if (!headers.includes('municipality') || !headers.includes('barangay_name') || !headers.includes('population')) {
+                    toast.error("Invalid CSV format. Must include 'municipality', 'barangay_name', and 'population'.");
+                    setUploadingYear(null);
+                    return;
+                }
+
+                try {
+                    const formattedData = results.data.map(row => {
+                        const cleanPopStr = String(row.population || '0').replace(/,/g, '');
+                        return {
+                            year: parseInt(targetYear, 10),
+                            municipality: row.municipality.trim(),
+                            barangay_name: row.barangay_name ? row.barangay_name.trim() : 'All',
+                            population: parseInt(cleanPopStr, 10) || 0
+                        };
+                    });
+
+                    // 1. Explicitly DELETE the old year's data first
+                    const { error: deleteError } = await supabase
+                        .from('populations')
+                        .delete()
+                        .eq('year', parseInt(targetYear, 10));
+
+                    if (deleteError) throw deleteError;
+
+                    // 2. Use UPSERT to safely insert the new data while catching internal CSV duplicates
+                    const { error: insertError } = await supabase
+                        .from('populations')
+                        .upsert(formattedData, { onConflict: 'municipality, barangay_name, year' });
+
+                    if (insertError) throw insertError;
+
+                    toast.success(`Successfully replaced population data for ${targetYear}!`);
+                    
+                    setUploadedYears(prev => [...new Set([...prev, parseInt(targetYear)])]);
+                    if (onUploadComplete) onUploadComplete();
+                    
+                } catch (error) {
+                    console.error("Upload error:", error);
+                    toast.error(`Upload failed: ${error.message}`);
+                } finally {
+                    setUploadingYear(null);
+                }
+            },
+            error: (error) => {
+                toast.error("Error reading CSV file.");
+                console.error(error);
+                setUploadingYear(null);
+            }
+        });
+    };
+
+    return (
+        <ModalPortal>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200 border border-slate-200 flex flex-col max-h-[90vh]">
+                    
+                    <input type="file" ref={fileInputRef} accept=".csv" onChange={handleFileChange} className="hidden" />
+
+                    {/* Header */}
+                    <div className="px-5 py-4 border-b border-slate-200 bg-white shrink-0 flex justify-between items-center shadow-sm relative z-10">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600 border border-blue-100">
+                                <Database size={20} strokeWidth={2.5}/> 
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Yearly Demographics</h3>
+                                    <button onClick={downloadTemplate} className="flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 text-[10px] font-bold rounded-md border border-slate-200 hover:border-blue-200 transition-all">
+                                        <FileDown size={12} /> Template
+                                    </button>
+                                </div>
+                                <p className="text-xs font-medium text-slate-500">Upload CSV population targets per year</p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-90 rounded-full transition-all">
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {/* Table Body */}
+                    <div className="p-5 overflow-y-auto custom-scrollbar">
+                        
+                        <div className="grid grid-cols-12 gap-4 px-4 py-2 mb-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <div className="col-span-3">Target Year</div>
+                            <div className="col-span-4">Data Status</div>
+                            <div className="col-span-5 text-right">Action</div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            {years.map(y => {
+                                const isUploaded = uploadedYears.includes(y);
+                                const isLoading = uploadingYear === y;
+                                
+                                return (
+                                    <div key={y} className={`grid grid-cols-12 gap-4 items-center px-4 py-3 bg-white border rounded-xl transition-all shadow-sm group ${isUploaded ? 'border-emerald-200 hover:border-emerald-400' : 'border-slate-200 hover:border-blue-300'}`}>
+                                        
+                                        <div className="col-span-3 font-black text-slate-900 text-base tracking-tight">
+                                            {y}
+                                        </div>
+                                        
+                                        <div className="col-span-4">
+                                            {isUploaded ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                                                    <CheckCircle size={12} strokeWidth={2.5} /> Data Exists
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">
+                                                    <AlertTriangle size={12} strokeWidth={2.5} /> Pending
+                                                </span>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="col-span-5 flex justify-end">
+                                            <button 
+                                                onClick={() => triggerUpload(y)}
+                                                disabled={uploadingYear !== null}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wide font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm active:scale-95
+                                                    ${isUploaded 
+                                                        ? 'bg-white border border-slate-200 text-slate-700 hover:border-blue-500 hover:text-blue-600' 
+                                                        : 'bg-slate-900 border border-slate-900 text-white hover:bg-blue-600 hover:border-blue-600'
+                                                    }`}
+                                            >
+                                                {isLoading ? <Loader2 size={14} className="animate-spin" /> : (isUploaded ? <RefreshCcw size={14} /> : <Upload size={14} />)}
+                                                {isLoading ? 'Importing...' : (isUploaded ? 'Replace CSV' : 'Upload CSV')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </ModalPortal>
+    );
+};
+
+
+// ==========================================
+// MAIN ADMIN DASHBOARD
+// ==========================================
 export default function AdminDashboard({ 
   onViewConsolidated, 
   onSelectFacility, 
@@ -43,6 +247,8 @@ export default function AdminDashboard({
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, facility: null });
   const [statusModal, setStatusModal] = useState({ isOpen: false, status: null });
   const [leaderboardModal, setLeaderboardModal] = useState({ isOpen: false, filter: null });
+  
+  const [isPopModalOpen, setIsPopModalOpen] = useState(false);
   
   const [isViewingConsolidated, setIsViewingConsolidated] = useState(false);
   const [isLoadingConsolidated, setIsLoadingConsolidated] = useState(false);
@@ -168,9 +374,6 @@ export default function AdminDashboard({
     } catch (err) { toast.error(`Failed to ${action} facility`); }
   };
 
-  // ==========================================
-  // CONSOLIDATED DATA FETCHING & UI RENDER
-  // ==========================================
   const loadConsolidatedData = async () => {
     setIsLoadingConsolidated(true);
     try {
@@ -182,13 +385,14 @@ export default function AdminDashboard({
         muniPopulations["Non-Abra"] = 0; 
 
         if (popData && popData.length > 0) {
-            const maxYear = Math.max(...popData.map(p => p.year || 0));
-            const latestPopData = popData.filter(p => !p.year || p.year === maxYear);
+            const validPopData = popData.filter(p => !p.year || p.year <= year);
+            const targetYear = validPopData.length > 0 ? Math.max(...validPopData.map(p => p.year || 0)) : 0;
+            const targetPopData = popData.filter(p => !p.year || p.year === targetYear);
             
             const muniPopSums = {};
             const fullPopMap = {};
 
-            latestPopData.forEach(item => {
+            targetPopData.forEach(item => {
                 const muni = (item.municipality || '').trim();
                 const brgy = (item.barangay_name || '').trim();
                 const pop = parseInt(item.population) || 0;
@@ -399,7 +603,8 @@ export default function AdminDashboard({
             periodType, quarter, month, year,
             facilityName: "Provincial Health Office",
             globalSettings, userProfile,
-            rawData: rawDataForAnnual
+            rawData: rawDataForAnnual,
+            isConsolidated: true
         });
 
         toast.success("Consolidated Excel exported successfully!");
@@ -411,80 +616,68 @@ export default function AdminDashboard({
     }
   };
 
-  // ==========================================
-  // RENDER CONSOLIDATED TABLE VIEW
-  // ==========================================
   if (isViewingConsolidated) {
       return (
-          <div className="flex flex-col h-full w-full bg-slate-50 relative pb-24">
-              <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-4 pt-4 flex-1">
-                  
-                  {/* Header */}
-                  <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden">
-                      <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
-                      <div className="flex items-start sm:items-center gap-4 relative z-10">
-                          <button onClick={() => setIsViewingConsolidated(false)} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ArrowLeft size={20}/></button>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
-                              <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">Province-Wide Consolidated Report</h2>
-                              <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1.5"><Layers size={14}/> Provincial Data</div>
-                          </div>
-                      </div>
-                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 relative z-10 w-full xl:w-auto shrink-0">
-                          <button 
-                              disabled={isExportingConsolidated || !canExportConsolidated} 
-                              title={exportWarning}
-                              onClick={handleExportConsolidated} 
-                              className="w-full sm:w-auto bg-yellow-400 text-black px-5 py-2.5 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
-                          >
-                              {isExportingConsolidated ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
-                              {isExportingConsolidated ? 'Aggregating...' : 'Export Excel'}
-                          </button>
+          <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 flex flex-col h-full gap-4 pt-2 relative pb-24 animate-in fade-in duration-500">
+              <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden shrink-0 mt-2">
+                  <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
+                  <div className="flex items-start sm:items-center gap-4 relative z-10">
+                      <button onClick={() => setIsViewingConsolidated(false)} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ArrowLeft size={20}/></button>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
+                          <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">Province-Wide Consolidated Report</h2>
+                          <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1.5"><Layers size={14}/> Provincial Data</div>
                       </div>
                   </div>
-
-                  {/* Filters */}
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-4 relative z-10">
-                      <h2 className="text-slate-800 font-bold px-4 shrink-0">Animal Bite and Rabies Report Form</h2>
-                      <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-                          <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
-                          
-                          {periodType === 'Monthly' && (
-                              <select value={month} onChange={e => setMonth(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
-                                  {availableMonths
-                                      .filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx)))
-                                      .map(m => <option key={m} value={m}>{m}</option>)}
-                              </select>
-                          )}
-                          {periodType === 'Quarterly' && (
-                              <select value={quarter} onChange={e => setQuarter(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
-                                  {QUARTERS
-                                      .filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3))))
-                                      .map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
-                              </select>
-                          )}
-                          <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">{availableYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
-                      </div>
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 relative z-10 w-full xl:w-auto shrink-0">
+                      <button 
+                          disabled={isExportingConsolidated || !canExportConsolidated} 
+                          title={exportWarning}
+                          onClick={handleExportConsolidated} 
+                          className="w-full sm:w-auto bg-yellow-400 text-black px-5 py-2.5 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                      >
+                          {isExportingConsolidated ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16}/>} 
+                          {isExportingConsolidated ? 'Aggregating...' : 'Export Excel'}
+                      </button>
                   </div>
+              </div>
 
-                  {/* Table Component */}
-                  <div className="bg-white flex-1 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
-                      {isLoadingConsolidated ? (
-                          <div className="flex flex-col items-center justify-center py-32 text-slate-400">
-                              <Loader2 className="animate-spin mb-4 text-blue-500" size={32} />
-                              <p>Aggregating province-wide data...</p>
-                          </div>
-                      ) : (
-                          <MainReportTableV2 isRowReadOnly={true} onDeleteOtherRow={() => {}} />
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-4 relative z-10 shrink-0">
+                  <h2 className="text-slate-800 font-bold px-4 shrink-0">Animal Bite and Rabies Report Form</h2>
+                  <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+                      <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
+                      
+                      {periodType === 'Monthly' && (
+                          <select value={month} onChange={e => setMonth(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
+                              {availableMonths
+                                  .filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx)))
+                                  .map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
                       )}
+                      {periodType === 'Quarterly' && (
+                          <select value={quarter} onChange={e => setQuarter(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
+                              {QUARTERS
+                                  .filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3))))
+                                  .map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
+                          </select>
+                      )}
+                      <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">{availableYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
                   </div>
+              </div>
+
+              <div className="bg-white flex-1 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+                  {isLoadingConsolidated ? (
+                      <div className="flex flex-col items-center justify-center py-32 text-slate-400">
+                          <Loader2 className="animate-spin mb-4 text-blue-500" size={32} />
+                          <p>Aggregating province-wide data...</p>
+                      </div>
+                  ) : (
+                      <MainReportTableV2 isRowReadOnly={true} onDeleteOtherRow={() => {}} isConsolidated={true} />
+                  )}
               </div>
           </div>
       );
   }
 
-  // ==========================================
-  // RENDER NORMAL ADMIN DASHBOARD
-  // ==========================================
   const displayedFacilities = facilities.filter(f => {
     const meta = facilityMeta.find(m => m.name === f);
     const status = meta?.status || 'Active'; 
@@ -595,6 +788,14 @@ export default function AdminDashboard({
   return (
     <div className="max-w-7xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500 relative pb-24 sm:pb-12 w-full px-2 sm:px-4">
         
+        <PopulationUploadModal 
+            isOpen={isPopModalOpen} 
+            onClose={() => setIsPopModalOpen(false)} 
+            onUploadComplete={() => {
+                if (isViewingConsolidated) loadConsolidatedData();
+            }}
+        />
+
         {/* --- MONTHLY STATUS DETAILS MODAL --- */}
         {statusModal.isOpen && (
             <ModalPortal>
@@ -799,6 +1000,9 @@ export default function AdminDashboard({
                 </button>
                 <button onClick={onManageUsers} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
                     <Users size={16} /> <span>Manage Users</span>
+                </button>
+                <button onClick={() => setIsPopModalOpen(true)} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
+                    <Database size={16} /> <span>Populations</span>
                 </button>
                 <div className="hidden sm:block w-px h-6 bg-slate-700 mx-1"></div>
                 <button onClick={loadConsolidatedData} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 flex items-center gap-2 active:scale-95 transition-all duration-200">

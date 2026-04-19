@@ -39,7 +39,7 @@ const buildAggregatedData = (rawData, monthsList) => {
 };
 
 export const exportToExcelTemplate = async ({ 
-    data, formRowKeys, otherRowKeys, populations, periodType, quarter, month, year, facilityName,
+    data, formRowKeys, otherRowKeys, populations, periodType, quarter, month, year, facilityName, facilityType, isConsolidated,
     globalSettings, userProfile, rawData
 }) => {
     try {
@@ -70,13 +70,14 @@ export const exportToExcelTemplate = async ({
             worksheet.getRow(14).height = 35;
             worksheet.getRow(15).height = 35;
 
+            // FIX 1: Moved logos to Row 1 so they act as a top-right letterhead, completely avoiding the headers.
             if (sysImageId) worksheet.addImage(sysImageId, { tl: { col: 18, row: 8 }, ext: { width: 140, height: 140 }, editAs: 'oneCell' });
-            if (facImageId) worksheet.addImage(facImageId, { tl: { col: 20, row: 6 }, ext: { width: 140, height: 140 }, editAs: 'oneCell' });
+            if (facImageId) worksheet.addImage(facImageId, { tl: { col: 20, row: 8 }, ext: { width: 140, height: 140 }, editAs: 'oneCell' });
 
             let currentRow = 16; 
             const maxTemplateDataRow = 65; 
 
-            // 1. PRINT BASE MUNICIPALITIES (Inherits template styles naturally)
+            // 1. PRINT BASE MUNICIPALITIES
             fKeys.forEach(loc => {
                 const rowData = sheetData[loc] || {};
                 const pop = populations[loc] || 0;
@@ -113,11 +114,70 @@ export const exportToExcelTemplate = async ({
                 currentRow++;
             });
 
-            // 2. INJECT SECTION HEADER LABEL & OTHER MUNICIPALITIES (Inherits template styles naturally)
+            // ==========================================
+            // FIX 2: Bulletproof check for Consolidated Reports
+            // ==========================================
+            const isConsolReport = isConsolidated === true || 
+                                   (facilityName && facilityName.toLowerCase().includes('province')) || 
+                                   (facilityName && facilityName.toLowerCase().includes('consolidated'));
+
+            const isHospitalOrClinic = facilityType === 'Hospital' || facilityType === 'Clinic' || 
+                (facilityName && (facilityName.toLowerCase().includes('hospital') || facilityName.toLowerCase().includes('clinic')));
+
+            if (fKeys.length > 0 && !isHospitalOrClinic && !isConsolReport) {
+                const subTotalRow = worksheet.getRow(currentRow);
+                let subPop = 0;
+                let subData = {
+                    male: 0, female: 0, ageUnder15: 0, ageOver15: 0, cat1: 0,
+                    cat2EligPri: 0, cat2EligBoost: 0, cat2NonElig: 0,
+                    cat3EligPri: 0, cat3EligBoost: 0, cat3NonElig: 0,
+                    compCat2Pri: 0, compCat2Boost: 0, compCat3PriErig: 0, compCat3PriHrig: 0, compCat3Boost: 0,
+                    typeDog: 0, typeCat: 0, typeOthers: 0, statusPet: 0, statusStray: 0, statusUnk: 0, rabiesCases: 0
+                };
+
+                // Tally the base municipality columns
+                fKeys.forEach(loc => {
+                    subPop += (populations[loc] || 0);
+                    const rData = sheetData[loc] || {};
+                    Object.keys(subData).forEach(k => {
+                        subData[k] += (parseInt(rData[k], 10) || 0);
+                    });
+                });
+
+                // Injecting plain raw values
+                subTotalRow.getCell(1).value = 'SUB TOTAL';
+                subTotalRow.getCell(2).value = subPop;
+                subTotalRow.getCell(3).value = subData.male;
+                subTotalRow.getCell(4).value = subData.female;
+                subTotalRow.getCell(6).value = subData.ageUnder15;
+                subTotalRow.getCell(7).value = subData.ageOver15;
+                subTotalRow.getCell(9).value = subData.cat1;
+                subTotalRow.getCell(10).value = subData.cat2EligPri;
+                subTotalRow.getCell(11).value = subData.cat2EligBoost;
+                subTotalRow.getCell(13).value = subData.cat2NonElig;
+                subTotalRow.getCell(15).value = subData.cat3EligPri;
+                subTotalRow.getCell(16).value = subData.cat3EligBoost;
+                subTotalRow.getCell(18).value = subData.cat3NonElig;
+                subTotalRow.getCell(22).value = subData.compCat2Pri;
+                subTotalRow.getCell(23).value = subData.compCat2Boost;
+                subTotalRow.getCell(24).value = subData.compCat3PriErig;
+                subTotalRow.getCell(25).value = subData.compCat3PriHrig;
+                subTotalRow.getCell(27).value = subData.compCat3Boost;
+                subTotalRow.getCell(33).value = subData.typeDog;
+                subTotalRow.getCell(34).value = subData.typeCat;
+                subTotalRow.getCell(35).value = subData.typeOthers;
+                subTotalRow.getCell(36).value = subData.statusPet;
+                subTotalRow.getCell(37).value = subData.statusStray;
+                subTotalRow.getCell(38).value = subData.statusUnk;
+                subTotalRow.getCell(40).value = subData.rabiesCases;
+                
+                currentRow++;
+            }
+
+            // 2. INJECT SECTION HEADER LABEL & OTHER MUNICIPALITIES
             if (oKeys && oKeys.length > 0) {
                 const labelRow = worksheet.getRow(currentRow);
                 
-                // Purely injects the text. It will look exactly how you formatted this row in your template!
                 labelRow.getCell(1).value = 'Other Municipalities / Non-Abra';
                 currentRow++;
 
@@ -164,8 +224,6 @@ export const exportToExcelTemplate = async ({
                 }
             }
 
-            // The Signatories section retains its RichText structure because it requires 
-            // mixing bold and italics inside the exact same cell (which the template can't do natively on an empty cell).
             const sigRow = 70;
             worksheet.getRow(sigRow).height = 140;
 
@@ -173,8 +231,8 @@ export const exportToExcelTemplate = async ({
             const createSignatoryRichText = (label, name, title) => ({
                 richText: [
                     { font: { bold: true, size: 10, name: 'Arial' }, text: `${label}\n\n\n\n\n` }, 
-                    { font: { bold: true, size: 10, name: 'Arial' }, text: `${name}\n` },     
-                    { font: { italic: true, size: 10, name: 'Arial' }, text: `${title}` }     
+                    { font: { bold: true, size: 10, name: 'Arial' }, text: `${name}\n` },    
+                    { font: { italic: true, size: 10, name: 'Arial' }, text: `${title}` }    
                 ]
             });
 

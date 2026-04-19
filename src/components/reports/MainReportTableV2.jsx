@@ -1,31 +1,40 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, XCircle } from 'lucide-react'; 
 import { useReportStore } from '../../store/useReportStore';
+import { useApp } from '../../context/AppContext';
 
 // ==========================================
 // V2 ENTERPRISE COMPACT UI
 // ==========================================
 const BORDER_COLOR = '#CBD5E1'; 
-const HEADER_BG = '#F8FAFC';    
-const TOTAL_BG = '#F1F5F9';     
+const HEADER_BG = '#E2E8F0';    
 const GRAND_TOTAL_BG = '#E2E8F0'; 
+const TOTAL_BG = '#E2E8F0';     
 const TEXT_COLOR = '#334155';
 
 const STYLES = {
-  thMain: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '6px 2px', fontSize: '11px', letterSpacing: '0.02em' },
-  thGroup: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#1E293B', fontWeight: '700', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px' },
-  thLeaf: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#475569', fontWeight: '600', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '9.5px', lineHeight: '1.1' },
+  thMain: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '6px 2px', fontSize: '11px', letterSpacing: '0.02em', transition: 'all 0.2s' },
+  thGroup: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#1E293B', fontWeight: '700', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px', transition: 'all 0.2s' },
+  thLeaf: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#475569', fontWeight: '600', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '9.5px', lineHeight: '1.1', transition: 'all 0.2s' },
   thLocation: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'left', verticalAlign: 'middle', minWidth: '120px', width: '15%', fontSize: '11px', padding: '6px 10px' },
   thPop: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', fontSize: '10px', width: '5%' },
   thTotal: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: TOTAL_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px' },
   thGrandTotal: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: GRAND_TOTAL_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px' },
-  tdData: { border: `1px solid ${BORDER_COLOR}`, padding: 0, backgroundColor: '#ffffff', verticalAlign: 'middle' },
+  tdData: { border: `1px solid ${BORDER_COLOR}`, padding: 0, backgroundColor: 'inherit', verticalAlign: 'middle' },
   tdTotal: { border: `1px solid ${BORDER_COLOR}`, padding: '4px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '10.5px', fontWeight: '700', backgroundColor: TOTAL_BG, color: '#0F172A' },
   tdGrandTotal: { border: `1px solid ${BORDER_COLOR}`, padding: '4px 2px', textAlign: 'center', verticalAlign: 'middle', fontSize: '11px', fontWeight: '800', backgroundColor: GRAND_TOTAL_BG, color: '#0F172A' }
 };
 
-const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow }) => {
+// FIX: Accept isConsolidated prop so the table knows it's being viewed in the Admin Consolidated view
+const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = false }) => {
   const [activeTab, setActiveTab] = useState('tab1');
+  const [activeLocation, setActiveLocation] = useState(null); 
+  const [activeColumn, setActiveColumn] = useState(null); 
+  
+  // --- APP CONTEXT FOR FACILITY TYPE ---
+  const { user, facilityDetails } = useApp();
+  const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
+  const isHospitalOrClinic = facilityType === 'Hospital' || facilityType === 'Clinic';
   
   // --- ZUSTAND STORE SUBSCRIPTIONS ---
   const data = useReportStore(state => state.v2Data);
@@ -72,8 +81,20 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow }) => {
   };
 
   const calculateGrandTotal = (key) => {
+      if (key === 'rabiesCases') {
+          return baseRowKeys.reduce((sum, loc) => sum + (parseInt(data[loc]?.[key]) || 0), 0);
+      }
       return allRowKeys.reduce((sum, loc) => sum + (parseInt(data[loc]?.[key]) || 0), 0);
   };
+
+  const calculateHostTotal = (key) => {
+      return baseRowKeys.reduce((sum, loc) => sum + (parseInt(data[loc]?.[key]) || 0), 0);
+  };
+
+  const hostPopulations = baseRowKeys.reduce((acc, loc) => {
+      if (populations && populations[loc]) acc[loc] = populations[loc];
+      return acc;
+  }, {});
 
   // ==========================================
   // DATA VALIDATION LOGIC
@@ -132,10 +153,16 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow }) => {
       const rowData = data[location] || {};
       const population = populations?.[location] || 0;
       const isNonAbra = location === "Non-Abra";
+      const isActive = location === activeLocation; 
+
+      const stickyBg = isNonAbra ? (isActive ? '#FDE047' : '#FFEDD5') : (isActive ? '#A7F3D0' : '#ffffff');
 
       return (
-        <tr key={`${activeTab}-${location}`} className="hover:bg-blue-50/40 transition-colors group/row">
-            <td style={{...STYLES.tdData, padding: '0 10px', textAlign: 'left', fontWeight: '700', fontSize: '11px', color: isNonAbra ? '#C2410C' : TEXT_COLOR, backgroundColor: isNonAbra ? '#FFEDD5' : '#ffffff', borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
+        <tr 
+            key={`${activeTab}-${location}`} 
+            className={`transition-colors duration-150 group/row ${isActive ? 'bg-emerald-100' : 'bg-white hover:bg-blue-50/40'}`} 
+        >
+            <td style={{...STYLES.tdData, padding: '0 10px', textAlign: 'left', fontWeight: '700', fontSize: '11px', color: isNonAbra ? '#C2410C' : TEXT_COLOR, backgroundColor: stickyBg, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
               <div className="flex items-center justify-between gap-2">
                   <span className="truncate">{location}</span>
                   {isOtherRow && !isRowReadOnly && (
@@ -153,6 +180,12 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow }) => {
                 isNonAbra={isNonAbra} globalRowIndex={globalRowIndex} location={location} activeTab={activeTab} 
                 rowData={rowData} population={population} totalRows={allRowKeys.length}
                 onChange={handleInputChange} onKeyDown={handleKeyDown} 
+                onFocus={(loc, colName) => { 
+                    setActiveLocation(loc); 
+                    setActiveColumn(colName); 
+                }} 
+                activeLocation={activeLocation}
+                activeColumn={activeColumn}
                 readOnly={isRowReadOnly} num={(name) => num(location, name)}
             />
         </tr>
@@ -160,7 +193,7 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow }) => {
   }
 
   return (
-    <div className="flex flex-col w-full bg-white h-[600px] lg:h-[calc(100vh-260px)] 2xl:h-[calc(100vh-240px)]">
+    <div className="flex flex-col w-full bg-slate-100 h-[600px] lg:h-[calc(100vh-260px)] 2xl:h-[calc(100vh-240px)]">
       <style>{`
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
@@ -205,19 +238,29 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow }) => {
         ))}
       </div>
 
-      <div id="v2-table-container" className="w-full overflow-auto hide-scrollbar flex-grow bg-white relative scroll-smooth">
+      <div id="v2-table-container" className="w-full overflow-auto hide-scrollbar flex-grow bg-slate-50 relative scroll-smooth">
         <table className="w-full border-collapse tabular-nums relative">
           <thead className="sticky top-0 z-30 shadow-[0_2px_4px_rgba(0,0,0,0.04)]">
-            {activeTab === 'tab1' && <Tab1Headers />}
-            {activeTab === 'pep' && <Tab2Headers />}
-            {activeTab === 'tab3' && <Tab3Headers />}
+            {activeTab === 'tab1' && <Tab1Headers activeColumn={activeColumn} />}
+            {activeTab === 'pep' && <Tab2Headers activeColumn={activeColumn} />}
+            {activeTab === 'tab3' && <Tab3Headers activeColumn={activeColumn} />}
           </thead>
           <tbody>
             
             {baseRowKeys.map((location, index) => renderRow(location, index, false))}
             
+            {/* FIX: The !isConsolidated flag will now hide this row when viewing Admin Reports */}
+            {baseRowKeys.length > 0 && !isHospitalOrClinic && !isConsolidated && (
+                <tr className="border-b-[2px] border-slate-400 border-t-[2px]">
+                   <td style={{...STYLES.tdGrandTotal, textAlign: 'left', padding: '6px 10px', backgroundColor: GRAND_TOTAL_BG, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
+                     <span className="font-black text-slate-900">SUB TOTAL</span>
+                   </td>
+                   <GrandTotalCells activeTab={activeTab} calculate={calculateHostTotal} populations={hostPopulations} />
+                </tr>
+            )}
+
             {otherRowKeys.length > 0 && (
-                <tr className="bg-slate-100">
+                <tr className="bg-slate-200">
                     <td colSpan={21} style={{...STYLES.tdData, padding: '6px 10px', textAlign: 'left', fontWeight: '800', fontSize: '11px', color: '#475569', backgroundColor: '#F1F5F9', borderTop: `2px solid ${BORDER_COLOR}`, borderBottom: `1px solid ${BORDER_COLOR}`}} className="sticky left-0 z-10">
                         OTHER MUNICIPALITIES / NON-ABRA
                     </td>
@@ -244,7 +287,26 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow }) => {
   );
 };
 
-const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, population, totalRows, onChange, onKeyDown, readOnly, num }) => {
+const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, population, totalRows, onChange, onKeyDown, onFocus, activeLocation, activeColumn, readOnly, num }) => {
+  
+  const isActiveRow = location === activeLocation;
+
+  const getTdStyle = (name) => {
+      const isActiveCol = activeColumn === name;
+      let bg = 'inherit'; 
+      
+      if (isActiveRow && isActiveCol) {
+          bg = '#A7F3D0'; // Emerald-200 
+      } else if (isActiveCol) {
+          bg = '#D1FAE5'; // Emerald-100 
+      }
+      
+      return {
+          ...STYLES.tdData,
+          backgroundColor: bg
+      };
+  };
+
   const renderInput = (name, colIndex) => {
     const cellValue = rowData[name];
     const displayValue = (cellValue !== undefined && cellValue !== null && cellValue !== '') ? cellValue : '';
@@ -256,10 +318,11 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
         value={displayValue} 
         onChange={(e) => onChange(location, name, e.target.value)} 
         onKeyDown={(e) => onKeyDown(e, location, colIndex, globalRowIndex, totalRows)} 
+        onFocus={() => onFocus(location, name)} 
         onWheel={(e) => e.target.blur()} 
         readOnly={readOnly}
         className={`outline-none w-full h-full py-1.5 min-h-[28px] text-center text-[11px] font-bold bg-transparent transition-all box-border
-          ${readOnly ? 'text-slate-400 cursor-not-allowed' : 'text-slate-800 hover:bg-slate-50 focus:bg-white focus:ring-[1.5px] focus:ring-inset focus:ring-blue-500'}`} 
+          ${readOnly ? 'text-slate-400 cursor-not-allowed' : 'text-slate-900 hover:bg-white/50 focus:bg-transparent focus:ring-[2px] focus:ring-inset focus:ring-emerald-600'}`} 
       />
     );
   };
@@ -281,22 +344,22 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
         <td style={STYLES.tdData}>
             {isNonAbra ? <div className="text-center text-slate-400 italic text-[10px] font-semibold py-1.5">N/A</div> : <div className="text-center text-slate-700 text-[10.5px] font-bold py-1.5">{population.toLocaleString()}</div>}
         </td>
-        <td style={STYLES.tdData}>{renderInput('male', 1)}</td>
-        <td style={STYLES.tdData}>{renderInput('female', 2)}</td>
+        <td style={getTdStyle('male')}>{renderInput('male', 1)}</td>
+        <td style={getTdStyle('female')}>{renderInput('female', 2)}</td>
         <td style={valStyle(STYLES.tdTotal)}>{sexTot}</td>
-        <td style={STYLES.tdData}>{renderInput('ageUnder15', 3)}</td>
-        <td style={STYLES.tdData}>{renderInput('ageOver15', 4)}</td>
+        <td style={getTdStyle('ageUnder15')}>{renderInput('ageUnder15', 3)}</td>
+        <td style={getTdStyle('ageOver15')}>{renderInput('ageOver15', 4)}</td>
         <td style={valStyle(STYLES.tdTotal)}>{ageTot}</td>
-        <td style={STYLES.tdData}>{renderInput('cat1', 5)}</td>
-        <td style={STYLES.tdData}>{renderInput('cat2EligPri', 6)}</td>
-        <td style={STYLES.tdData}>{renderInput('cat2EligBoost', 7)}</td>
+        <td style={getTdStyle('cat1')}>{renderInput('cat1', 5)}</td>
+        <td style={getTdStyle('cat2EligPri')}>{renderInput('cat2EligPri', 6)}</td>
+        <td style={getTdStyle('cat2EligBoost')}>{renderInput('cat2EligBoost', 7)}</td>
         <td style={STYLES.tdTotal}>{l16}</td>
-        <td style={STYLES.tdData}>{renderInput('cat2NonElig', 8)}</td>
+        <td style={getTdStyle('cat2NonElig')}>{renderInput('cat2NonElig', 8)}</td>
         <td style={STYLES.tdTotal}>{n16}</td>
-        <td style={STYLES.tdData}>{renderInput('cat3EligPri', 9)}</td>
-        <td style={STYLES.tdData}>{renderInput('cat3EligBoost', 10)}</td>
+        <td style={getTdStyle('cat3EligPri')}>{renderInput('cat3EligPri', 9)}</td>
+        <td style={getTdStyle('cat3EligBoost')}>{renderInput('cat3EligBoost', 10)}</td>
         <td style={STYLES.tdTotal}>{q16}</td>
-        <td style={STYLES.tdData}>{renderInput('cat3NonElig', 11)}</td>
+        <td style={getTdStyle('cat3NonElig')}>{renderInput('cat3NonElig', 11)}</td>
         <td style={STYLES.tdTotal}>{s16}</td>
         <td style={STYLES.tdGrandTotal}>{l16 + q16}</td>
         <td style={valStyle(STYLES.tdGrandTotal)}>{casesTot}</td>
@@ -314,12 +377,12 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
     };
     return (
       <>
-        <td style={STYLES.tdData}>{renderInput('compCat2Pri', 0)}</td>
-        <td style={STYLES.tdData}>{renderInput('compCat2Boost', 1)}</td>
-        <td style={STYLES.tdData}>{renderInput('compCat3PriErig', 2)}</td>
-        <td style={STYLES.tdData}>{renderInput('compCat3PriHrig', 3)}</td>
+        <td style={getTdStyle('compCat2Pri')}>{renderInput('compCat2Pri', 0)}</td>
+        <td style={getTdStyle('compCat2Boost')}>{renderInput('compCat2Boost', 1)}</td>
+        <td style={getTdStyle('compCat3PriErig')}>{renderInput('compCat3PriErig', 2)}</td>
+        <td style={getTdStyle('compCat3PriHrig')}>{renderInput('compCat3PriHrig', 3)}</td>
         <td style={STYLES.tdTotal}>{z16}</td>
-        <td style={STYLES.tdData}>{renderInput('compCat3Boost', 4)}</td>
+        <td style={getTdStyle('compCat3Boost')}>{renderInput('compCat3Boost', 4)}</td>
         {formatCovCell(num('compCat2Pri'), num('cat2EligPri'))}
         {formatCovCell(num('compCat2Boost'), num('cat2EligBoost'))}
         {formatCovCell(z16, num('cat3EligPri'))}
@@ -331,20 +394,22 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
   
   return (
     <>
-      <td style={STYLES.tdData}>{renderInput('typeDog', 0)}</td>
-      <td style={STYLES.tdData}>{renderInput('typeCat', 1)}</td>
-      <td style={STYLES.tdData}>{renderInput('typeOthers', 2)}</td>
-      <td style={STYLES.tdData}>{renderInput('statusPet', 3)}</td>
-      <td style={STYLES.tdData}>{renderInput('statusStray', 4)}</td>
-      <td style={STYLES.tdData}>{renderInput('statusUnk', 5)}</td>
+      <td style={getTdStyle('typeDog')}>{renderInput('typeDog', 0)}</td>
+      <td style={getTdStyle('typeCat')}>{renderInput('typeCat', 1)}</td>
+      <td style={getTdStyle('typeOthers')}>{renderInput('typeOthers', 2)}</td>
+      <td style={getTdStyle('statusPet')}>{renderInput('statusPet', 3)}</td>
+      <td style={getTdStyle('statusStray')}>{renderInput('statusStray', 4)}</td>
+      <td style={getTdStyle('statusUnk')}>{renderInput('statusUnk', 5)}</td>
       <td style={STYLES.tdGrandTotal}>{num('typeDog') + num('typeCat') + num('typeOthers')}</td>
-      <td style={STYLES.tdData}>{renderInput('rabiesCases', 6)}</td>
+      <td style={getTdStyle('rabiesCases')}>{renderInput('rabiesCases', 6)}</td>
       <td style={{...STYLES.tdGrandTotal, color: '#B91C1C', backgroundColor: '#FEE2E2'}}>{(population > 0 && !isNonAbra) ? ((num('rabiesCases') / population) * 1000000).toFixed(2) : '0.00'}</td>
     </>
   );
 };
 
 const GrandTotalCells = ({ activeTab, calculate, populations }) => {
+    const cellStyle = { ...STYLES.tdGrandTotal, backgroundColor: GRAND_TOTAL_BG };
+
     const fPct = (n, d) => d > 0 ? ((n/d)*100).toFixed(1)+'%' : '0.0%';
     const totalPop = Object.values(populations || {}).reduce((sum, val) => sum + val, 0);
 
@@ -356,16 +421,16 @@ const GrandTotalCells = ({ activeTab, calculate, populations }) => {
         const sC3 = calculate('cat3EligPri') + calculate('cat3EligBoost') + calculate('cat3NonElig');
         return (
             <>
-                <td style={STYLES.tdGrandTotal}>{totalPop.toLocaleString()}</td>
-                <td style={STYLES.tdGrandTotal}>{sM}</td><td style={STYLES.tdGrandTotal}>{sF}</td><td style={STYLES.tdGrandTotal}>{sSex}</td>
-                <td style={STYLES.tdGrandTotal}>{sU}</td><td style={STYLES.tdGrandTotal}>{sO}</td><td style={STYLES.tdGrandTotal}>{sAge}</td>
-                <td style={STYLES.tdGrandTotal}>{sC1}</td>
-                <td style={STYLES.tdGrandTotal}>{calculate('cat2EligPri')}</td><td style={STYLES.tdGrandTotal}>{calculate('cat2EligBoost')}</td><td style={STYLES.tdGrandTotal}>{calculate('cat2EligPri')+calculate('cat2EligBoost')}</td>
-                <td style={STYLES.tdGrandTotal}>{calculate('cat2NonElig')}</td><td style={STYLES.tdGrandTotal}>{sC2}</td>
-                <td style={STYLES.tdGrandTotal}>{calculate('cat3EligPri')}</td><td style={STYLES.tdGrandTotal}>{calculate('cat3EligBoost')}</td><td style={STYLES.tdGrandTotal}>{calculate('cat3EligPri')+calculate('cat3EligBoost')}</td>
-                <td style={STYLES.tdGrandTotal}>{calculate('cat3NonElig')}</td><td style={STYLES.tdGrandTotal}>{sC3}</td>
-                <td style={STYLES.tdGrandTotal}>{(calculate('cat2EligPri')+calculate('cat2EligBoost')) + (calculate('cat3EligPri')+calculate('cat3EligBoost'))}</td>
-                <td style={STYLES.tdGrandTotal}>{sC1+sC2+sC3}</td>
+                <td style={cellStyle}>{totalPop.toLocaleString()}</td>
+                <td style={cellStyle}>{sM}</td><td style={cellStyle}>{sF}</td><td style={cellStyle}>{sSex}</td>
+                <td style={cellStyle}>{sU}</td><td style={cellStyle}>{sO}</td><td style={cellStyle}>{sAge}</td>
+                <td style={cellStyle}>{sC1}</td>
+                <td style={cellStyle}>{calculate('cat2EligPri')}</td><td style={cellStyle}>{calculate('cat2EligBoost')}</td><td style={cellStyle}>{calculate('cat2EligPri')+calculate('cat2EligBoost')}</td>
+                <td style={cellStyle}>{calculate('cat2NonElig')}</td><td style={cellStyle}>{sC2}</td>
+                <td style={cellStyle}>{calculate('cat3EligPri')}</td><td style={cellStyle}>{calculate('cat3EligBoost')}</td><td style={cellStyle}>{calculate('cat3EligPri')+calculate('cat3EligBoost')}</td>
+                <td style={cellStyle}>{calculate('cat3NonElig')}</td><td style={cellStyle}>{sC3}</td>
+                <td style={cellStyle}>{(calculate('cat2EligPri')+calculate('cat2EligBoost')) + (calculate('cat3EligPri')+calculate('cat3EligBoost'))}</td>
+                <td style={cellStyle}>{sC1+sC2+sC3}</td>
             </>
         );
     }
@@ -374,12 +439,12 @@ const GrandTotalCells = ({ activeTab, calculate, populations }) => {
         const c3z = calculate('compCat3PriErig') + calculate('compCat3PriHrig'), e3p = calculate('cat3EligPri'), c3b = calculate('compCat3Boost'), e3b = calculate('cat3EligBoost');
         return (
             <>
-                <td style={STYLES.tdGrandTotal}>{c2p}</td><td style={STYLES.tdGrandTotal}>{c2b}</td>
-                <td style={STYLES.tdGrandTotal}>{calculate('compCat3PriErig')}</td><td style={STYLES.tdGrandTotal}>{calculate('compCat3PriHrig')}</td><td style={STYLES.tdGrandTotal}>{c3z}</td>
-                <td style={STYLES.tdGrandTotal}>{c3b}</td>
-                <td style={STYLES.tdGrandTotal}>{fPct(c2p, e2p)}</td><td style={STYLES.tdGrandTotal}>{fPct(c2b, e2b)}</td>
-                <td style={STYLES.tdGrandTotal}>{fPct(c3z, e3p)}</td><td style={STYLES.tdGrandTotal}>{fPct(c3b, e3b)}</td>
-                <td style={STYLES.tdGrandTotal}>{fPct(c2p+c2b+c3z+c3b, e2p+e2b+e3p+e3b)}</td>
+                <td style={cellStyle}>{c2p}</td><td style={cellStyle}>{c2b}</td>
+                <td style={cellStyle}>{calculate('compCat3PriErig')}</td><td style={cellStyle}>{calculate('compCat3PriHrig')}</td><td style={cellStyle}>{c3z}</td>
+                <td style={cellStyle}>{c3b}</td>
+                <td style={cellStyle}>{fPct(c2p, e2p)}</td><td style={cellStyle}>{fPct(c2b, e2b)}</td>
+                <td style={cellStyle}>{fPct(c3z, e3p)}</td><td style={cellStyle}>{fPct(c3b, e3b)}</td>
+                <td style={cellStyle}>{fPct(c2p+c2b+c3z+c3b, e2p+e2b+e3p+e3b)}</td>
             </>
         );
     }
@@ -389,16 +454,22 @@ const GrandTotalCells = ({ activeTab, calculate, populations }) => {
     
     return (
         <>
-            <td style={STYLES.tdGrandTotal}>{calculate('typeDog')}</td><td style={STYLES.tdGrandTotal}>{calculate('typeCat')}</td><td style={STYLES.tdGrandTotal}>{calculate('typeOthers')}</td>
-            <td style={STYLES.tdGrandTotal}>{calculate('statusPet')}</td><td style={STYLES.tdGrandTotal}>{calculate('statusStray')}</td><td style={STYLES.tdGrandTotal}>{calculate('statusUnk')}</td>
-            <td style={STYLES.tdGrandTotal}>{calculate('typeDog')+calculate('typeCat')+calculate('typeOthers')}</td>
-            <td style={{...STYLES.tdGrandTotal, color: '#B91C1C'}}>{totalRabies}</td>
-            <td style={{...STYLES.tdGrandTotal, color: '#B91C1C', backgroundColor: '#FEE2E2'}}>{grandIncidence}</td>
+            <td style={cellStyle}>{calculate('typeDog')}</td><td style={cellStyle}>{calculate('typeCat')}</td><td style={cellStyle}>{calculate('typeOthers')}</td>
+            <td style={cellStyle}>{calculate('statusPet')}</td><td style={cellStyle}>{calculate('statusStray')}</td><td style={cellStyle}>{calculate('statusUnk')}</td>
+            <td style={cellStyle}>{calculate('typeDog')+calculate('typeCat')+calculate('typeOthers')}</td>
+            <td style={{...cellStyle, color: '#B91C1C'}}>{totalRabies}</td>
+            <td style={{...cellStyle, color: '#B91C1C', backgroundColor: '#FEE2E2'}}>{grandIncidence}</td>
         </>
     );
 };
 
-const Tab1Headers = () => (
+const getThStyle = (baseStyle, name, activeCol) => ({
+    ...baseStyle,
+    backgroundColor: activeCol === name ? '#A7F3D0' : baseStyle.backgroundColor,
+    color: activeCol === name ? '#022C22' : baseStyle.color
+});
+
+const Tab1Headers = ({ activeColumn }) => (
   <>
     <tr>
       <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
@@ -410,22 +481,35 @@ const Tab1Headers = () => (
       <th rowSpan={4} style={STYLES.thGrandTotal}>Total PEP eligible</th><th rowSpan={4} style={STYLES.thGrandTotal}>Total (Cat I+II+III)</th>
     </tr>
     <tr>
-      <th rowSpan={3} style={STYLES.thLeaf}>Male</th><th rowSpan={3} style={STYLES.thLeaf}>Female</th><th rowSpan={3} style={STYLES.thTotal}>Total</th>
-      <th rowSpan={3} style={STYLES.thLeaf}>&lt;15</th><th rowSpan={3} style={STYLES.thLeaf}>&gt;15</th><th rowSpan={3} style={STYLES.thTotal}>Total</th>
-      <th rowSpan={3} style={STYLES.thLeaf}>Category I (1)</th><th colSpan={5} style={STYLES.thGroup}>Category II</th><th colSpan={5} style={STYLES.thGroup}>Category III</th>
+      <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'male', activeColumn)}>Male</th>
+      <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'female', activeColumn)}>Female</th>
+      <th rowSpan={3} style={STYLES.thTotal}>Total</th>
+      <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'ageUnder15', activeColumn)}>&lt;15</th>
+      <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'ageOver15', activeColumn)}>&gt;15</th>
+      <th rowSpan={3} style={STYLES.thTotal}>Total</th>
+      <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'cat1', activeColumn)}>Category I (1)</th>
+      <th colSpan={5} style={STYLES.thGroup}>Category II</th><th colSpan={5} style={STYLES.thGroup}>Category III</th>
     </tr>
     <tr>
-      <th colSpan={3} style={STYLES.thLeaf}>PEP eligible</th><th rowSpan={2} style={STYLES.thLeaf}>PEP non-eligible*</th><th rowSpan={2} style={STYLES.thTotal}>Total (2)</th>
-      <th colSpan={3} style={STYLES.thLeaf}>PEP eligible</th><th rowSpan={2} style={STYLES.thLeaf}>PEP non-eligible*</th><th rowSpan={2} style={STYLES.thTotal}>Total (5)</th>
+      <th colSpan={3} style={STYLES.thLeaf}>PEP eligible</th>
+      <th rowSpan={2} style={getThStyle(STYLES.thLeaf, 'cat2NonElig', activeColumn)}>PEP non-eligible*</th>
+      <th rowSpan={2} style={STYLES.thTotal}>Total (2)</th>
+      <th colSpan={3} style={STYLES.thLeaf}>PEP eligible</th>
+      <th rowSpan={2} style={getThStyle(STYLES.thLeaf, 'cat3NonElig', activeColumn)}>PEP non-eligible*</th>
+      <th rowSpan={2} style={STYLES.thTotal}>Total (5)</th>
     </tr>
     <tr>
-      <th style={STYLES.thLeaf}>Primary (CCEEV)</th><th style={STYLES.thLeaf}>Booster (CCEEV)</th><th style={STYLES.thTotal}>Total (3)</th>
-      <th style={STYLES.thLeaf}>Primary (CCEEV+RIG)</th><th style={STYLES.thLeaf}>Booster (CCEEV only)</th><th style={STYLES.thTotal}>Total</th>
+      <th style={getThStyle(STYLES.thLeaf, 'cat2EligPri', activeColumn)}>Primary (CCEEV)</th>
+      <th style={getThStyle(STYLES.thLeaf, 'cat2EligBoost', activeColumn)}>Booster (CCEEV)</th>
+      <th style={STYLES.thTotal}>Total (3)</th>
+      <th style={getThStyle(STYLES.thLeaf, 'cat3EligPri', activeColumn)}>Primary (CCEEV+RIG)</th>
+      <th style={getThStyle(STYLES.thLeaf, 'cat3EligBoost', activeColumn)}>Booster (CCEEV only)</th>
+      <th style={STYLES.thTotal}>Total</th>
     </tr>
   </>
 );
 
-const Tab2Headers = () => (
+const Tab2Headers = ({ activeColumn }) => (
   <>
     <tr>
       <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/>
@@ -435,24 +519,36 @@ const Tab2Headers = () => (
     <tr><th colSpan={6} style={STYLES.thGroup}>PEP Completed**</th><th colSpan={5} style={STYLES.thGroup}>PEP Coverage</th></tr>
     <tr><th colSpan={2} style={STYLES.thGroup}>Category II</th><th colSpan={4} style={STYLES.thGroup}>Category III</th><th colSpan={2} style={STYLES.thGroup}>Category II (4)</th><th colSpan={2} style={STYLES.thGroup}>Category III (6)</th><th rowSpan={3} style={STYLES.thGrandTotal}>Total CCEEV Coverage</th></tr>
     <tr>
-      <th rowSpan={2} style={STYLES.thLeaf}>Primary (CCEEV)</th><th rowSpan={2} style={STYLES.thLeaf}>Booster (CCEEV)</th>
+      <th rowSpan={2} style={getThStyle(STYLES.thLeaf, 'compCat2Pri', activeColumn)}>Primary (CCEEV)</th>
+      <th rowSpan={2} style={getThStyle(STYLES.thLeaf, 'compCat2Boost', activeColumn)}>Booster (CCEEV)</th>
       <th colSpan={3} style={STYLES.thGroup}>Primary (CCEEV+RIG)</th>
-      <th rowSpan={2} style={STYLES.thLeaf}>Booster (CCEEV only)</th>
+      <th rowSpan={2} style={getThStyle(STYLES.thLeaf, 'compCat3Boost', activeColumn)}>Booster (CCEEV only)</th>
       <th rowSpan={2} style={STYLES.thTotal}>Primary (CCEEV)</th><th rowSpan={2} style={STYLES.thTotal}>Booster (CCEEV)</th>
       <th rowSpan={2} style={STYLES.thTotal}>Primary (CCEEV+RIG) (6a)</th><th rowSpan={2} style={STYLES.thTotal}>Booster (CCEEV only) (6b)</th>
     </tr>
-    <tr><th style={STYLES.thLeaf}>ERIG</th><th style={STYLES.thLeaf}>HRIG</th><th style={STYLES.thTotal}>Total</th></tr>
+    <tr>
+        <th style={getThStyle(STYLES.thLeaf, 'compCat3PriErig', activeColumn)}>ERIG</th>
+        <th style={getThStyle(STYLES.thLeaf, 'compCat3PriHrig', activeColumn)}>HRIG</th>
+        <th style={STYLES.thTotal}>Total</th>
+    </tr>
   </>
 );
 
-const Tab3Headers = () => (
+const Tab3Headers = ({ activeColumn }) => (
   <>
     <tr>
       <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
       <th colSpan={7} style={STYLES.thMain}>BITING ANIMALS (7)</th><th colSpan={2} style={STYLES.thMain}>HUMAN RABIES CASES</th>
     </tr>
-    <tr><th colSpan={3} style={STYLES.thGroup}>Type</th><th colSpan={3} style={STYLES.thGroup}>Status</th><th rowSpan={4} style={STYLES.thGrandTotal}>Total</th><th rowSpan={4} style={{...STYLES.thLeaf, color:'#B91C1C'}}>Cases (PIDSR c/o RESU)</th><th rowSpan={4} style={{...STYLES.thLeaf, minWidth: '110px', backgroundColor:'#FEE2E2', color:'#991B1B'}}>Incidence Proportion (per 10⁶)</th></tr>
-    <tr><th rowSpan={3} style={STYLES.thLeaf}>Dog (7a)</th><th rowSpan={3} style={STYLES.thLeaf}>Cat (7b)</th><th rowSpan={3} style={STYLES.thLeaf}>Others (7c)</th><th rowSpan={3} style={STYLES.thLeaf}>Pet/ Domestic</th><th rowSpan={3} style={STYLES.thLeaf}>Stray/ Free-roaming</th><th rowSpan={3} style={STYLES.thLeaf}>Unknown</th></tr>
+    <tr><th colSpan={3} style={STYLES.thGroup}>Type</th><th colSpan={3} style={STYLES.thGroup}>Status</th><th rowSpan={4} style={STYLES.thGrandTotal}>Total</th><th rowSpan={4} style={getThStyle({...STYLES.thLeaf, color:'#B91C1C'}, 'rabiesCases', activeColumn)}>Cases (PIDSR c/o RESU)</th><th rowSpan={4} style={{...STYLES.thLeaf, minWidth: '110px', backgroundColor:'#FEE2E2', color:'#991B1B'}}>Incidence Proportion (per 10⁶)</th></tr>
+    <tr>
+        <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'typeDog', activeColumn)}>Dog (7a)</th>
+        <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'typeCat', activeColumn)}>Cat (7b)</th>
+        <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'typeOthers', activeColumn)}>Others (7c)</th>
+        <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'statusPet', activeColumn)}>Pet/ Domestic</th>
+        <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'statusStray', activeColumn)}>Stray/ Free-roaming</th>
+        <th rowSpan={3} style={getThStyle(STYLES.thLeaf, 'statusUnk', activeColumn)}>Unknown</th>
+    </tr>
     <tr></tr><tr></tr>
   </>
 );

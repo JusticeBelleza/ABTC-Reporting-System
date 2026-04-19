@@ -755,7 +755,7 @@ export default function FacilityDashboard({
                             <FileDown size={24} strokeWidth={2.5} />
                         </div>
                         <h3 className="text-xl font-bold mb-2 text-slate-900">Export as Excel?</h3>
-                        <p className="text-sm text-slate-500 mb-6">This will generate a highly detailed DOH Form 1 Accomplishment Report in Excel format.</p>
+                        <p className="text-sm text-slate-500 mb-6">This will generate a highly detailed Animal Bite and Rabies Report Form Accomplishment Report in Excel format.</p>
                         <div className="flex gap-3">
                             <button onClick={() => setShowExportModal(false)} className="flex-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 active:bg-slate-200 transition-all duration-200">Cancel</button>
                             <button onClick={handleExportExcel} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-95 active:bg-blue-800 transition-all duration-200 shadow-sm flex justify-center items-center gap-2">
