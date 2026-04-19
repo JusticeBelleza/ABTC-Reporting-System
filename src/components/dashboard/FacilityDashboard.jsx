@@ -527,7 +527,6 @@ export default function FacilityDashboard({
         let isCompletelyEmpty = true;
         let gtSex = 0, gtAge = 0, gtCases = 0, gtAnim = 0, gtStat = 0;
         
-        // Variables to track PEP for Grand Total validation
         let gt_e2p = 0, gt_c2p = 0;
         let gt_e2b = 0, gt_c2b = 0;
         let gt_e3p = 0, gt_c3z = 0;
@@ -539,7 +538,6 @@ export default function FacilityDashboard({
             const row = v2Data[loc] || {};
             const n = (v) => parseInt(v) || 0;
             
-            // 1. Row Totals
             const rSex = n(row.male) + n(row.female);
             const rAge = n(row.ageUnder15) + n(row.ageOver15);
             const rAnim = n(row.typeDog) + n(row.typeCat) + n(row.typeOthers);
@@ -554,7 +552,6 @@ export default function FacilityDashboard({
             gtAnim += rAnim;
             gtStat += rStat;
 
-            // 2. Row PEP Validation (Cannot have more completed than eligible)
             const e2p = n(row.cat2EligPri), c2p = n(row.compCat2Pri);
             const e2b = n(row.cat2EligBoost), c2b = n(row.compCat2Boost);
             const e3p = n(row.cat3EligPri), c3z = n(row.compCat3PriErig) + n(row.compCat3PriHrig);
@@ -566,21 +563,18 @@ export default function FacilityDashboard({
             if (e3b > 0 && c3b / e3b > 1) hasPepError = true;
             if ((e2p + e2b + e3p + e3b) > 0 && (c2p + c2b + c3z + c3b) / (e2p + e2b + e3p + e3b) > 1) hasPepError = true;
 
-            // Accumulate PEP Grand Totals
             gt_e2p += e2p; gt_c2p += c2p;
             gt_e2b += e2b; gt_c2b += c2b;
             gt_e3p += e3p; gt_c3z += c3z;
             gt_e3b += e3b; gt_c3b += c3b;
         }
 
-        // 3. Grand Total PEP Validation
         if (gt_e2p > 0 && gt_c2p / gt_e2p > 1) hasPepError = true;
         if (gt_e2b > 0 && gt_c2b / gt_e2b > 1) hasPepError = true;
         if (gt_e3p > 0 && gt_c3z / gt_e3p > 1) hasPepError = true;
         if (gt_e3b > 0 && gt_c3b / gt_e3b > 1) hasPepError = true;
         if ((gt_e2p + gt_e2b + gt_e3p + gt_e3b) > 0 && (gt_c2p + gt_c2b + gt_c3z + gt_c3b) / (gt_e2p + gt_e2b + gt_e3p + gt_e3b) > 1) hasPepError = true;
 
-        // --- FINAL VALIDATION CHECKS ---
         if (!isCompletelyEmpty) {
             if (gtSex !== gtAge || gtSex !== gtCases || gtCases !== gtAnim || gtAnim !== gtStat) { 
                 toast.error(`DATA MISMATCH: Grand Totals must balance exactly.\nSex: ${gtSex} | Age: ${gtAge} | Cases: ${gtCases} | Types: ${gtAnim} | Status: ${gtStat}`); 
@@ -625,16 +619,22 @@ export default function FacilityDashboard({
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 relative pb-24">
-        {/* CHANGED FROM max-w-[1600px] TO max-w-7xl TO MATCH ADMIN DASHBOARD */}
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-4 pt-4 flex-1">
             <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden">
                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
-                <div className="flex items-start sm:items-center gap-4 relative z-10">
-                    {isAnyAdmin && <button onClick={onBack} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white active:scale-95 transition-all duration-200"><ArrowLeft size={20}/></button>}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
-                        <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">{activeFacilityName}</h2>
-                        {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && <StatusBadge status={v2Status} />}
+                <div className="flex items-start sm:items-center gap-4 relative z-10 w-full">
+                    {isAnyAdmin && <button onClick={onBack} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white active:scale-95 transition-all duration-200 shrink-0"><ArrowLeft size={20}/></button>}
+                    
+                    {/* --- REMOVED TRUNCATE AND ADDED TEXT WRAPPING --- */}
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3 min-w-0 w-full">
+                        <h2 className="font-extrabold tracking-tight text-white text-xl sm:text-2xl leading-tight break-words whitespace-normal">
+                            {activeFacilityName}
+                        </h2>
+                        <div className="shrink-0 mt-1 sm:mt-0">
+                            {!isConsolidatedView && !isAggregationMode && periodType === 'Monthly' && <StatusBadge status={v2Status} />}
+                        </div>
                     </div>
+
                 </div>
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 relative z-10 w-full xl:w-auto shrink-0">
                     
