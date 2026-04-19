@@ -95,8 +95,8 @@ export const exportToExcelTemplate = async ({
             worksheet.getRow(14).height = 35;
             worksheet.getRow(15).height = 35;
 
-            if (sysImageId) worksheet.addImage(sysImageId, { tl: { col: 34, row: 1 }, ext: { width: 85, height: 85 }, editAs: 'oneCell' });
-            if (facImageId) worksheet.addImage(facImageId, { tl: { col: 37, row: 1 }, ext: { width: 85, height: 85 }, editAs: 'oneCell' });
+            if (sysImageId) worksheet.addImage(sysImageId, { tl: { col: 18, row: 8 }, ext: { width: 140, height: 140 }, editAs: 'oneCell' });
+            if (facImageId) worksheet.addImage(facImageId, { tl: { col: 20, row: 8 }, ext: { width: 140, height: 140 }, editAs: 'oneCell' });
 
             let currentRow = 16; 
             const maxTemplateDataRow = 65; 
@@ -141,7 +141,7 @@ export const exportToExcelTemplate = async ({
             // 🚨 STRICT CHECK: ONLY PRINT SUBTOTAL IF IT IS AN RHU 🚨
             if (fKeys.length > 0 && !isHospitalOrClinic && !isConsolReport) {
                 const subTotalRow = worksheet.getRow(currentRow);
-                let subPop = 0;
+                
                 let subData = {
                     male: 0, female: 0, ageUnder15: 0, ageOver15: 0, cat1: 0,
                     cat2EligPri: 0, cat2EligBoost: 0, cat2NonElig: 0,
@@ -151,7 +151,6 @@ export const exportToExcelTemplate = async ({
                 };
 
                 fKeys.forEach(loc => {
-                    subPop += (populations[loc] || 0);
                     const rData = sheetData[loc] || {};
                     Object.keys(subData).forEach(k => {
                         subData[k] += (parseInt(rData[k], 10) || 0);
@@ -159,7 +158,7 @@ export const exportToExcelTemplate = async ({
                 });
 
                 subTotalRow.getCell(1).value = 'SUB TOTAL';
-                subTotalRow.getCell(2).value = subPop;
+                subTotalRow.getCell(2).value = ''; // <--- THIS FIXES THE DOUBLE POPULATION BUG
                 subTotalRow.getCell(3).value = subData.male;
                 subTotalRow.getCell(4).value = subData.female;
                 subTotalRow.getCell(6).value = subData.ageUnder15;

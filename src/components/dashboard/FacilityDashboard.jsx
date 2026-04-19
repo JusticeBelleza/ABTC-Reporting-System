@@ -510,7 +510,6 @@ export default function FacilityDashboard({
       }
   };
 
-  // --- FIXED onSaveClick FUNCTION (WITH PEP VALIDATION) ---
   const onSaveClick = async (status) => {
     if (!navigator.onLine) {
         if (isAnyAdmin && (status === 'Approved' || status === 'Rejected')) { toast.error("Offline: Reconnect to manage reports."); return; }
@@ -626,7 +625,8 @@ export default function FacilityDashboard({
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 relative pb-24">
-        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-4 pt-4 flex-1">
+        {/* CHANGED FROM max-w-[1600px] TO max-w-7xl TO MATCH ADMIN DASHBOARD */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-4 pt-4 flex-1">
             <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden">
                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
                 <div className="flex items-start sm:items-center gap-4 relative z-10">
