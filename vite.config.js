@@ -51,10 +51,9 @@ export default defineConfig({
             method: 'POST',
             options: {
               backgroundSync: {
-                // FIXED: Unique queue name for POST requests
-                name: 'abtc-offline-post-queue', 
+                name: 'abtc-offline-post-queue', // <-- Made this unique
                 options: {
-                  maxRetentionTime: 24 * 60, // Keep in queue for 24 hours
+                  maxRetentionTime: 24 * 60,
                 },
               },
             },
@@ -65,8 +64,7 @@ export default defineConfig({
             method: 'PATCH',
             options: {
               backgroundSync: {
-                // FIXED: Unique queue name for PATCH requests
-                name: 'abtc-offline-patch-queue', 
+                name: 'abtc-offline-patch-queue', // <-- Made this unique
                 options: {
                   maxRetentionTime: 24 * 60,
                 },
