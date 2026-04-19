@@ -333,7 +333,7 @@ export function useForecastingMetrics({
     fetchHistory();
   }, [year, month, quarter, periodType, facilities.length, user, isAdmin, currentDate, currentRealYear, OUTBREAK_SENSITIVITY, TREND_SENSITIVITY, HIGH_RISK_SENSITIVITY, areaText]);
 
-  // Make sure to return the new YTD variables!
+  // Make sure to return the new YTD variables!!
   return { 
       historicalData, 
       full24MonthData, 
