@@ -33,13 +33,14 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // --- ADDED: Force browser to clear old cache and use the new build instantly ---
+        // --- CACHE BUSTING: Forces the browser to instantly load the newest build ---
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
         
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        // Increase precache limit to 4MB for safety
+        
+        // Increase precache limit to 4MB for safety (prevents heavy chunks from being skipped)
         maximumFileSizeToCacheInBytes: 4194304, 
         
         // --- BACKGROUND SYNC CONFIGURATION ---
@@ -50,9 +51,10 @@ export default defineConfig({
             method: 'POST',
             options: {
               backgroundSync: {
-                name: 'abtc-offline-queue',
+                // FIXED: Unique queue name for POST requests
+                name: 'abtc-offline-post-queue', 
                 options: {
-                  maxRetentionTime: 24 * 60,
+                  maxRetentionTime: 24 * 60, // Keep in queue for 24 hours
                 },
               },
             },
@@ -63,7 +65,8 @@ export default defineConfig({
             method: 'PATCH',
             options: {
               backgroundSync: {
-                name: 'abtc-offline-queue',
+                // FIXED: Unique queue name for PATCH requests
+                name: 'abtc-offline-patch-queue', 
                 options: {
                   maxRetentionTime: 24 * 60,
                 },
@@ -84,10 +87,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Split heavy reporting and DB libraries into their own files
+          // Split heavy reporting and DB libraries into their own files to speed up initial load
           'vendor-excel': ['exceljs', 'file-saver'],
           'vendor-db': ['@supabase/supabase-js'],
-          // Optional: group core react icons if used heavily
           'vendor-react': ['react', 'react-dom'],
         },
       },
