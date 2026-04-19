@@ -30,11 +30,6 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
   const [activeLocation, setActiveLocation] = useState(null); 
   const [activeColumn, setActiveColumn] = useState(null); 
   
-  // --- APP CONTEXT FOR FACILITY TYPE ---
-  const { user, facilityDetails } = useApp();
-  const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
-  const isHospitalOrClinic = facilityType === 'Hospital' || facilityType === 'Clinic';
-  
   // --- ZUSTAND STORE SUBSCRIPTIONS ---
   const data = useReportStore(state => state.v2Data);
   const baseRowKeys = useReportStore(state => state.formRowKeys);
@@ -105,12 +100,10 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
                   (calculateGrandTotal('cat3EligPri') + calculateGrandTotal('cat3EligBoost') + calculateGrandTotal('cat3NonElig'));
   const gtAnimals = calculateGrandTotal('typeDog') + calculateGrandTotal('typeCat') + calculateGrandTotal('typeOthers');
   
-  // --- ADDED ANIMAL STATUS VALIDATION ---
   const gtStat = calculateGrandTotal('statusPet') + calculateGrandTotal('statusStray') + calculateGrandTotal('statusUnk');
 
   const hasAnyData = gtSex > 0 || gtAge > 0 || gtCases > 0 || gtAnimals > 0 || gtStat > 0;
   
-  // Requires all 5 categories to perfectly match
   const isTotalsMatch = hasAnyData ? (gtSex === gtAge && gtSex === gtCases && gtCases === gtAnimals && gtAnimals === gtStat) : true;
 
   let pepExceedCount = 0;
@@ -196,9 +189,14 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
       );
   }
 
-  // Heuristic: If the report covers many municipalities (e.g., >20), it's a province-wide report.
-  const isProvinceWideCatchment = baseRowKeys.length > 20;
-  const showSubTotal = baseRowKeys.length > 0 && !isHospitalOrClinic && !isConsolidated && !isProvinceWideCatchment;
+  // ==========================================
+  // PERFECTED SUBTOTAL HEURISTIC
+  // ==========================================
+  // Hospitals and Consolidated views load Municipalities (Bangued, Bucay, Dolores, etc.)
+  // RHUs load specific Barangays. By checking if the rows contain multiple known municipalities, 
+  // we instantly know if this is a hospital view vs an RHU view without relying on user roles or row counts!
+  const isRhuView = !(baseRowKeys.includes('Bangued') && baseRowKeys.includes('Bucay') && baseRowKeys.includes('Dolores'));
+  const showSubTotal = baseRowKeys.length > 0 && isRhuView && !isConsolidated;
 
   return (
     <div className="flex flex-col w-full bg-slate-100 h-[600px] lg:h-[calc(100vh-260px)] 2xl:h-[calc(100vh-240px)]">
@@ -399,7 +397,6 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
     );
   }
   
-  // --- TAB 3 FIX: ADDED RED VALIDATION IF ANIMALS DON'T MATCH CASES ---
   const animalTot = num('typeDog') + num('typeCat') + num('typeOthers');
   
   const l16 = num('cat2EligPri') + num('cat2EligBoost');

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { supabase } from './supabase'; // <-- Added to fetch true facility type
+import { supabase } from './supabase'; 
 
 const getCleanBase64 = (dataUrl) => {
     if (!dataUrl) return null;
@@ -138,8 +138,9 @@ export const exportToExcelTemplate = async ({
                 currentRow++;
             });
 
-            // 🚨 STRICT CHECK: ONLY PRINT SUBTOTAL IF IT IS AN RHU 🚨
-            if (fKeys.length > 0 && !isHospitalOrClinic && !isConsolReport) {
+            // 🚨 STRICT CHECK: ALWAYS PRINT SUBTOTAL IF IT IS AN RHU 🚨
+            // (Removed fKeys.length > 0 to fix Bangued RHU bug)
+            if (!isHospitalOrClinic && !isConsolReport) {
                 const subTotalRow = worksheet.getRow(currentRow);
                 
                 let subData = {
