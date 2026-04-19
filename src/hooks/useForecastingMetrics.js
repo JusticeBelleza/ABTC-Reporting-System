@@ -15,12 +15,14 @@ export function useForecastingMetrics({
   const [riskLevel, setRiskLevel] = useState('LOW');
   const [projectedNextMonth, setProjectedNextMonth] = useState(null);
   const [modelMetrics, setModelMetrics] = useState({ mae: 0, mape: 0, accuracy: 0, validMonths: 0 });
+  
+  // --- NEW: EXPLICIT YTD TRACKERS ---
+  const [totalYtdCases, setTotalYtdCases] = useState(0);
+  const [totalPreviousYtdCases, setTotalPreviousYtdCases] = useState(0);
 
-  // --- DYNAMIC TEXT & NEW SENSITIVITY ---
   const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
   const areaText = (isAdmin || facilityType === 'Hospital' || facilityType === 'Clinic') ? 'the province' : 'the municipality';
   
-  // High-Risk specific threshold (Defaults to 25% if not set in Global Settings)
   const HIGH_RISK_SENSITIVITY = 1 + ((globalSettings?.high_risk_threshold_percent ?? 25) / 100);
 
   useEffect(() => {
@@ -43,6 +45,27 @@ export function useForecastingMetrics({
         if (error) throw error;
 
         if (reports) {
+          // --- FIX 1: CALCULATE TRUE YTD IGNORING PERIOD TYPE STRINGS ---
+          let trueYtd = 0;
+          let truePrevYtd = 0;
+
+          reports.forEach(r => {
+              const fName = String(r.facility || '').trim();
+              if (isAdmin && (fName === 'PHO' || fName.toLowerCase().includes('provincial') || fName.toLowerCase().includes('admin'))) return;
+              if (r.location_name && r.location_name.includes('Outside Catchment')) return;
+
+              const n = (v) => Number(v) || 0;
+              const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
+              const cat3Tot = n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
+              const rTotCases = n(r.cat1) + cat2Tot + cat3Tot;
+
+              if (Number(r.year) === year) trueYtd += rTotCases;
+              else if (Number(r.year) === year - 1) truePrevYtd += rTotCases;
+          });
+          
+          setTotalYtdCases(trueYtd);
+          setTotalPreviousYtdCases(truePrevYtd);
+
           let firstReportDate = null;
           reports.forEach(r => {
               if (r.month && MONTHS.includes(r.month)) {
@@ -76,6 +99,7 @@ export function useForecastingMetrics({
           const allMonthsRaw = [];
           [year - 1, year].forEach(y => {
              MONTHS.forEach((m) => {
+                // Ensure we catch data even if it was saved quarterly/annually
                 const periodReports = reports.filter(r => Number(r.year) === y && r.month === m);
                 const hasData = periodReports.length > 0;
                 
@@ -93,7 +117,6 @@ export function useForecastingMetrics({
                         if (isAdmin && (fName === 'PHO' || fName.toLowerCase().includes('provincial') || fName.toLowerCase().includes('admin'))) {
                             return acc;
                         }
-
                         if (r.location_name && r.location_name.includes('Outside Catchment')) {
                             return acc;
                         }
@@ -217,11 +240,30 @@ export function useForecastingMetrics({
           }
           setFull24MonthData(processed24Months);
 
+          // --- FIX 2: AGGREGATE RUNNING YTD FOR THE CHART MATRIX ---
+          let runningCurrentYTD = 0;
+          let runningPrevYTD = 0;
+
           const trendMatrix = MONTHS.map((m) => {
              const curIdx = processed24Months.findIndex(x => x.month === m && x.year === year);
              const curMonthData = processed24Months[curIdx];
              const prevMonthData = processed24Months[curIdx - 12];
-             return { month: m.substring(0, 3), current: curMonthData?.raw, previous: prevMonthData?.raw };
+
+             if (curMonthData?.raw !== null && curMonthData?.raw !== undefined) {
+                 runningCurrentYTD += curMonthData.raw;
+             }
+             
+             if (prevMonthData?.raw !== null && prevMonthData?.raw !== undefined) {
+                 runningPrevYTD += prevMonthData.raw;
+             }
+
+             return { 
+                 month: m.substring(0, 3), 
+                 current: curMonthData?.raw, 
+                 previous: prevMonthData?.raw,
+                 currentYTD: curMonthData?.raw !== null ? runningCurrentYTD : null,
+                 previousYTD: prevMonthData?.raw !== null ? runningPrevYTD : null
+             };
           });
           setHistoricalData(trendMatrix);
 
@@ -238,7 +280,6 @@ export function useForecastingMetrics({
 
               let isHighRisk = false;
 
-              // --- HIGH RISK RABIES INDICATOR (CAT 3 + STRAY) ---
               if (latest.current_hr !== null && latest.sma6_hr !== null && latest.current_hr >= 3) {
                   if (latest.current_hr > (latest.sma6_hr * HIGH_RISK_SENSITIVITY)) {
                       alerts.unshift({ 
@@ -292,5 +333,17 @@ export function useForecastingMetrics({
     fetchHistory();
   }, [year, month, quarter, periodType, facilities.length, user, isAdmin, currentDate, currentRealYear, OUTBREAK_SENSITIVITY, TREND_SENSITIVITY, HIGH_RISK_SENSITIVITY, areaText]);
 
-  return { historicalData, full24MonthData, loadingHistory, smartAlerts, complianceRate, riskLevel, projectedNextMonth, modelMetrics };
+  // Make sure to return the new YTD variables!
+  return { 
+      historicalData, 
+      full24MonthData, 
+      loadingHistory, 
+      smartAlerts, 
+      complianceRate, 
+      riskLevel, 
+      projectedNextMonth, 
+      modelMetrics,
+      totalYtdCases, 
+      totalPreviousYtdCases 
+  };
 }

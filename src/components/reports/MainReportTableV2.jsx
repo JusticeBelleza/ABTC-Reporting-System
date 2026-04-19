@@ -104,9 +104,14 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
                   (calculateGrandTotal('cat2EligPri') + calculateGrandTotal('cat2EligBoost') + calculateGrandTotal('cat2NonElig')) + 
                   (calculateGrandTotal('cat3EligPri') + calculateGrandTotal('cat3EligBoost') + calculateGrandTotal('cat3NonElig'));
   const gtAnimals = calculateGrandTotal('typeDog') + calculateGrandTotal('typeCat') + calculateGrandTotal('typeOthers');
+  
+  // --- ADDED ANIMAL STATUS VALIDATION ---
+  const gtStat = calculateGrandTotal('statusPet') + calculateGrandTotal('statusStray') + calculateGrandTotal('statusUnk');
 
-  const hasAnyData = gtSex > 0 || gtAge > 0 || gtCases > 0 || gtAnimals > 0;
-  const isTotalsMatch = hasAnyData ? (gtSex === gtAge && gtSex === gtCases && gtCases === gtAnimals) : true;
+  const hasAnyData = gtSex > 0 || gtAge > 0 || gtCases > 0 || gtAnimals > 0 || gtStat > 0;
+  
+  // Requires all 5 categories to perfectly match
+  const isTotalsMatch = hasAnyData ? (gtSex === gtAge && gtSex === gtCases && gtCases === gtAnimals && gtAnimals === gtStat) : true;
 
   let pepExceedCount = 0;
   
@@ -215,7 +220,7 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
               <span>
                   {isTotalsMatch 
                       ? "✅ Totals of sex, age, animal bite cases, and biting animals match" 
-                      : "❌ Totals of sex, age, animal bite cases, and biting animals DO NOT match. Please recheck the data."}
+                      : `❌ Mismatch! Totals must match. Currently -> Sex: ${gtSex} | Age: ${gtAge} | Cases: ${gtCases} | Animals (Tab 3): ${gtAnimals}`}
               </span>
           </div>
 
@@ -394,6 +399,22 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
     );
   }
   
+  // --- TAB 3 FIX: ADDED RED VALIDATION IF ANIMALS DON'T MATCH CASES ---
+  const animalTot = num('typeDog') + num('typeCat') + num('typeOthers');
+  
+  const l16 = num('cat2EligPri') + num('cat2EligBoost');
+  const n16 = l16 + num('cat2NonElig');
+  const q16 = num('cat3EligPri') + num('cat3EligBoost');
+  const s16 = q16 + num('cat3NonElig');
+  const casesTot = num('cat1') + n16 + s16;
+
+  const isAnimalMismatch = (animalTot > 0 || casesTot > 0) && (animalTot !== casesTot);
+  const animalValStyle = (base) => ({ 
+      ...base, 
+      backgroundColor: isAnimalMismatch ? '#FEE2E2' : base.backgroundColor, 
+      color: isAnimalMismatch ? '#B91C1C' : base.color 
+  });
+
   return (
     <>
       <td style={getTdStyle('typeDog')}>{renderInput('typeDog', 0)}</td>
@@ -402,7 +423,7 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
       <td style={getTdStyle('statusPet')}>{renderInput('statusPet', 3)}</td>
       <td style={getTdStyle('statusStray')}>{renderInput('statusStray', 4)}</td>
       <td style={getTdStyle('statusUnk')}>{renderInput('statusUnk', 5)}</td>
-      <td style={STYLES.tdGrandTotal}>{num('typeDog') + num('typeCat') + num('typeOthers')}</td>
+      <td style={animalValStyle(STYLES.tdGrandTotal)}>{animalTot}</td>
       <td style={getTdStyle('rabiesCases')}>{renderInput('rabiesCases', 6)}</td>
       <td style={{...STYLES.tdGrandTotal, color: '#B91C1C', backgroundColor: '#FEE2E2'}}>{(population > 0 && !isNonAbra) ? ((num('rabiesCases') / population) * 1000000).toFixed(2) : '0.00'}</td>
     </>

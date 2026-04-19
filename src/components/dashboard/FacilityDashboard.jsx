@@ -80,15 +80,14 @@ export default function FacilityDashboard({
       else currentFacilityType = 'RHU';
   }
 
-  // --- FIXED: AUDIT LOGGER MATCHING YOUR EXACT DATABASE COLUMNS ---
   const logAuditAction = async (actionType, actionDetails) => {
     if (!navigator.onLine) return; 
     try {
         const currentPeriodStr = periodType === 'Monthly' ? month : periodType === 'Quarterly' ? formatQuarterName(quarter) : 'Annual';
         
         const { error } = await supabase.from('audit_logs').insert({
-            user_id: user?.id || null, // Using user_id instead of role
-            actor_name: user?.fullName || user?.name || 'Unknown User', // Using actor_name instead of user_name
+            user_id: user?.id || null, 
+            actor_name: user?.fullName || user?.name || 'Unknown User', 
             facility_name: activeFacilityName, 
             action: actionType,
             report_type: 'Animal Bite and Rabies Report Form', 
@@ -511,6 +510,7 @@ export default function FacilityDashboard({
       }
   };
 
+  // --- FIXED onSaveClick FUNCTION (WITH PEP VALIDATION) ---
   const onSaveClick = async (status) => {
     if (!navigator.onLine) {
         if (isAnyAdmin && (status === 'Approved' || status === 'Rejected')) { toast.error("Offline: Reconnect to manage reports."); return; }
@@ -520,22 +520,81 @@ export default function FacilityDashboard({
     if (status === 'Rejected') { setRejectionReason(''); setShowRejectModal(true); return; }
     if (status === 'Approved') { setShowApproveModal(true); return; }
     if (status === 'Draft') { setShowDraftModal(true); return; } 
+    
     if (status === 'Pending') { 
-        let hasErrors = false; let isCompletelyEmpty = true;
         const { v2Data, formRowKeys, otherRowKeys } = useReportStore.getState();
-        for (const loc of [...formRowKeys, ...otherRowKeys]) {
+        const allKeys = [...formRowKeys, ...otherRowKeys];
+        
+        let isCompletelyEmpty = true;
+        let gtSex = 0, gtAge = 0, gtCases = 0, gtAnim = 0, gtStat = 0;
+        
+        // Variables to track PEP for Grand Total validation
+        let gt_e2p = 0, gt_c2p = 0;
+        let gt_e2b = 0, gt_c2b = 0;
+        let gt_e3p = 0, gt_c3z = 0;
+        let gt_e3b = 0, gt_c3b = 0;
+        
+        let hasPepError = false;
+
+        for (const loc of allKeys) {
             const row = v2Data[loc] || {};
             const n = (v) => parseInt(v) || 0;
-            const tSex = n(row.male)+n(row.female); const tAge = n(row.ageUnder15)+n(row.ageOver15);
-            const tAnim = n(row.typeDog)+n(row.typeCat)+n(row.typeOthers); const tStat = n(row.statusPet)+n(row.statusStray)+n(row.statusUnk);
-            const tCase = n(row.cat1) + (n(row.cat2EligPri)+n(row.cat2EligBoost)+n(row.cat2NonElig)) + (n(row.cat3EligPri)+n(row.cat3EligBoost)+n(row.cat3NonElig));
-            if (tSex > 0 || tAge > 0 || tCase > 0 || tAnim > 0) {
-              isCompletelyEmpty = false;
-              if (tSex !== tAge || tSex !== tCase || tCase !== tAnim || tAnim !== tStat) { hasErrors = true; break; }
+            
+            // 1. Row Totals
+            const rSex = n(row.male) + n(row.female);
+            const rAge = n(row.ageUnder15) + n(row.ageOver15);
+            const rAnim = n(row.typeDog) + n(row.typeCat) + n(row.typeOthers);
+            const rStat = n(row.statusPet) + n(row.statusStray) + n(row.statusUnk);
+            const rCase = n(row.cat1) + (n(row.cat2EligPri) + n(row.cat2EligBoost) + n(row.cat2NonElig)) + (n(row.cat3EligPri) + n(row.cat3EligBoost) + n(row.cat3NonElig));
+            
+            if (rSex > 0 || rAge > 0 || rCase > 0 || rAnim > 0 || rStat > 0) isCompletelyEmpty = false;
+
+            gtSex += rSex;
+            gtAge += rAge;
+            gtCases += rCase;
+            gtAnim += rAnim;
+            gtStat += rStat;
+
+            // 2. Row PEP Validation (Cannot have more completed than eligible)
+            const e2p = n(row.cat2EligPri), c2p = n(row.compCat2Pri);
+            const e2b = n(row.cat2EligBoost), c2b = n(row.compCat2Boost);
+            const e3p = n(row.cat3EligPri), c3z = n(row.compCat3PriErig) + n(row.compCat3PriHrig);
+            const e3b = n(row.cat3EligBoost), c3b = n(row.compCat3Boost);
+
+            if (e2p > 0 && c2p / e2p > 1) hasPepError = true;
+            if (e2b > 0 && c2b / e2b > 1) hasPepError = true;
+            if (e3p > 0 && c3z / e3p > 1) hasPepError = true;
+            if (e3b > 0 && c3b / e3b > 1) hasPepError = true;
+            if ((e2p + e2b + e3p + e3b) > 0 && (c2p + c2b + c3z + c3b) / (e2p + e2b + e3p + e3b) > 1) hasPepError = true;
+
+            // Accumulate PEP Grand Totals
+            gt_e2p += e2p; gt_c2p += c2p;
+            gt_e2b += e2b; gt_c2b += c2b;
+            gt_e3p += e3p; gt_c3z += c3z;
+            gt_e3b += e3b; gt_c3b += c3b;
+        }
+
+        // 3. Grand Total PEP Validation
+        if (gt_e2p > 0 && gt_c2p / gt_e2p > 1) hasPepError = true;
+        if (gt_e2b > 0 && gt_c2b / gt_e2b > 1) hasPepError = true;
+        if (gt_e3p > 0 && gt_c3z / gt_e3p > 1) hasPepError = true;
+        if (gt_e3b > 0 && gt_c3b / gt_e3b > 1) hasPepError = true;
+        if ((gt_e2p + gt_e2b + gt_e3p + gt_e3b) > 0 && (gt_c2p + gt_c2b + gt_c3z + gt_c3b) / (gt_e2p + gt_e2b + gt_e3p + gt_e3b) > 1) hasPepError = true;
+
+        // --- FINAL VALIDATION CHECKS ---
+        if (!isCompletelyEmpty) {
+            if (gtSex !== gtAge || gtSex !== gtCases || gtCases !== gtAnim || gtAnim !== gtStat) { 
+                toast.error(`DATA MISMATCH: Grand Totals must balance exactly.\nSex: ${gtSex} | Age: ${gtAge} | Cases: ${gtCases} | Types: ${gtAnim} | Status: ${gtStat}`); 
+                return; 
+            }
+            if (hasPepError) {
+                toast.error("PEP COVERAGE ERROR: PEP Completed cannot exceed PEP Eligible (>100%). Please correct the data in the Post-Exposure Prophylaxis tab.");
+                return;
             }
         }
-        if (hasErrors) { toast.error("DATA MISMATCH: Totals must balance exactly."); return; }
-        setIsZeroSubmit(isCompletelyEmpty); setShowSubmitModal(true); 
+
+        setIsZeroSubmit(isCompletelyEmpty); 
+        setShowSubmitModal(true); 
     }
   };
 
