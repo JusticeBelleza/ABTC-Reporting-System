@@ -33,8 +33,13 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // --- ADDED: Force browser to clear old cache and use the new build instantly ---
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+        
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        // --- ADDED: Increase precache limit to 4MB for safety ---
+        // Increase precache limit to 4MB for safety
         maximumFileSizeToCacheInBytes: 4194304, 
         
         // --- BACKGROUND SYNC CONFIGURATION ---
@@ -74,7 +79,7 @@ export default defineConfig({
     })
   ],
   
-  // --- OPTION 2: MANUAL CHUNKING (CODE SPLITTING) ---
+  // --- MANUAL CHUNKING (CODE SPLITTING) ---
   build: {
     rollupOptions: {
       output: {
@@ -87,7 +92,7 @@ export default defineConfig({
         },
       },
     },
-    // Optional: raise warning threshold to 1MB instead of default 500kb
+    // Raise warning threshold to 1MB instead of default 500kb
     chunkSizeWarningLimit: 1000, 
   },
 
@@ -95,7 +100,7 @@ export default defineConfig({
     format: 'es'
   },
 
-  // --- ADDED: VITEST CONFIGURATION ---
+  // --- VITEST CONFIGURATION ---
   test: {
     globals: true,
     environment: 'jsdom',
