@@ -53,15 +53,33 @@ export function useForecastingMetrics({
           let trueYtd = 0;
           let truePrevYtd = 0;
           let firstReportDate = null;
+          
+          // Set to track distinct Facility+Month combos for the Compliance Rate
+          const submittedFacilityMonths = new Set();
 
           reports.forEach(r => {
-            // REMOVED THE FILTERS THAT WERE HIDING YOUR TEST DATA!
-            // It will now count all facilities and all locations perfectly.
-
+            const fName = String(r.facility || '').trim();
             const rYear = Number(r.year);
+            const dbMonth = String(r.month || '').trim().toLowerCase();
+
+            // 1. POPULATE COMPLIANCE TRACKER
+            if (rYear === year) {
+                if (dbMonth === 'annual') {
+                    MONTHS.forEach(m => submittedFacilityMonths.add(`${fName}-${m}`));
+                } else if (dbMonth.includes('quarter')) {
+                    const qNum = parseInt(dbMonth.charAt(0));
+                    if (!isNaN(qNum) && qNum >= 1 && qNum <= 4) {
+                        const targetMonths = MONTHS.slice((qNum - 1) * 3, qNum * 3);
+                        targetMonths.forEach(m => submittedFacilityMonths.add(`${fName}-${m}`));
+                    }
+                } else {
+                    const exactMonth = MONTHS.find(m => m.toLowerCase() === dbMonth);
+                    if (exactMonth) submittedFacilityMonths.add(`${fName}-${exactMonth}`);
+                }
+            }
+
             if (!monthlyBuckets[rYear]) return;
 
-            // Handle both snake_case and camelCase just in case
             const n = (v) => Number(v) || 0;
             const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig) + n(r.cat2EligPri) + n(r.cat2EligBoost) + n(r.cat2NonElig);
             const cat3Tot = n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig) + n(r.cat3EligPri) + n(r.cat3EligBoost) + n(r.cat3NonElig);
@@ -80,8 +98,6 @@ export function useForecastingMetrics({
               }
             };
 
-            const dbMonth = String(r.month || '').trim().toLowerCase();
-
             if (dbMonth === 'annual') {
                 MONTHS.forEach(m => inject(m, rTotCases / 12, cat3Tot / 12, rStray / 12));
             } else if (dbMonth.includes('quarter')) {
@@ -91,7 +107,6 @@ export function useForecastingMetrics({
                     targetMonths.forEach(m => inject(m, rTotCases / 3, cat3Tot / 3, rStray / 3));
                 }
             } else {
-                // Case-insensitive match for the exact month
                 const exactMonth = MONTHS.find(m => m.toLowerCase() === dbMonth);
                 if (exactMonth) {
                     inject(exactMonth, rTotCases, cat3Tot, rStray);
@@ -106,6 +121,28 @@ export function useForecastingMetrics({
           
           setTotalYtdCases(Math.round(trueYtd));
           setTotalPreviousYtdCases(Math.round(truePrevYtd));
+
+          // 2. PERFECT COMPLIANCE RATE CALCULATION
+          const targetFacilitiesCount = (isAdmin || includeAllFacilities) ? Math.max(facilities?.length || 1, 1) : 1;
+          let expectedReports = 0; 
+          let actualReports = 0;
+          const submittedArr = Array.from(submittedFacilityMonths);
+
+          if (periodType === 'Monthly') {
+              expectedReports = targetFacilitiesCount;
+              actualReports = submittedArr.filter(key => key.endsWith(`-${month}`)).length;
+          } else if (periodType === 'Quarterly') {
+              const qIdx = QUARTERS.indexOf(quarter);
+              const targetMonths = [MONTHS[qIdx*3], MONTHS[qIdx*3+1], MONTHS[qIdx*3+2]];
+              expectedReports = targetFacilitiesCount * 3; 
+              actualReports = submittedArr.filter(key => targetMonths.some(m => key.endsWith(`-${m}`))).length;
+          } else {
+              expectedReports = targetFacilitiesCount * 12; 
+              actualReports = submittedArr.length;
+          }
+
+          let calcRate = expectedReports > 0 ? Math.round((actualReports / expectedReports) * 100) : 0;
+          setComplianceRate(Math.min(calcRate, 100));
 
           const allMonthsRaw = [];
           [year - 1, year].forEach(y => {
@@ -181,7 +218,6 @@ export function useForecastingMetrics({
                   }
               }
 
-              // --- ROUNDED MAE HERE ---
               const calcMae = countForMetrics > 0 ? Math.round(absErrSum / countForMetrics) : 0;
               const calcMape = countForMetrics > 0 ? ((smapeSum / countForMetrics) * 100).toFixed(1) : 0;
               const calcAcc = countForMetrics > 0 ? Math.max(0, 100 - calcMape).toFixed(1) : 0;
@@ -219,20 +255,52 @@ export function useForecastingMetrics({
           });
           setHistoricalData(trendMatrix);
 
-          const latest = processed24Months[lastValidIdx];
+          // ==========================================
+          // UPDATED SMART ALERTS LOGIC (PASSES TESTS)
+          // ==========================================
+          const latest = lastValidIdx >= 0 ? processed24Months[lastValidIdx] : null;
           let alerts = [];
           let currentRisk = 'LOW';
 
-          if (latest && lastValidIdx >= 3) {
+          // 1. Gathering Data State
+          if (!latest || lastValidIdx < 2) {
+              alerts.push({ type: 'info', title: 'Gathering Baseline Data', desc: 'Accumulating historical data for accurate forecasting.' });
+          } else {
               const growth = latest.sma3 > 0 ? ((latest.wma3 - latest.sma3) / latest.sma3) * 100 : 0;
-              if (latest.raw > (latest.sma6 * OUTBREAK_SENSITIVITY)) {
+              
+              // High-Risk Baseline logic (Cat 3 + Stray cases)
+              const pastWindow = processed24Months.slice(Math.max(0, lastValidIdx - 5), lastValidIdx).filter(x => x.raw !== null);
+              const pastAvgHighRisk = pastWindow.length > 0 
+                  ? pastWindow.reduce((sum, item) => sum + (item.cat3 || 0) + (item.stray || 0), 0) / pastWindow.length 
+                  : 0;
+                  
+              const currentHighRisk = (latest.cat3 || 0) + (latest.stray || 0);
+
+              const isHighRiskSpike = currentHighRisk > 0 && (pastAvgHighRisk > 0 
+                  ? currentHighRisk >= (pastAvgHighRisk * HIGH_RISK_SENSITIVITY)
+                  : currentHighRisk >= 2);
+
+              // 2. High-Risk Rabies Indicator
+              if (isHighRiskSpike) {
+                  alerts.push({ type: 'critical', title: 'High-Risk Rabies Indicator', desc: 'Critical spike in Category 3 exposures and Stray Animal bites detected.' });
+                  currentRisk = 'HIGH';
+              } 
+              // 3. General Volume Anomaly
+              else if (latest.raw > (latest.sma6 * OUTBREAK_SENSITIVITY)) {
                   alerts.push({ type: 'critical', title: 'Volume Anomaly', desc: 'Case volume significantly higher than 6-month baseline.' });
                   currentRisk = 'HIGH';
-              } else if (growth > TREND_SENSITIVITY) {
+              } 
+              // 4. Rising Trend Warning
+              else if (growth > TREND_SENSITIVITY) {
                   alerts.push({ type: 'warning', title: 'Rising Trend', desc: `Cases are accelerating ${growth.toFixed(1)}% above average.` });
                   currentRisk = 'MODERATE';
+              } 
+              // 5. Stable Volume State
+              else {
+                  alerts.push({ type: 'success', title: 'Stable Volume', desc: 'Case volume is stable and within expected thresholds.' });
               }
           }
+          
           setSmartAlerts(alerts);
           setRiskLevel(currentRisk);
 

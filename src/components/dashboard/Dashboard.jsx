@@ -41,7 +41,6 @@ const getRoleDisplayName = (role) => {
 function DashboardContent() {
   const { user, facilities, setFacilities, setFacilityBarangays, logout, globalSettings, setGlobalSettings, userProfile, setUserProfile } = useApp();
 
-  // Helper boolean to check if the user is ANY type of admin
   const isAnyAdmin = user?.role === 'admin' || user?.role === 'SYSADMIN';
 
   // ==========================================
@@ -65,7 +64,6 @@ function DashboardContent() {
 
         if (error) throw error;
         
-        // If the timestamp is null, they have never accepted it
         if (!data?.eula_accepted_at) {
           setNeedsConsent(true);
         }
@@ -83,7 +81,7 @@ function DashboardContent() {
   // AUTO-LOGOUT / SESSION TIMEOUT LOGIC
   // ==========================================
   const timeoutIdRef = useRef(null);
-  const INACTIVITY_LIMIT = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
+  const INACTIVITY_LIMIT = 3 * 60 * 60 * 1000; // 3 hours
 
   const resetTimeout = useCallback(() => {
     if (timeoutIdRef.current) {
@@ -96,28 +94,21 @@ function DashboardContent() {
   }, [logout]);
 
   useEffect(() => {
-    // Start the timer when the component mounts
     resetTimeout();
-
-    // List of events that count as "User Activity"
     const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
-
-    // Throttle the reset slightly so it doesn't fire constantly on mousemove
     let throttleTimer;
     const handleActivity = () => {
       if (throttleTimer) return;
       throttleTimer = setTimeout(() => {
         resetTimeout();
         throttleTimer = null;
-      }, 1000); // Only reset the timer at most once per second
+      }, 1000); 
     };
 
-    // Attach the event listeners to the window
     events.forEach(event => {
       window.addEventListener(event, handleActivity);
     });
 
-    // Cleanup listeners and timers when the component unmounts
     return () => {
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       if (throttleTimer) clearTimeout(throttleTimer);
@@ -205,7 +196,7 @@ function DashboardContent() {
   const [showLicense, setShowLicense] = useState(false); 
   const [showLogoutModal, setShowLogoutModal] = useState(false); 
   const [showAuditLogs, setShowAuditLogs] = useState(false); 
-  const [showUserManual, setShowUserManual] = useState(false); // NEW STATE
+  const [showUserManual, setShowUserManual] = useState(false); 
   
   const [facilityToDelete, setFacilityToDelete] = useState(null);
   const [deleteFacilityInput, setDeleteFacilityInput] = useState('');
@@ -258,22 +249,30 @@ function DashboardContent() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 relative">
       
-      {/* THE EULA BLOCKER */}
       {needsConsent && <PostLoginEula onAcceptComplete={() => setNeedsConsent(false)} />}
 
+      {/* --- HEADER --- */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 no-print transition-all duration-300 shadow-sm shrink-0">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-8 h-16 flex items-center justify-between relative">
+        <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-3 flex items-center justify-between relative min-h-[72px]">
           
-          <div className="flex items-center gap-2 sm:gap-3 group w-1/3">
+          {/* LEFT: LOGO, TITLE, AND DATE/TIME */}
+          <div className="flex items-center gap-2 sm:gap-3 group w-1/3 shrink-0">
             <div className="bg-slate-900 text-yellow-400 p-1.5 sm:p-2 rounded-xl shadow-lg group-hover:rotate-3 transition-transform duration-300">
               <FileText size={18} className="sm:w-5 sm:h-5" strokeWidth={2.5}/>
             </div>
             <div className="flex flex-col overflow-hidden">
               <span className="font-black tracking-tight text-xs sm:text-base text-slate-900 leading-none uppercase truncate">ABTC</span>
               <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 truncate leading-tight">Reporting System</span>
+              
+              {/* TRANSFERRED DATE/TIME HERE WITHOUT BORDER */}
+              <div className="hidden sm:flex items-center gap-1.5 mt-1" title="Philippine Standard Time (Server Synced)">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)] shrink-0"></div>
+                <span className="text-[9px] font-bold text-emerald-700 tracking-wide uppercase whitespace-nowrap">{formattedPHT}</span>
+              </div>
             </div>
           </div>
 
+          {/* MIDDLE: NAV BUTTONS */}
           <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner absolute left-1/2 -translate-x-1/2">
             <button onClick={() => setActiveNav('dashboard')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${activeNav === 'dashboard' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'}`}>
               <LayoutDashboard size={16} strokeWidth={2.5} /> Dashboard
@@ -283,12 +282,9 @@ function DashboardContent() {
             </button>
           </div>
 
-          <div className="flex items-center justify-end gap-2 sm:gap-3 w-1/3">
-            <div className="hidden xl:flex items-center bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200 shadow-inner gap-2" title="Philippine Standard Time (Server Synced)">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)] shrink-0"></div>
-              <span className="text-[11px] font-bold text-slate-600 tracking-wide uppercase whitespace-nowrap">{formattedPHT}</span>
-            </div>
-
+          {/* RIGHT: PROFILE AND ACTION MENU */}
+          <div className="flex items-center justify-end gap-2 sm:gap-3 w-1/3 shrink-0">
+            
             <div onClick={() => setShowProfileModal(true)} className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 pr-1 py-1 bg-white border border-slate-200 rounded-full shadow-sm hover:border-slate-400 active:scale-95 transition-all duration-300 cursor-pointer group">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-black text-slate-800 leading-none truncate max-w-[120px]">{userProfile?.full_name || 'User'}</p>
@@ -300,7 +296,6 @@ function DashboardContent() {
             </div>
 
             <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200 shadow-inner">
-              
               <NotificationBell user={user} />
               
               {isAnyAdmin && (

@@ -49,13 +49,17 @@ const renderDynamicBarLabel = (props) => {
   );
 };
 
-const calcTotal = (rows) => rows.reduce((sum, r) => {
-    if (!r.location_name || r.location_name.includes('Outside Catchment')) return sum;
-    const n = (v) => Number(v) || 0;
-    const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
-    const cat3Tot = n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
-    return sum + n(r.cat1) + cat2Tot + cat3Tot;
-}, 0);
+const calcTotal = (rows) => {
+    let sum = 0;
+    rows.forEach(r => {
+        if (!r.location_name || r.location_name.includes('Outside Catchment')) return;
+        const n = (v) => Number(v) || 0;
+        const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
+        const cat3Tot = n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
+        sum += n(r.cat1) + cat2Tot + cat3Tot;
+    });
+    return Math.round(sum);
+};
 
 export default function AnalyticsOverview({ 
   periodType, setPeriodType, year, setYear, month, setMonth, 
@@ -109,7 +113,41 @@ export default function AnalyticsOverview({
               const { data, error } = await query;
               if (error) throw error;
               
-              setV2AllYearData(data || []);
+              // Apply bucket distribution so Pie Charts don't break on quarters/annuals!
+              const buckets = [];
+              (data || []).forEach(r => {
+                  const n = (v) => Number(v) || 0;
+                  const distribute = (mName, divisor) => {
+                      buckets.push({
+                          ...r, month: mName,
+                          cat1: n(r.cat1) / divisor,
+                          cat2_elig_pri: n(r.cat2_elig_pri) / divisor,
+                          cat2_elig_boost: n(r.cat2_elig_boost) / divisor,
+                          cat2_non_elig: n(r.cat2_non_elig) / divisor,
+                          cat3_elig_pri: n(r.cat3_elig_pri) / divisor,
+                          cat3_elig_boost: n(r.cat3_elig_boost) / divisor,
+                          cat3_non_elig: n(r.cat3_non_elig) / divisor,
+                          male: n(r.male) / divisor, female: n(r.female) / divisor,
+                          age_under_15: n(r.age_under_15) / divisor, age_over_15: n(r.age_over_15) / divisor,
+                          type_dog: n(r.type_dog) / divisor, type_cat: n(r.type_cat) / divisor, type_others: n(r.type_others) / divisor,
+                          status_pet: n(r.status_pet) / divisor, status_stray: n(r.status_stray) / divisor, status_unk: n(r.status_unk) / divisor
+                      });
+                  };
+
+                  const dbMonth = String(r.month || '').trim().toLowerCase();
+                  if (dbMonth === 'annual') MONTHS.forEach(m => distribute(m, 12));
+                  else if (dbMonth.includes('quarter')) {
+                      const qNum = parseInt(dbMonth.charAt(0));
+                      if (!isNaN(qNum) && qNum >= 1 && qNum <= 4) {
+                          MONTHS.slice((qNum - 1) * 3, qNum * 3).forEach(m => distribute(m, 3));
+                      }
+                  } else {
+                      const exactMonth = MONTHS.find(m => m.toLowerCase() === dbMonth);
+                      if (exactMonth) distribute(exactMonth, 1);
+                  }
+              });
+
+              setV2AllYearData(buckets);
               
               let targetMonths = [];
               if (periodType === 'Monthly') targetMonths = [month];
@@ -120,14 +158,20 @@ export default function AnalyticsOverview({
                   targetMonths = MONTHS;
               }
 
-              const currentPeriodData = (data || []).filter(d => d.year === year && targetMonths.includes(d.month));
-              setV2Data(currentPeriodData);
+              setV2Data(buckets.filter(d => d.year === year && targetMonths.includes(d.month)));
               
-              if (currentPeriodData && currentPeriodData.length > 0) {
-                  setReportStatus(isAdmin ? 'Approved' : currentPeriodData[0].status || 'Draft');
-              } else {
-                  setReportStatus('Draft'); 
-              }
+              // Figure out actual DB status for the banner
+              const originalRow = (data || []).filter(d => {
+                  if (d.year !== year) return false;
+                  const dbM = String(d.month || '').trim().toLowerCase();
+                  if (periodType === 'Monthly') return dbM === month.toLowerCase();
+                  if (periodType === 'Quarterly') return dbM.includes(String(QUARTERS.indexOf(quarter) + 1));
+                  return dbM === 'annual';
+              });
+
+              if (originalRow.length > 0) setReportStatus(isAdmin ? 'Approved' : originalRow[0].status || 'Draft');
+              else setReportStatus('Draft'); 
+
           } catch (err) {
               console.error("V2 Analytics Fetch Error:", err);
           } finally {
@@ -178,7 +222,7 @@ export default function AnalyticsOverview({
     });
 
     const chart = Object.entries(chartMap)
-        .map(([name, value]) => ({ name, value }))
+        .map(([name, value]) => ({ name, value: Math.round(value) }))
         .sort((a, b) => {
             if (a.name === 'Non-Abra') return 1;
             if (b.name === 'Non-Abra') return -1;
@@ -186,14 +230,14 @@ export default function AnalyticsOverview({
         });
 
     const table = Object.entries(tableMap)
-        .map(([name, value]) => ({ name, value }))
+        .map(([name, value]) => ({ name, value: Math.round(value) }))
         .sort((a, b) => {
             if (a.name === 'Non-Abra') return 1;
             if (b.name === 'Non-Abra') return -1;
             return b.value - a.value; 
         });
     
-    return { chartData: chart, tableData: table, total };
+    return { chartData: chart, tableData: table, total: Math.round(total) };
   }, [v2Data, isAdmin, facilityType, dbMunicipalities, user]);
 
   const currentTotal = locationInfo.total;
@@ -207,7 +251,6 @@ export default function AnalyticsOverview({
       return calcTotal(rows);
   }, [periodType, v2AllYearData, month, quarter, year]);
 
-  // --- NEW: Annual Total exclusively for Predictive Model ---
   const annualTotal = useMemo(() => {
       const rows = v2AllYearData.filter(d => d.year === year);
       return calcTotal(rows);
@@ -278,6 +321,8 @@ export default function AnalyticsOverview({
           sums.dog += n(r.type_dog); sums.cat += n(r.type_cat); sums.others += n(r.type_others);
           sums.pet += n(r.status_pet); sums.stray += n(r.status_stray); sums.unk += n(r.status_unk);
       });
+      
+      Object.keys(sums).forEach(k => sums[k] = Math.round(sums[k]));
       return sums;
   }, [v2Data]);
 

@@ -189,21 +189,16 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
       );
   }
 
-  // ==========================================
-  // PERFECTED SUBTOTAL HEURISTIC
-  // ==========================================
-  // Hospitals and Consolidated views load Municipalities (Bangued, Bucay, Dolores, etc.)
-  // RHUs load specific Barangays. By checking if the rows contain multiple known municipalities, 
-  // we instantly know if this is a hospital view vs an RHU view without relying on user roles or row counts!
   const isRhuView = !(baseRowKeys.includes('Bangued') && baseRowKeys.includes('Bucay') && baseRowKeys.includes('Dolores'));
   const showSubTotal = baseRowKeys.length > 0 && isRhuView && !isConsolidated;
 
   return (
-    <div className="flex flex-col w-full bg-slate-100 h-[600px] lg:h-[calc(100vh-260px)] 2xl:h-[calc(100vh-240px)]">
+    // FIX: Replaced flex-1 h-full min-h-0 with exactly h-[900px]
+    <div className="flex flex-col w-full bg-slate-100 h-[900px]">
       <style>{`
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
-        .hide-scrollbar::-webkit-scrollbar { width: 6px; height: 0px; }
+        .hide-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .hide-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .hide-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .hide-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
@@ -234,23 +229,25 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
           </div>
       </div>
 
-      <div className="flex items-center bg-slate-100 border-b border-slate-200 px-3 py-1.5 gap-1.5 flex-shrink-0">
+      <div className="flex items-center bg-slate-100 border-b border-slate-200 px-3 py-1.5 gap-1.5 flex-shrink-0 overflow-x-auto hide-scrollbar">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-md text-[10.5px] font-extrabold transition-all duration-200
+            className={`px-4 py-2 rounded-md text-[10.5px] font-extrabold transition-all duration-200 whitespace-nowrap
               ${activeTab === tab.id ? 'bg-white text-blue-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 border border-transparent'}`}>
             {tab.label}
           </button>
         ))}
       </div>
 
-      <div id="v2-table-container" className="w-full overflow-auto hide-scrollbar flex-grow bg-slate-50 relative scroll-smooth">
+      <div id="v2-table-container" className="w-full overflow-auto hide-scrollbar flex-1 bg-slate-50 relative scroll-smooth">
         <table className="w-full border-collapse tabular-nums relative">
-          <thead className="sticky top-0 z-30 shadow-[0_2px_4px_rgba(0,0,0,0.04)]">
+          
+          <thead className="sticky top-0 z-[50] shadow-md bg-[#E2E8F0] outline outline-1 outline-slate-300">
             {activeTab === 'tab1' && <Tab1Headers activeColumn={activeColumn} />}
             {activeTab === 'pep' && <Tab2Headers activeColumn={activeColumn} />}
             {activeTab === 'tab3' && <Tab3Headers activeColumn={activeColumn} />}
           </thead>
+          
           <tbody>
             
             {baseRowKeys.map((location, index) => renderRow(location, index, false))}
@@ -278,9 +275,10 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
             })}
 
           </tbody>
-          <tfoot className="sticky bottom-0 z-40 shadow-[0_-2px_4px_rgba(0,0,0,0.04)] border-t-[3px] border-slate-400">
+          
+          <tfoot className="sticky bottom-0 z-[50] shadow-[0_-2px_6px_rgba(0,0,0,0.1)] outline outline-1 outline-slate-400 bg-[#E2E8F0]">
              <tr>
-               <td style={{...STYLES.tdGrandTotal, textAlign: 'left', padding: '8px 10px', backgroundColor: GRAND_TOTAL_BG, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
+               <td style={{...STYLES.tdGrandTotal, textAlign: 'left', padding: '8px 10px', backgroundColor: GRAND_TOTAL_BG, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-[60] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
                  <span className="font-black text-slate-800">GRAND TOTAL</span>
                </td>
                <GrandTotalCells activeTab={activeTab} calculate={calculateGrandTotal} populations={populations} />
@@ -492,7 +490,7 @@ const getThStyle = (baseStyle, name, activeCol) => ({
 const Tab1Headers = ({ activeColumn }) => (
   <>
     <tr>
-      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
+      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-[60] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
       <th rowSpan={5} style={STYLES.thPop}>TOTAL POPULATION</th>
       <th colSpan={19} style={STYLES.thMain}>ANIMAL BITE CASES</th>
     </tr>
@@ -532,7 +530,7 @@ const Tab1Headers = ({ activeColumn }) => (
 const Tab2Headers = ({ activeColumn }) => (
   <>
     <tr>
-      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/>
+      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-[60] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/>
       <span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
       <th colSpan={11} style={STYLES.thMain}>POST-EXPOSURE PROPHYLAXIS (PEP)</th>
     </tr>
@@ -557,7 +555,7 @@ const Tab2Headers = ({ activeColumn }) => (
 const Tab3Headers = ({ activeColumn }) => (
   <>
     <tr>
-      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
+      <th rowSpan={5} style={{...STYLES.thLocation, borderRight: `2px solid ${BORDER_COLOR}`}} className="sticky left-0 z-[60] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">LOCATION<br/><span style={{fontSize:'8.5px', fontWeight:'600', color:'#64748B'}}>(Barangay / Municipality)</span></th>
       <th colSpan={7} style={STYLES.thMain}>BITING ANIMALS (7)</th><th colSpan={2} style={STYLES.thMain}>HUMAN RABIES CASES</th>
     </tr>
     <tr><th colSpan={3} style={STYLES.thGroup}>Type</th><th colSpan={3} style={STYLES.thGroup}>Status</th><th rowSpan={4} style={STYLES.thGrandTotal}>Total</th><th rowSpan={4} style={getThStyle({...STYLES.thLeaf, color:'#B91C1C'}, 'rabiesCases', activeColumn)}>Cases (PIDSR c/o RESU)</th><th rowSpan={4} style={{...STYLES.thLeaf, minWidth: '110px', backgroundColor:'#FEE2E2', color:'#991B1B'}}>Incidence Proportion (per 10⁶)</th></tr>
