@@ -138,54 +138,7 @@ export const exportToExcelTemplate = async ({
                 currentRow++;
             });
 
-            // 🚨 STRICT CHECK: ALWAYS PRINT SUBTOTAL IF IT IS AN RHU 🚨
-            // (Removed fKeys.length > 0 to fix Bangued RHU bug)
-            if (!isHospitalOrClinic && !isConsolReport) {
-                const subTotalRow = worksheet.getRow(currentRow);
-                
-                let subData = {
-                    male: 0, female: 0, ageUnder15: 0, ageOver15: 0, cat1: 0,
-                    cat2EligPri: 0, cat2EligBoost: 0, cat2NonElig: 0,
-                    cat3EligPri: 0, cat3EligBoost: 0, cat3NonElig: 0,
-                    compCat2Pri: 0, compCat2Boost: 0, compCat3PriErig: 0, compCat3PriHrig: 0, compCat3Boost: 0,
-                    typeDog: 0, typeCat: 0, typeOthers: 0, statusPet: 0, statusStray: 0, statusUnk: 0, rabiesCases: 0
-                };
-
-                fKeys.forEach(loc => {
-                    const rData = sheetData[loc] || {};
-                    Object.keys(subData).forEach(k => {
-                        subData[k] += (parseInt(rData[k], 10) || 0);
-                    });
-                });
-
-                subTotalRow.getCell(1).value = 'SUB TOTAL';
-                subTotalRow.getCell(2).value = ''; // <--- THIS FIXES THE DOUBLE POPULATION BUG
-                subTotalRow.getCell(3).value = subData.male;
-                subTotalRow.getCell(4).value = subData.female;
-                subTotalRow.getCell(6).value = subData.ageUnder15;
-                subTotalRow.getCell(7).value = subData.ageOver15;
-                subTotalRow.getCell(9).value = subData.cat1;
-                subTotalRow.getCell(10).value = subData.cat2EligPri;
-                subTotalRow.getCell(11).value = subData.cat2EligBoost;
-                subTotalRow.getCell(13).value = subData.cat2NonElig;
-                subTotalRow.getCell(15).value = subData.cat3EligPri;
-                subTotalRow.getCell(16).value = subData.cat3EligBoost;
-                subTotalRow.getCell(18).value = subData.cat3NonElig;
-                subTotalRow.getCell(22).value = subData.compCat2Pri;
-                subTotalRow.getCell(23).value = subData.compCat2Boost;
-                subTotalRow.getCell(24).value = subData.compCat3PriErig;
-                subTotalRow.getCell(25).value = subData.compCat3PriHrig;
-                subTotalRow.getCell(27).value = subData.compCat3Boost;
-                subTotalRow.getCell(33).value = subData.typeDog;
-                subTotalRow.getCell(34).value = subData.typeCat;
-                subTotalRow.getCell(35).value = subData.typeOthers;
-                subTotalRow.getCell(36).value = subData.statusPet;
-                subTotalRow.getCell(37).value = subData.statusStray;
-                subTotalRow.getCell(38).value = subData.statusUnk;
-                subTotalRow.getCell(40).value = subData.rabiesCases;
-                
-                currentRow++;
-            }
+            // 🚨 REMOVED THE SUBTOTAL ROW ENTIRELY TO PREVENT EXCEL'S GRAND TOTAL FROM DOUBLE-COUNTING 🚨
 
             // 2. PRINT OTHER MUNICIPALITIES
             if (oKeys && oKeys.length > 0) {
