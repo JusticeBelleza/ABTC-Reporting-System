@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X, CheckCircle, XCircle, TrendingUp, ChevronRight, ChevronLeft, FileDown, Loader2, ArrowLeft, Activity, Database, Upload } from 'lucide-react';
+import { Users, Layers, Plus, Hospital, Stethoscope, Building2, Clock, Archive, RefreshCcw, Trash2, AlertTriangle, X, CheckCircle, XCircle, TrendingUp, ChevronRight, ChevronLeft, FileDown, Loader2, ArrowLeft, Activity, Database, Upload, Search } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 import { MONTHS, QUARTERS } from '../../lib/constants';
 import { useReportData } from '../../hooks/useReportData';
@@ -30,12 +30,10 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
     const [targetYear, setTargetYear] = useState(null);
     const fileInputRef = useRef(null);
 
-    // Dynamic Years: Strictly start at 2026, up to Current Year.
     const currentYear = new Date().getFullYear();
     const maxYear = Math.max(2026, currentYear);
     const years = Array.from({ length: maxYear - 2026 + 1 }, (_, i) => 2026 + i);
 
-    // Fetch existing years to color-code the badges
     useEffect(() => {
         if (!isOpen) return;
         const fetchExistingYears = async () => {
@@ -98,7 +96,6 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
                         };
                     });
 
-                    // 1. Explicitly DELETE the old year's data first
                     const { error: deleteError } = await supabase
                         .from('populations')
                         .delete()
@@ -106,7 +103,6 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
 
                     if (deleteError) throw deleteError;
 
-                    // 2. Use UPSERT to safely insert the new data while catching internal CSV duplicates
                     const { error: insertError } = await supabase
                         .from('populations')
                         .upsert(formattedData, { onConflict: 'municipality, barangay_name, year' });
@@ -140,7 +136,6 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
                     
                     <input type="file" ref={fileInputRef} accept=".csv" onChange={handleFileChange} className="hidden" />
 
-                    {/* Header */}
                     <div className="px-5 py-4 border-b border-slate-200 bg-white shrink-0 flex justify-between items-center shadow-sm relative z-10">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600 border border-blue-100">
@@ -161,9 +156,7 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
                         </button>
                     </div>
 
-                    {/* Table Body */}
                     <div className="p-5 overflow-y-auto custom-scrollbar">
-                        
                         <div className="grid grid-cols-12 gap-4 px-4 py-2 mb-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                             <div className="col-span-3">Target Year</div>
                             <div className="col-span-4">Data Status</div>
@@ -177,11 +170,9 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
                                 
                                 return (
                                     <div key={y} className={`grid grid-cols-12 gap-4 items-center px-4 py-3 bg-white border rounded-xl transition-all shadow-sm group ${isUploaded ? 'border-emerald-200 hover:border-emerald-400' : 'border-slate-200 hover:border-blue-300'}`}>
-                                        
                                         <div className="col-span-3 font-black text-slate-900 text-base tracking-tight">
                                             {y}
                                         </div>
-                                        
                                         <div className="col-span-4">
                                             {isUploaded ? (
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
@@ -193,7 +184,6 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
                                                 </span>
                                             )}
                                         </div>
-                                        
                                         <div className="col-span-5 flex justify-end">
                                             <button 
                                                 onClick={() => triggerUpload(y)}
@@ -212,7 +202,6 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
                                 );
                             })}
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -247,6 +236,7 @@ export default function AdminDashboard({
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, facility: null });
   const [statusModal, setStatusModal] = useState({ isOpen: false, status: null });
   const [leaderboardModal, setLeaderboardModal] = useState({ isOpen: false, filter: null });
+  const [modalSearch, setModalSearch] = useState(''); 
   
   const [isPopModalOpen, setIsPopModalOpen] = useState(false);
   
@@ -265,6 +255,9 @@ export default function AdminDashboard({
   const currentDate = new Date();
   const currentRealYear = currentDate.getFullYear();
   const currentRealMonthIdx = currentDate.getMonth();
+
+  // Reset modal pagination when search changes
+  useEffect(() => { setModalPage(1); }, [modalSearch]);
 
   const formatQuarterName = (q) => {
       if (!q) return '';
@@ -642,7 +635,7 @@ export default function AdminDashboard({
               </div>
 
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-4 relative z-10 shrink-0">
-                  <h2 className="text-slate-800 font-bold px-4 shrink-0">Animal Bite and Rabies Report Form</h2>
+                  <h2 className="text-slate-800 font-bold px-4 shrink-0 whitespace-normal break-words">Animal Bite and Rabies Report Form</h2>
                   <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
                       <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
                       
@@ -751,16 +744,21 @@ export default function AdminDashboard({
 
   const mainAgg = getAggregates(mainMatrix);
 
-  const getFilteredMatrix = () => {
-      if (leaderboardModal.filter === 'full') return mainMatrix.filter(m => m.isFully);
-      if (leaderboardModal.filter === 'partial') return mainMatrix.filter(m => m.isPartial);
-      if (leaderboardModal.filter === 'zero') return mainMatrix.filter(m => m.isZero);
-      return mainMatrix; 
-  };
+  // SEARCH LOGIC FOR MODALS
+  const filteredModalFacilities = (statusModal.isOpen ? getFacilitiesByStatus(statusModal.status) : []).filter(f => 
+      f.toLowerCase().includes(modalSearch.toLowerCase())
+  );
+  const totalModalPages = Math.ceil(filteredModalFacilities.length / ITEMS_PER_PAGE);
+  const paginatedModalFacilities = filteredModalFacilities.slice((modalPage - 1) * ITEMS_PER_PAGE, modalPage * ITEMS_PER_PAGE);
 
-  const modalFacilities = statusModal.isOpen ? getFacilitiesByStatus(statusModal.status) : [];
-  const totalModalPages = Math.ceil(modalFacilities.length / ITEMS_PER_PAGE);
-  const paginatedModalFacilities = modalFacilities.slice((modalPage - 1) * ITEMS_PER_PAGE, modalPage * ITEMS_PER_PAGE);
+  const getFilteredMatrix = () => {
+      let matrix = mainMatrix;
+      if (leaderboardModal.filter === 'full') matrix = mainMatrix.filter(m => m.isFully);
+      if (leaderboardModal.filter === 'partial') matrix = mainMatrix.filter(m => m.isPartial);
+      if (leaderboardModal.filter === 'zero') matrix = mainMatrix.filter(m => m.isZero);
+      
+      return matrix.filter(item => item.facility.toLowerCase().includes(modalSearch.toLowerCase()));
+  };
 
   const totalCardPages = Math.ceil(displayedFacilities.length / CARDS_PER_PAGE);
   const paginatedCards = displayedFacilities.slice((cardPage - 1) * CARDS_PER_PAGE, cardPage * CARDS_PER_PAGE);
@@ -800,7 +798,8 @@ export default function AdminDashboard({
         {statusModal.isOpen && (
             <ModalPortal>
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
+                    {/* CHANGED: max-w-md to max-w-2xl */}
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3 overflow-hidden">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0
@@ -810,54 +809,75 @@ export default function AdminDashboard({
                                      statusModal.status === 'Pending' ? <Clock size={20} strokeWidth={2.5}/> : <XCircle size={20} strokeWidth={2.5}/>}
                                 </div>
                                 <div className="overflow-hidden">
-                                    <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
+                                    <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight whitespace-normal break-words">
                                         Animal Bite and Rabies Report Form - {statusModal.status}
                                     </h3>
                                     <p className="text-xs font-medium text-slate-500">{month} {year}</p>
                                 </div>
                             </div>
-                            <button onClick={() => setStatusModal({ isOpen: false, status: null })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
+                            <button onClick={() => { setStatusModal({ isOpen: false, status: null }); setModalSearch(''); }} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                                 <X size={20} />
                             </button>
                         </div>
+
+                        {/* NEW: QUICK SEARCH BAR */}
+                        <div className="px-4 py-3 border-b border-slate-100 bg-white shrink-0">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Find facility..." 
+                                    value={modalSearch}
+                                    onChange={(e) => setModalSearch(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                />
+                            </div>
+                        </div>
                         
-                        <div className="overflow-hidden flex flex-col flex-1">
-                            {modalFacilities.length === 0 ? (
+                        <div className="overflow-hidden flex flex-col flex-1 bg-slate-50/50">
+                            {filteredModalFacilities.length === 0 ? (
                                 <div className="p-8 text-center flex flex-col items-center justify-center">
-                                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                                        <Archive size={20} className="text-slate-400" />
+                                    <div className="w-12 h-12 bg-white border border-slate-200 rounded-full flex items-center justify-center mb-3 shadow-sm">
+                                        <Search size={20} className="text-slate-400" />
                                     </div>
-                                    <p className="text-sm font-semibold text-slate-600">No {statusModal.status.toLowerCase()} reports</p>
-                                    <p className="text-xs text-slate-400 mt-1">There are no facilities currently in this status.</p>
+                                    <p className="text-sm font-semibold text-slate-600">No facilities found</p>
+                                    <p className="text-xs text-slate-400 mt-1">Try adjusting your search.</p>
                                 </div>
                             ) : (
                                 <div className="flex flex-col h-full">
-                                    <div className="flex flex-col gap-1 p-4 flex-1 overflow-y-auto custom-scrollbar">
+                                    <div className="flex flex-col gap-2 p-3 flex-1 overflow-y-auto custom-scrollbar">
                                         {paginatedModalFacilities.map(f => (
                                             <div 
                                                 key={f} 
                                                 onClick={() => { 
                                                     localStorage.setItem('adminTargetTab', 'main');
                                                     setStatusModal({ isOpen: false, status: null }); 
+                                                    setModalSearch('');
                                                     onSelectFacility(f); 
                                                 }} 
-                                                className="group px-4 py-3.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98] transition-all"
+                                                className="group p-3 bg-white hover:bg-blue-50/50 rounded-xl flex items-center justify-between cursor-pointer border border-slate-200 hover:border-blue-200 shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
                                             >
-                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                    <div className="p-2 bg-slate-100 rounded-lg text-slate-400 group-hover:bg-yellow-100 group-hover:text-yellow-600 transition-colors">
-                                                        <Building2 size={16} />
+                                                <div className="flex items-center gap-3 overflow-hidden w-full">
+                                                    <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 group-hover:bg-white group-hover:text-blue-500 transition-colors shrink-0">
+                                                        <Building2 size={18} />
                                                     </div>
-                                                    <span className="font-bold text-sm text-slate-800 truncate group-hover:text-black transition-colors">{f}</span>
+                                                    <div className="flex flex-col overflow-hidden min-w-0 pr-2">
+                                                        <span className="font-bold text-sm text-slate-800 truncate group-hover:text-blue-700 transition-colors">{f}</span>
+                                                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
+                                                            <Users size={12} className="shrink-0" />
+                                                            <span className="truncate">{facilityOwners[f] || 'No user assigned'}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <ChevronRight size={16} className="text-slate-300 group-hover:text-yellow-500 transition-colors shrink-0" />
+                                                <ChevronRight size={18} className="text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />
                                             </div>
                                         ))}
                                     </div>
                                     {totalModalPages > 1 && (
-                                        <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-t border-slate-100">
-                                            <button onClick={() => setModalPage(p => Math.max(1, p - 1))} disabled={modalPage === 1} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Previous</button>
+                                        <div className="flex items-center justify-between px-6 py-3 bg-white border-t border-slate-200">
+                                            <button onClick={() => setModalPage(p => Math.max(1, p - 1))} disabled={modalPage === 1} className="text-xs font-bold px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Previous</button>
                                             <span className="text-xs font-medium text-slate-500">Page {modalPage} of {totalModalPages}</span>
-                                            <button onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))} disabled={modalPage === totalModalPages} className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Next</button>
+                                            <button onClick={() => setModalPage(p => Math.min(totalModalPages, p + 1))} disabled={modalPage === totalModalPages} className="text-xs font-bold px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 hover:text-slate-800 active:scale-95 disabled:opacity-50 transition-all shadow-sm">Next</button>
                                         </div>
                                     )}
                                 </div>
@@ -872,14 +892,15 @@ export default function AdminDashboard({
         {leaderboardModal.isOpen && (
             <ModalPortal>
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
+                    {/* CHANGED: max-w-2xl to max-w-4xl */}
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3 overflow-hidden">
                                 <div className="w-10 h-10 rounded-full flex shrink-0 items-center justify-center bg-slate-900 text-yellow-400 shadow-sm">
                                     <Layers size={20} strokeWidth={2.5}/> 
                                 </div>
                                 <div className="overflow-hidden">
-                                    <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
+                                    <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight whitespace-normal break-words">
                                         Compliance Leaderboard
                                     </h3>
                                     <p className="text-xs font-medium text-slate-500 truncate capitalize">
@@ -887,30 +908,52 @@ export default function AdminDashboard({
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => setLeaderboardModal({ isOpen: false, filter: null })} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
+                            <button onClick={() => { setLeaderboardModal({ isOpen: false, filter: null }); setModalSearch(''); }} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 active:scale-90 rounded-full transition-all shrink-0">
                                 <X size={20} />
                             </button>
                         </div>
                         
+                        {/* NEW: QUICK SEARCH BAR */}
+                        <div className="px-4 py-3 border-b border-slate-100 bg-white shrink-0">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Find facility..." 
+                                    value={modalSearch}
+                                    onChange={(e) => setModalSearch(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                                />
+                            </div>
+                        </div>
+
                         <div className="overflow-y-auto p-3 sm:p-4 custom-scrollbar flex-1 bg-slate-100/50">
                             {getFilteredMatrix().length === 0 ? (
                                 <div className="p-8 text-center flex flex-col items-center justify-center">
                                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-200">
-                                        <Archive size={20} className="text-slate-400" />
+                                        <Search size={20} className="text-slate-400" />
                                     </div>
                                     <p className="text-sm font-semibold text-slate-600">No facilities found</p>
-                                    <p className="text-xs text-slate-400 mt-1">There are no facilities matching this compliance filter.</p>
+                                    <p className="text-xs text-slate-400 mt-1">Try adjusting your search.</p>
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-2.5">
                                     {getFilteredMatrix().map(item => (
-                                        <div key={item.facility} className="p-3.5 sm:p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <Building2 size={16} className="text-slate-400 shrink-0" />
-                                                    <span className="font-bold text-sm sm:text-base text-slate-800 truncate">{item.facility}</span>
+                                        <div key={item.facility} className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                                <div className="flex items-start gap-3 overflow-hidden">
+                                                    <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 group-hover:text-blue-500 shrink-0 transition-colors">
+                                                        <Building2 size={18} />
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="font-bold text-sm sm:text-base text-slate-800 truncate">{item.facility}</span>
+                                                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
+                                                            <Users size={12} className="shrink-0" />
+                                                            <span className="truncate">{facilityOwners[item.facility] || 'No user assigned'}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2 shrink-0 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+                                                <div className="flex items-center gap-2 shrink-0 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
                                                     <span className="text-xs font-bold text-slate-600">{item.approvedCount} / {targetMonths.length}</span>
                                                     <span className={`text-xs font-black px-1.5 py-0.5 rounded ${item.complianceRate === 100 ? 'bg-emerald-100 text-emerald-700' : item.complianceRate > 0 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
                                                         {item.complianceRate}%
@@ -1074,152 +1117,156 @@ export default function AdminDashboard({
         {/* TIER 3: KPI CARDS (REVAMPED SUBMISSION HUB)*/}
         {/* ========================================== */}
         {!showArchived && (
-          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm relative overflow-hidden group mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden group mb-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
               {/* Background accent */}
               <div className="absolute right-0 top-0 w-64 h-64 bg-slate-50 rounded-full opacity-60 -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none"></div>
 
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-5 relative z-10 gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-4 relative z-10 gap-2">
                   <div>
-                      <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                          <Activity size={18} className="text-blue-600"/> 
+                      <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+                          <Activity size={16} className="text-blue-600"/> 
                           Submission & Compliance Hub
                       </h3>
-                      <p className="text-[11px] sm:text-xs font-medium text-slate-500 mt-1">
+                      <p className="text-[10px] sm:text-xs font-medium text-slate-500 mt-1">
                           Tracking Animal Bite and Rabies Report Form submission and reporting status across the province for <strong className="text-slate-700">{currentDisplayPeriod} {year}</strong>
                       </p>
                   </div>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 relative z-10">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 relative z-10 w-full items-stretch">
                   {periodType === 'Monthly' ? (
                       <>
-                        {/* Approved */}
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved' }); setModalPage(1); }} className="bg-slate-50/50 rounded-xl p-4 sm:p-5 border border-slate-100 hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer group/card transition-all flex flex-col justify-between">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors shadow-sm">
-                                    <CheckCircle size={20} strokeWidth={2.5} />
-                                </div>
-                                <span className="bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm">VERIFIED</span>
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-900 group-hover/card:text-emerald-700 transition-colors">{mainStats.approved}</p>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wide mt-1">Approved Reports</p>
-                            </div>
-                        </div>
-
-                        {/* Pending */}
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending' }); setModalPage(1); }} className="bg-slate-50/50 rounded-xl p-4 sm:p-5 border border-slate-100 hover:bg-amber-50 hover:border-amber-200 cursor-pointer group/card transition-all flex flex-col justify-between">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors shadow-sm">
-                                    <Clock size={20} strokeWidth={2.5} />
-                                </div>
-                                <span className="bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm">REVIEW</span>
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-900 group-hover/card:text-amber-700 transition-colors">{mainStats.pending}</p>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wide mt-1">Pending Reports</p>
-                            </div>
-                        </div>
-
-                        {/* Rejected */}
-                        <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected' }); setModalPage(1); }} className="bg-slate-50/50 rounded-xl p-4 sm:p-5 border border-slate-100 hover:bg-rose-50 hover:border-rose-200 cursor-pointer group/card transition-all flex flex-col justify-between">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-9 h-9 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors shadow-sm">
-                                    <XCircle size={20} strokeWidth={2.5} />
-                                </div>
-                                <span className="bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm">ACTION</span>
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-900 group-hover/card:text-rose-700 transition-colors">{mainStats.rejected}</p>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wide mt-1">Needs Revision</p>
-                            </div>
-                        </div>
-
-                        {/* Compliance Rate */}
-                        <div className="bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-800 shadow-inner flex flex-col justify-between relative overflow-hidden">
-                            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-blue-500 rounded-full opacity-20 blur-xl"></div>
-                            <div className="flex items-start justify-between mb-4 relative z-10">
-                                <div className="w-9 h-9 rounded-lg bg-slate-800 text-yellow-400 flex items-center justify-center border border-slate-700 shadow-sm">
+                        {/* BIG OVERALL METRIC: COMPLIANCE RATE */}
+                        <div className="h-full lg:col-span-5 bg-slate-900 rounded-xl p-5 sm:p-6 border border-slate-800 shadow-xl flex flex-col justify-center relative overflow-hidden group/card transition-all hover:border-slate-600">
+                            <div className="absolute -right-10 -top-10 w-48 h-48 bg-blue-500 rounded-full opacity-20 blur-3xl group-hover/card:opacity-40 transition-opacity pointer-events-none"></div>
+                            
+                            <div className="flex items-center gap-3 mb-4 relative z-10">
+                                <div className="p-2.5 rounded-xl bg-slate-800 text-yellow-400 border border-slate-700 shadow-sm group-hover/card:shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all">
                                     <TrendingUp size={20} strokeWidth={2.5} />
                                 </div>
-                                <span className="bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm">METRIC</span>
-                            </div>
-                            <div className="relative z-10">
-                                <div className="flex items-end gap-2">
-                                    <p className="text-3xl font-black text-white">{mainReportingRate}%</p>
+                                <div>
+                                    <span className="bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm uppercase tracking-wider">Metric</span>
+                                    <h4 className="text-slate-100 font-bold text-xs sm:text-sm mt-0.5">Monthly Compliance Rate</h4>
                                 </div>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wide mt-1 mb-3">Compliance Rate</p>
-                                {/* Progress Bar */}
-                                <div className="w-full bg-slate-800 rounded-full h-1.5">
-                                    <div className={`h-1.5 rounded-full ${mainReportingRate >= 80 ? 'bg-emerald-400' : mainReportingRate >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${mainReportingRate}%` }}></div>
+                            </div>
+                            
+                            <div className="relative z-10 flex flex-col mt-auto">
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-5xl sm:text-6xl font-black text-white tracking-tighter">{mainReportingRate}<span className="text-2xl sm:text-3xl text-slate-400 font-bold">%</span></p>
+                                </div>
+                                <p className="text-[10px] sm:text-xs font-medium text-slate-400 mt-1 mb-4">Percentage of facilities that have submitted their reports.</p>
+                                
+                                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                                    <div className={`h-full rounded-full transition-all duration-1000 ${mainReportingRate >= 80 ? 'bg-emerald-400' : mainReportingRate >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${mainReportingRate}%` }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* STATUS BREAKDOWN CARDS */}
+                        <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch">
+                            {/* Approved */}
+                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-emerald-50/50 rounded-xl p-4 sm:p-5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-sm border border-emerald-200 group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors relative z-10">
+                                    <CheckCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                                </div>
+                                <div className="flex flex-col items-center justify-center relative z-10">
+                                    <p className="text-3xl sm:text-4xl font-black text-emerald-900">{mainStats.approved}</p>
+                                    <p className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wide mt-1.5">Verified</p>
+                                    <p className="text-[9px] sm:text-[10px] font-medium text-emerald-600/70 mt-0.5">Approved Reports</p>
+                                </div>
+                            </div>
+
+                            {/* Pending */}
+                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-amber-50/50 rounded-xl p-4 sm:p-5 border border-amber-100 hover:bg-amber-100 hover:border-amber-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3 shadow-sm border border-amber-200 group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors relative z-10">
+                                    <Clock size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                                </div>
+                                <div className="flex flex-col items-center justify-center relative z-10">
+                                    <p className="text-3xl sm:text-4xl font-black text-amber-900">{mainStats.pending}</p>
+                                    <p className="text-[10px] sm:text-xs font-bold text-amber-700 uppercase tracking-wide mt-1.5">Review</p>
+                                    <p className="text-[9px] sm:text-[10px] font-medium text-amber-600/70 mt-0.5">Pending Reports</p>
+                                </div>
+                            </div>
+
+                            {/* Rejected */}
+                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-rose-50/50 rounded-xl p-4 sm:p-5 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3 shadow-sm border border-rose-200 group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors relative z-10">
+                                    <XCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                                </div>
+                                <div className="flex flex-col items-center justify-center relative z-10">
+                                    <p className="text-3xl sm:text-4xl font-black text-rose-900">{mainStats.rejected}</p>
+                                    <p className="text-[10px] sm:text-xs font-bold text-rose-700 uppercase tracking-wide mt-1.5">Action Required</p>
+                                    <p className="text-[9px] sm:text-[10px] font-medium text-rose-600/70 mt-0.5">Needs Revision</p>
                                 </div>
                             </div>
                         </div>
                       </>
                   ) : (
                       <>
-                        {/* Fully Compliant */}
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'full' })} className="bg-slate-50/50 rounded-xl p-4 sm:p-5 border border-slate-100 hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer group/card transition-all flex flex-col justify-between">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors shadow-sm">
-                                    <CheckCircle size={20} strokeWidth={2.5} />
-                                </div>
-                                <span className="bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm">100% COMPLETE</span>
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-900 group-hover/card:text-emerald-700 transition-colors">{mainAgg.full}</p>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wide mt-1">Fully Compliant</p>
-                            </div>
-                        </div>
+                          {/* BIG OVERALL METRIC */}
+                          <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'all' }); setModalSearch(''); }} className="h-full lg:col-span-5 bg-slate-900 rounded-xl p-5 sm:p-6 border border-slate-800 shadow-xl cursor-pointer flex flex-col justify-center relative overflow-hidden group/card transition-all hover:border-slate-600">
+                              <div className="absolute -right-10 -top-10 w-48 h-48 bg-blue-500 rounded-full opacity-20 blur-3xl group-hover/card:opacity-40 transition-opacity pointer-events-none"></div>
+                              
+                              <div className="flex items-center gap-3 mb-4 relative z-10">
+                                  <div className="p-2.5 rounded-xl bg-slate-800 text-yellow-400 border border-slate-700 shadow-sm group-hover/card:shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all">
+                                      <TrendingUp size={20} strokeWidth={2.5} />
+                                  </div>
+                                  <div>
+                                      <span className="bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm uppercase tracking-wider">Overall Score</span>
+                                      <h4 className="text-slate-100 font-bold text-xs sm:text-sm mt-0.5">{periodType} Compliance</h4>
+                                  </div>
+                              </div>
+                              
+                              <div className="relative z-10 flex flex-col mt-auto">
+                                  <div className="flex items-baseline gap-2">
+                                      <p className="text-5xl sm:text-6xl font-black text-white tracking-tighter">{mainAgg.rate}<span className="text-2xl sm:text-3xl text-slate-400 font-bold">%</span></p>
+                                  </div>
+                                  <p className="text-[10px] sm:text-xs font-medium text-slate-400 mt-1 mb-4">Average submission completion across all active facilities for this period.</p>
+                                  
+                                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                                      <div className={`h-full rounded-full transition-all duration-1000 ${mainAgg.rate >= 80 ? 'bg-emerald-400' : mainAgg.rate >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${mainAgg.rate}%` }}></div>
+                                  </div>
+                              </div>
+                          </div>
 
-                        {/* Partially Compliant */}
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'partial' })} className="bg-slate-50/50 rounded-xl p-4 sm:p-5 border border-slate-100 hover:bg-amber-50 hover:border-amber-200 cursor-pointer group/card transition-all flex flex-col justify-between">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors shadow-sm">
-                                    <Clock size={20} strokeWidth={2.5} />
-                                </div>
-                                <span className="bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm">IN PROGRESS</span>
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-900 group-hover/card:text-amber-700 transition-colors">{mainAgg.partial}</p>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wide mt-1">Partially Compliant</p>
-                            </div>
-                        </div>
+                          {/* STATUS BREAKDOWN CARDS */}
+                          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch">
+                              {/* Fully Compliant */}
+                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'full' }); setModalSearch(''); }} className="h-full bg-emerald-50/50 rounded-xl p-4 sm:p-5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-sm border border-emerald-200 group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors relative z-10">
+                                      <CheckCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                                  </div>
+                                  <div className="flex flex-col items-center justify-center relative z-10">
+                                      <p className="text-3xl sm:text-4xl font-black text-emerald-900">{mainAgg.full}</p>
+                                      <p className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wide mt-1.5">100% Complete</p>
+                                      <p className="text-[9px] sm:text-[10px] font-medium text-emerald-600/70 mt-0.5">All months submitted</p>
+                                  </div>
+                              </div>
 
-                        {/* Zero Submissions */}
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'zero' })} className="bg-slate-50/50 rounded-xl p-4 sm:p-5 border border-slate-100 hover:bg-rose-50 hover:border-rose-200 cursor-pointer group/card transition-all flex flex-col justify-between">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-9 h-9 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors shadow-sm">
-                                    <XCircle size={20} strokeWidth={2.5} />
-                                </div>
-                                <span className="bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm">NO DATA</span>
-                            </div>
-                            <div>
-                                <p className="text-3xl font-black text-slate-900 group-hover/card:text-rose-700 transition-colors">{mainAgg.zero}</p>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wide mt-1">Zero Submissions</p>
-                            </div>
-                        </div>
+                              {/* Partially Compliant */}
+                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'partial' }); setModalSearch(''); }} className="h-full bg-amber-50/50 rounded-xl p-4 sm:p-5 border border-amber-100 hover:bg-amber-100 hover:border-amber-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3 shadow-sm border border-amber-200 group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors relative z-10">
+                                      <Clock size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                                  </div>
+                                  <div className="flex flex-col items-center justify-center relative z-10">
+                                      <p className="text-3xl sm:text-4xl font-black text-amber-900">{mainAgg.partial}</p>
+                                      <p className="text-[10px] sm:text-xs font-bold text-amber-700 uppercase tracking-wide mt-1.5">In Progress</p>
+                                      <p className="text-[9px] sm:text-[10px] font-medium text-amber-600/70 mt-0.5">Missing some months</p>
+                                  </div>
+                              </div>
 
-                        {/* Average Compliance */}
-                        <div onClick={() => setLeaderboardModal({ isOpen: true, filter: 'all' })} className="bg-slate-900 rounded-xl p-4 sm:p-5 border border-slate-800 shadow-inner hover:border-slate-600 cursor-pointer flex flex-col justify-between relative overflow-hidden group/card transition-all">
-                            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-blue-500 rounded-full opacity-20 blur-xl group-hover/card:opacity-40 transition-opacity"></div>
-                            <div className="flex items-start justify-between mb-4 relative z-10">
-                                <div className="w-9 h-9 rounded-lg bg-slate-800 text-yellow-400 flex items-center justify-center border border-slate-700 shadow-sm group-hover/card:shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all">
-                                    <TrendingUp size={20} strokeWidth={2.5} />
-                                </div>
-                                <span className="bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded text-[9px] font-bold shadow-sm">METRIC</span>
-                            </div>
-                            <div className="relative z-10">
-                                <div className="flex items-end gap-2">
-                                    <p className="text-3xl font-black text-white">{mainAgg.rate}%</p>
-                                </div>
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wide mt-1 mb-3">Average Compliance</p>
-                                {/* Progress Bar */}
-                                <div className="w-full bg-slate-800 rounded-full h-1.5">
-                                    <div className={`h-1.5 rounded-full ${mainAgg.rate >= 80 ? 'bg-emerald-400' : mainAgg.rate >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${mainAgg.rate}%` }}></div>
-                                </div>
-                            </div>
-                        </div>
+                              {/* Zero Submissions */}
+                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'zero' }); setModalSearch(''); }} className="h-full bg-rose-50/50 rounded-xl p-4 sm:p-5 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3 shadow-sm border border-rose-200 group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors relative z-10">
+                                      <XCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                                  </div>
+                                  <div className="flex flex-col items-center justify-center relative z-10">
+                                      <p className="text-3xl sm:text-4xl font-black text-rose-900">{mainAgg.zero}</p>
+                                      <p className="text-[10px] sm:text-xs font-bold text-rose-700 uppercase tracking-wide mt-1.5">No Data</p>
+                                      <p className="text-[9px] sm:text-[10px] font-medium text-rose-600/70 mt-0.5">0 submissions</p>
+                                  </div>
+                              </div>
+                          </div>
                       </>
                   )}
               </div>
@@ -1273,7 +1320,7 @@ export default function AdminDashboard({
                         <StatusBadge status={facilityStatusLabel} />
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-2">
-                        <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Animal Bite and Rabies Report Form</span>
+                        <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider whitespace-normal break-words text-right max-w-[150px] sm:max-w-[200px]">Animal Bite and Rabies Report Form</span>
                         {periodType === 'Monthly' ? <StatusBadge status={main} /> : renderFractionBadge(f, mainMatrix)}
                     </div>
                   </div>

@@ -252,7 +252,7 @@ function DashboardContent() {
       {needsConsent && <PostLoginEula onAcceptComplete={() => setNeedsConsent(false)} />}
 
       {/* --- HEADER --- */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 no-print transition-all duration-300 shadow-sm shrink-0">
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 no-print transition-all duration-300 shadow-sm shrink-0">
         <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-3 flex items-center justify-between relative min-h-[72px]">
           
           {/* LEFT: LOGO, TITLE, AND DATE/TIME */}
@@ -323,7 +323,7 @@ function DashboardContent() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-8" id="report-content">
+      <main className="flex-1 p-4 md:p-8 relative z-0" id="report-content">
         {activeNav === 'reports' ? (
            <AnalyticsOverview 
               periodType={periodType} setPeriodType={setPeriodType}
