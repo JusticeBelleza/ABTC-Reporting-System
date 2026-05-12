@@ -6,7 +6,7 @@ export default function DemographicCharts({
   locationTitleBase, locationTotal, locationData, tableData,
   categoryTotal, categoryData,
   animalTotal, animalData,
-  statusTotal, statusData, // RESTORED PROPS
+  statusTotal, statusData,
   sexTotal, demographicsSexData,
   ageTotal, demographicsAgeData,
   handleDownload, renderDynamicBarLabel, renderCustomizedLabel,
@@ -16,19 +16,19 @@ export default function DemographicCharts({
     <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
         
         {/* ROW 1: Location Volume (FULL WIDTH) & Text Chips */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow flex flex-col h-full lg:col-span-6" id="chart-location">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full lg:col-span-6" id="chart-location">
             <div className="flex justify-between items-start mb-6 shrink-0">
                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                    {locationTitleBase} <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={locationTotal})</span>
                </h3>
-               <button onClick={() => handleDownload('chart-location', `Locations.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+               <button onClick={() => handleDownload('chart-location', `Locations.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all"><Download size={16}/></button>
             </div>
             
             {/* MAIN BAR CHART */}
             <div className="h-[280px] w-full shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart data={locationData} margin={{ top: 10, right: 10, left: -20, bottom: 85 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#CBD5E1" />
                         <XAxis dataKey="name" angle={-90} textAnchor="end" dy={5} tick={{fontSize: 10, fill: '#475569', letterSpacing: '0.05em'}} interval={0} />
                         <YAxis tick={{fontSize: 10}} />
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
@@ -43,7 +43,7 @@ export default function DemographicCharts({
             {tableData.length > 0 && (
                 <div className="mt-8 border-t border-slate-100 pt-4 shrink-0">
                     <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                       <Building2 size={12} /> External Catchment Cases
+                        <Building2 size={12} /> External Catchment Cases
                     </h4>
                     <div className="flex flex-wrap gap-2">
                         {tableData.map(row => (
@@ -58,17 +58,17 @@ export default function DemographicCharts({
         </div>
 
         {/* ROW 2: Exposure Category | Biting Animal | Animal Status */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-2" id="chart-cat">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2" id="chart-cat">
             <div className="flex justify-between items-start mb-6">
                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                    Exposure Category <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={categoryTotal})</span>
                </h3>
-               <button onClick={() => handleDownload('chart-cat', `Categories.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+               <button onClick={() => handleDownload('chart-cat', `Categories.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all"><Download size={16}/></button>
             </div>
             <div className="h-[280px] mt-2">
                 <ResponsiveContainer>
                     <RechartsBarChart data={categoryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#CBD5E1" />
                         <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 700}} />
                         <YAxis tick={{fontSize: 10}} />
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
@@ -81,17 +81,17 @@ export default function DemographicCharts({
             </div>
         </div>
         
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-2" id="chart-animal">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2" id="chart-animal">
             <div className="flex justify-between items-start mb-6">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                     Biting Animal <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={animalTotal})</span>
                 </h3>
-                <button onClick={() => handleDownload('chart-animal', `Biting_Animal.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+                <button onClick={() => handleDownload('chart-animal', `Biting_Animal.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all"><Download size={16}/></button>
             </div>
             <div className="h-[280px] mt-2">
                 <ResponsiveContainer>
                     <RechartsBarChart data={animalData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#CBD5E1" />
                         <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 700}} />
                         <YAxis tick={{fontSize: 10}} />
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
@@ -104,18 +104,18 @@ export default function DemographicCharts({
             </div>
         </div>
 
-        {/* RESTORED: ANIMAL STATUS CHART */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-2" id="chart-status">
+        {/* ANIMAL STATUS CHART */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2" id="chart-status">
             <div className="flex justify-between items-start mb-6">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                     Animal Status <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={statusTotal})</span>
                 </h3>
-                <button onClick={() => handleDownload('chart-status', `Animal_Status.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+                <button onClick={() => handleDownload('chart-status', `Animal_Status.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all"><Download size={16}/></button>
             </div>
             <div className="h-[280px] mt-2">
                 <ResponsiveContainer>
                     <RechartsBarChart data={statusData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#CBD5E1" />
                         <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 700}} />
                         <YAxis tick={{fontSize: 10}} />
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
@@ -129,12 +129,12 @@ export default function DemographicCharts({
         </div>
 
         {/* ROW 3: Demographics Sex | Demographics Age */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-3" id="chart-sex">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-3" id="chart-sex">
             <div className="flex justify-between items-start mb-6">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                     Patient Sex <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={sexTotal})</span>
                 </h3>
-                <button onClick={() => handleDownload('chart-sex', `Patient_Sex.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+                <button onClick={() => handleDownload('chart-sex', `Patient_Sex.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all"><Download size={16}/></button>
             </div>
             <div className="h-56">
                 <ResponsiveContainer>
@@ -149,16 +149,17 @@ export default function DemographicCharts({
             </div>
         </div>
         
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:shadow-md transition-shadow lg:col-span-3" id="chart-age">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-3" id="chart-age">
             <div className="flex justify-between items-start mb-6">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                     Patient Age <span className="text-blue-600 font-normal normal-case tracking-normal ml-1">(N={ageTotal})</span>
                 </h3>
-                <button onClick={() => handleDownload('chart-age', `Patient_Age.png`)} className="p-2 text-slate-400 hover:text-blue-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Download size={16}/></button>
+                <button onClick={() => handleDownload('chart-age', `Patient_Age.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all"><Download size={16}/></button>
             </div>
             <div className="h-56">
                 <ResponsiveContainer>
                     <RechartsBarChart layout="vertical" data={demographicsAgeData} margin={{ left: 20, right: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={false} stroke="#CBD5E1" />
                         <XAxis type="number" hide />
                         <YAxis type="category" dataKey="name" tick={{fontSize: 11, fontWeight: 700}} axisLine={false} />
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
