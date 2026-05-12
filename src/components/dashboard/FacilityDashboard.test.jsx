@@ -99,10 +99,10 @@ describe('AdminDashboard Access Controls & UI', () => {
     render(<AdminDashboard {...defaultProps} />);
 
     await waitFor(() => {
-        // Changed from 'Approved' to 'Approved Reports' to match new UI
         expect(screen.getByText('Approved Reports')).toBeInTheDocument();
         expect(screen.getByText('Pending Reports')).toBeInTheDocument();
-        expect(screen.getByText('Compliance Rate')).toBeInTheDocument();
+        // CHANGED: Using Regex /Compliance Rate/i to match "Monthly Compliance Rate" or "Quarterly Compliance Rate"
+        expect(screen.getByText(/Compliance Rate/i)).toBeInTheDocument();
     });
   });
 
