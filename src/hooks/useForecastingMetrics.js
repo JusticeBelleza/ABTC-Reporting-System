@@ -31,17 +31,34 @@ export function useForecastingMetrics({
       try {
         let query = supabase.from('abtc_reports_v2').select('*');
         
-        // As requested: Strictly ONLY Approved forms.
-        if (isAdmin || includeAllFacilities) {
-          query = query.eq('status', 'Approved');
-        } else {
+        if (!isAdmin && !includeAllFacilities) {
           query = query.eq('facility', user?.facility);
         }
         
-        const { data: reports, error } = await query;
+        const { data: rawReports, error } = await query;
         if (error) throw error;
 
-        if (reports) {
+        if (rawReports) {
+          const STATUS_PRIORITY = { 'Approved': 4, 'Pending': 3, 'Rejected': 2, 'Draft': 1 };
+          const dedupedMap = {};
+          
+          rawReports.forEach(r => {
+              const fName = String(r.facility || '').trim();
+              const key = `${fName}_${r.year}_${r.month}_${r.location_name}`;
+              
+              if (!dedupedMap[key]) {
+                  dedupedMap[key] = r;
+              } else {
+                  const currentPrio = STATUS_PRIORITY[dedupedMap[key].status] || 0;
+                  const newPrio = STATUS_PRIORITY[r.status] || 0;
+                  if (newPrio > currentPrio) {
+                      dedupedMap[key] = r;
+                  }
+              }
+          });
+          
+          const reports = Object.values(dedupedMap);
+
           const monthlyBuckets = {}; 
           [year - 1, year, year + 1].forEach(y => {
             monthlyBuckets[y] = {};
@@ -54,16 +71,18 @@ export function useForecastingMetrics({
           let truePrevYtd = 0;
           let firstReportDate = null;
           
-          // Set to track distinct Facility+Month combos for the Compliance Rate
           const submittedFacilityMonths = new Set();
 
           reports.forEach(r => {
             const fName = String(r.facility || '').trim();
             const rYear = Number(r.year);
             const dbMonth = String(r.month || '').trim().toLowerCase();
+            const isApproved = r.status === 'Approved';
+            const isPending = r.status === 'Pending';
+            const isRejected = r.status === 'Rejected';
 
-            // 1. POPULATE COMPLIANCE TRACKER
-            if (rYear === year) {
+            // FIX: Now includes Rejected alongside Pending and Approved!
+            if (rYear === year && (isApproved || isPending || isRejected)) {
                 if (dbMonth === 'annual') {
                     MONTHS.forEach(m => submittedFacilityMonths.add(`${fName}-${m}`));
                 } else if (dbMonth.includes('quarter')) {
@@ -78,7 +97,7 @@ export function useForecastingMetrics({
                 }
             }
 
-            if (!monthlyBuckets[rYear]) return;
+            if (!monthlyBuckets[rYear] || (!isApproved && (isAdmin || includeAllFacilities))) return;
 
             const n = (v) => Number(v) || 0;
             const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig) + n(r.cat2EligPri) + n(r.cat2EligBoost) + n(r.cat2NonElig);
@@ -122,7 +141,6 @@ export function useForecastingMetrics({
           setTotalYtdCases(Math.round(trueYtd));
           setTotalPreviousYtdCases(Math.round(truePrevYtd));
 
-          // 2. PERFECT COMPLIANCE RATE CALCULATION
           const targetFacilitiesCount = (isAdmin || includeAllFacilities) ? Math.max(facilities?.length || 1, 1) : 1;
           let expectedReports = 0; 
           let actualReports = 0;
@@ -255,20 +273,15 @@ export function useForecastingMetrics({
           });
           setHistoricalData(trendMatrix);
 
-          // ==========================================
-          // UPDATED SMART ALERTS LOGIC (PASSES TESTS)
-          // ==========================================
           const latest = lastValidIdx >= 0 ? processed24Months[lastValidIdx] : null;
           let alerts = [];
           let currentRisk = 'LOW';
 
-          // 1. Gathering Data State
           if (!latest || lastValidIdx < 2) {
               alerts.push({ type: 'info', title: 'Gathering Baseline Data', desc: 'Accumulating historical data for accurate forecasting.' });
           } else {
               const growth = latest.sma3 > 0 ? ((latest.wma3 - latest.sma3) / latest.sma3) * 100 : 0;
               
-              // High-Risk Baseline logic (Cat 3 + Stray cases)
               const pastWindow = processed24Months.slice(Math.max(0, lastValidIdx - 5), lastValidIdx).filter(x => x.raw !== null);
               const pastAvgHighRisk = pastWindow.length > 0 
                   ? pastWindow.reduce((sum, item) => sum + (item.cat3 || 0) + (item.stray || 0), 0) / pastWindow.length 
@@ -280,22 +293,18 @@ export function useForecastingMetrics({
                   ? currentHighRisk >= (pastAvgHighRisk * HIGH_RISK_SENSITIVITY)
                   : currentHighRisk >= 2);
 
-              // 2. High-Risk Rabies Indicator
               if (isHighRiskSpike) {
                   alerts.push({ type: 'critical', title: 'High-Risk Rabies Indicator', desc: 'Critical spike in Category 3 exposures and Stray Animal bites detected.' });
                   currentRisk = 'HIGH';
               } 
-              // 3. General Volume Anomaly
               else if (latest.raw > (latest.sma6 * OUTBREAK_SENSITIVITY)) {
                   alerts.push({ type: 'critical', title: 'Volume Anomaly', desc: 'Case volume significantly higher than 6-month baseline.' });
                   currentRisk = 'HIGH';
               } 
-              // 4. Rising Trend Warning
               else if (growth > TREND_SENSITIVITY) {
                   alerts.push({ type: 'warning', title: 'Rising Trend', desc: `Cases are accelerating ${growth.toFixed(1)}% above average.` });
                   currentRisk = 'MODERATE';
               } 
-              // 5. Stable Volume State
               else {
                   alerts.push({ type: 'success', title: 'Stable Volume', desc: 'Case volume is stable and within expected thresholds.' });
               }

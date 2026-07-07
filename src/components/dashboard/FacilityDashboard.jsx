@@ -297,8 +297,29 @@ export default function FacilityDashboard({
     fetchYearlyStats();
   }, [activeFacilityName, year, isConsolidatedView, v2Status]);
 
+
+  // =========================================================================
+  // THE FIX: BULLETPROOF MONTH STATUS CHECKER
+  // =========================================================================
   const myYearlyStats = yearlyStats.main || [];
-  const getMonthStatus = (m) => { const record = myYearlyStats.find(r => r.month === m); return record ? record.status : 'Not Submitted'; };
+  
+  const getMonthStatus = (m) => { 
+      const records = myYearlyStats.filter(r => r.month === m);
+      if (!records || records.length === 0) return 'Not Submitted';
+      
+      // If ANY row says Approved, the month is Approved.
+      if (records.some(r => r.status === 'Approved')) return 'Approved';
+      // If ANY row says Pending, the month is Pending.
+      if (records.some(r => r.status === 'Pending')) return 'Pending';
+      // If ANY row says Rejected, the month is Rejected.
+      if (records.some(r => r.status === 'Rejected')) return 'Rejected';
+      // If ANY row says Draft, the month is Draft.
+      if (records.some(r => r.status === 'Draft')) return 'Draft';
+      
+      return 'Not Submitted'; 
+  };
+  // =========================================================================
+
   const getStatusColor = (status, isFuture) => {
       if (isFuture) return 'bg-slate-50 border-slate-200 text-slate-300 border-dashed opacity-60';
       switch(status) {
@@ -318,16 +339,17 @@ export default function FacilityDashboard({
   if (periodType === 'Quarterly') {
       const qIdx = QUARTERS.indexOf(quarter);
       const qMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
-      const completeMonths = qMonths.filter(m => getMonthStatus(m) === 'Approved').length;
+      // Wait to allow pending/approved data to be exported so facilities can review what they submitted
+      const completeMonths = qMonths.filter(m => ['Pending', 'Approved'].includes(getMonthStatus(m))).length;
       if (completeMonths < 3) {
           canExportExcel = false;
-          exportWarning = `Cannot export: Only ${completeMonths}/3 months approved for this quarter.`;
+          exportWarning = `Cannot export: Only ${completeMonths}/3 months submitted for this quarter.`;
       }
   } else if (periodType === 'Annual') {
-      const approvedMonthsCount = MONTHS.filter(m => getMonthStatus(m) === 'Approved').length;
+      const approvedMonthsCount = MONTHS.filter(m => ['Pending', 'Approved'].includes(getMonthStatus(m))).length;
       if (approvedMonthsCount < 12) {
           canExportExcel = false;
-          exportWarning = `Cannot export: Only ${approvedMonthsCount}/12 months approved for the year.`;
+          exportWarning = `Cannot export: Only ${approvedMonthsCount}/12 months submitted for the year.`;
       }
   }
 

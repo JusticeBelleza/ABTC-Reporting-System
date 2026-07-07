@@ -327,58 +327,63 @@ export default function AnalyticsOverview({
   }, [v2Data]);
 
   const demographicsSexData = useMemo(() => [{ name: 'Male', value: safeTotals.male }, { name: 'Female', value: safeTotals.female }], [safeTotals]);
-  const demographicsAgeData = useMemo(() => [{ name: '< 15 Yrs', value: safeTotals.ageLt15 }, { name: '> 15 Yrs', value: safeTotals.ageGt15 }], [safeTotals]);
+  const demographicsAgeData = useMemo(() => [{ name: 'Under 15', value: safeTotals.ageUnder15 }, { name: '15 & Over', value: safeTotals.ageOver15 }], [safeTotals]);
+
   const categoryData = useMemo(() => [
-    { name: 'Cat I', value: safeTotals.cat1, fill: COLORS.cat1 },
-    { name: 'Cat II', value: safeTotals.cat2, fill: COLORS.cat2 },
-    { name: 'Cat III', value: safeTotals.cat3, fill: COLORS.cat3 }
+    { name: 'Category I', value: safeTotals.cat1 },
+    { name: 'Category II', value: (safeTotals.cat2EligPri + safeTotals.cat2EligBoost + safeTotals.cat2NonElig) },
+    { name: 'Category III', value: (safeTotals.cat3EligPri + safeTotals.cat3EligBoost + safeTotals.cat3NonElig) }
   ], [safeTotals]);
-  
-  const animalData = useMemo(() => {
-    const res = [];
-    if (safeTotals.dog > 0) res.push({ name: 'Dog', value: safeTotals.dog, fill: COLORS.dog });
-    if (safeTotals.cat > 0) res.push({ name: 'Cat', value: safeTotals.cat, fill: COLORS.cat });
-    if (safeTotals.others > 0) res.push({ name: 'Others', value: safeTotals.others, fill: COLORS.other });
-    return res.sort((a, b) => b.value - a.value);
-  }, [safeTotals]);
 
-  const statusData = useMemo(() => {
-    const res = [];
-    if (safeTotals.pet > 0) res.push({ name: 'Pet', value: safeTotals.pet, fill: COLORS.pet });
-    if (safeTotals.stray > 0) res.push({ name: 'Stray', value: safeTotals.stray, fill: COLORS.stray });
-    if (safeTotals.unk > 0) res.push({ name: 'Unknown', value: safeTotals.unk, fill: COLORS.unk });
-    return res.sort((a, b) => b.value - a.value);
-  }, [safeTotals]);
+  const animalData = useMemo(() => [
+    { name: 'Dog', value: safeTotals.typeDog },
+    { name: 'Cat', value: safeTotals.typeCat },
+    { name: 'Others', value: safeTotals.typeOthers }
+  ], [safeTotals]);
 
-  const categoryTotal = useMemo(() => categoryData.reduce((sum, item) => sum + item.value, 0), [categoryData]);
-  const sexTotal = useMemo(() => demographicsSexData.reduce((sum, item) => sum + item.value, 0), [demographicsSexData]);
-  const ageTotal = useMemo(() => demographicsAgeData.reduce((sum, item) => sum + item.value, 0), [demographicsAgeData]);
-  const animalTotal = useMemo(() => animalData.reduce((sum, item) => sum + item.value, 0), [animalData]);
-  const statusTotal = useMemo(() => statusData.reduce((sum, item) => sum + item.value, 0), [statusData]);
+  const statusData = useMemo(() => [
+    { name: 'Pet', value: safeTotals.statusPet },
+    { name: 'Stray', value: safeTotals.statusStray },
+    { name: 'Unknown', value: safeTotals.statusUnk }
+  ], [safeTotals]);
 
-  const handleDownload = async (id, name) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const url = await toPng(el, { pixelRatio: 2, backgroundColor: '#ffffff', filter: (node) => node.tagName !== 'BUTTON' });
-    const link = document.createElement('a'); link.download = name; link.href = url; link.click();
+  const categoryTotal = safeTotals.cat1 + safeTotals.cat2EligPri + safeTotals.cat2EligBoost + safeTotals.cat2NonElig + safeTotals.cat3EligPri + safeTotals.cat3EligBoost + safeTotals.cat3NonElig;
+  const animalTotal = safeTotals.typeDog + safeTotals.typeCat + safeTotals.typeOthers;
+  const statusTotal = safeTotals.statusPet + safeTotals.statusStray + safeTotals.statusUnk;
+  const sexTotal = safeTotals.male + safeTotals.female;
+  const ageTotal = safeTotals.ageUnder15 + safeTotals.ageOver15;
+
+  const handleDownload = (ref, filename) => {
+    if (ref.current === null) return;
+    toPng(ref.current, { cacheBust: true })
+      .then((dataUrl) => {
+        const link = document.createElement('a');
+        link.download = `${filename}.png`;
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch((err) => {
+        console.error('oops, something went wrong!', err);
+      });
   };
 
+  // RESTORED isDataApproved VARIABLE
   const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : v2Data.length > 0);
 
   const renderDataCompletenessBanner = () => {
     if (v2Data.length === 0) return null; 
-    const isComplete = isAdmin ? complianceRate === 100 : reportStatus === 'Approved';
+    const isComplete = complianceRate === 100;
     return (
       <div className={`mb-6 p-4 rounded-xl border flex items-start sm:items-center gap-3 shadow-sm ${isComplete ? 'bg-emerald-50/80 border-emerald-200/60' : 'bg-amber-50/80 border-amber-200/60'}`}>
         <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 sm:mt-0 ${isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
              {isComplete ? <CheckCircle size={18} strokeWidth={2.5}/> : <ShieldAlert size={18} strokeWidth={2.5}/>}
         </div>
         <div className="flex flex-col">
-          <h4 className={`text-sm font-bold ${isComplete ? 'text-emerald-900' : 'text-amber-900'}`}>{isComplete ? 'Complete Verified Data' : 'Incomplete Data Warning'}</h4>
+          <h4 className={`text-sm font-bold ${isComplete ? 'text-emerald-900' : 'text-amber-900'}`}>{isComplete ? 'Complete Submission Ledger' : 'Incomplete Data Warning'}</h4>
           <p className={`text-xs font-medium mt-0.5 ${isComplete ? 'text-emerald-700' : 'text-amber-700'}`}>
             {isAdmin 
-              ? (isComplete ? 'All authorized facilities have submitted approved reports for this period.' : `Only ${complianceRate}% of facilities have submitted approved reports.`)
-              : (isComplete ? 'Your facility report has been approved and verified for this period.' : 'Your facility report is still pending or in draft.')
+              ? (isComplete ? 'All authorized facilities have submitted reports for this period.' : `Only ${complianceRate}% of facilities have submitted their reports.`)
+              : (isComplete ? 'Your facility report has been submitted for this period.' : 'Your facility report is still pending or in draft.')
             }
           </p>
         </div>
@@ -387,9 +392,8 @@ export default function AnalyticsOverview({
   };
 
   return (
-    <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500 pb-12 w-full px-2 sm:px-4">
-      
-      <div className="bg-slate-900 rounded-2xl p-6 mb-4 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-6 border border-slate-800 relative overflow-hidden">
+    <div className="max-w-7xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500 relative pb-24 sm:pb-12 w-full px-2 sm:px-4">
+      <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print z-20 mt-2 mb-3">
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
           <div className="flex items-start gap-4 relative z-10">
               <div className="bg-slate-800 p-4 rounded-2xl shadow-inner border border-slate-700 text-yellow-400">
@@ -540,7 +544,7 @@ export default function AnalyticsOverview({
                           <div className={`${complianceRate >= 80 ? 'bg-emerald-50 text-emerald-600' : complianceRate >= 50 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'} px-2 py-1 rounded-lg text-[10px] font-bold`}>
                               {complianceRate >= 80 ? 'OPTIMAL' : complianceRate >= 50 ? 'FAIR' : 'LOW'}
                           </div>
-                          <span className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">APPROVED REPORTS</span>
+                          <span className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">SUBMITTED REPORTS</span>
                       </div>
                   </div>
               </div>

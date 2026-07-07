@@ -317,18 +317,57 @@ export default function AdminDashboard({
     const fetchV2StatsAndStatuses = async () => {
         if (!year) return;
         try {
-            const { data: v2Data } = await supabase.from('abtc_reports_v2').select('facility, month, status').eq('year', year);
-            setYearlyStats({ main: v2Data || [] });
+            let allV2Data = [];
+            let hasMore = true;
+            let page = 0;
+            const pageSize = 1000;
 
+            // Paginated loop for overall year metrics
+            while (hasMore) {
+                const { data, error } = await supabase
+                    .from('abtc_reports_v2')
+                    .select('facility, month, status')
+                    .eq('year', year)
+                    .range(page * pageSize, (page + 1) * pageSize - 1);
+                
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    allV2Data = [...allV2Data, ...data];
+                    page++;
+                    if (data.length < pageSize) hasMore = false;
+                } else {
+                    hasMore = false;
+                }
+            }
+            setYearlyStats({ main: allV2Data });
+
+            // Paginated filter logic strictly targeting current UI selection
             const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
-            const { data: currentPeriodData } = await supabase.from('abtc_reports_v2')
-                .select('facility, status, created_at')
-                .eq('year', year)
-                .eq('month', currentPeriod);
+            let allCurrentPeriodData = [];
+            let cpHasMore = true;
+            let cpPage = 0;
+
+            while (cpHasMore) {
+                const { data, error } = await supabase
+                    .from('abtc_reports_v2')
+                    .select('facility, status, created_at')
+                    .eq('year', year)
+                    .eq('month', currentPeriod)
+                    .range(cpPage * pageSize, (cpPage + 1) * pageSize - 1);
+
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    allCurrentPeriodData = [...allCurrentPeriodData, ...data];
+                    cpPage++;
+                    if (data.length < pageSize) cpHasMore = false;
+                } else {
+                    cpHasMore = false;
+                }
+            }
             
             const currentStatusMap = {};
-            if (currentPeriodData) {
-                currentPeriodData.forEach(row => {
+            if (allCurrentPeriodData.length > 0) {
+                allCurrentPeriodData.forEach(row => {
                     const fac = row.facility;
                     if (!currentStatusMap[fac]) currentStatusMap[fac] = { status: 'Draft', lastUpdated: row.created_at };
                     
@@ -436,11 +475,11 @@ export default function AdminDashboard({
 
         const map = {
             male: 'male', female: 'female', ageUnder15: 'age_under_15', ageOver15: 'age_over_15',
-            cat1: 'cat1', cat2EligPri: 'cat2_elig_pri', cat2EligBoost: 'cat2_elig_boost', cat2NonElig: 'cat2_non_elig',
-            cat3EligPri: 'cat3_elig_pri', cat3EligBoost: 'cat3_elig_boost', cat3NonElig: 'cat3_non_elig',
-            compCat2Pri: 'comp_cat2_pri', compCat2Boost: 'comp_cat2_boost', compCat3PriErig: 'comp_cat3_pri_erig', compCat3PriHrig: 'comp_cat3_pri_hrig', compCat3Boost: 'comp_cat3_boost',
-            typeDog: 'type_dog', typeCat: 'type_cat', typeOthers: 'type_others',
-            statusPet: 'status_pet', statusStray: 'status_stray', statusUnk: 'status_unk', rabiesCases: 'rabies_cases'
+            cat1: 'cat1', cat2_elig_pri: 'cat2EligPri', cat2_elig_boost: 'cat2EligBoost', cat2_non_elig: 'cat2NonElig',
+            cat3_elig_pri: 'cat3EligPri', cat3_elig_boost: 'cat3EligBoost', cat3_non_elig: 'cat3NonElig',
+            comp_cat2_pri: 'compCat2Pri', comp_cat2_boost: 'compCat2Boost', comp_cat3_pri_erig: 'compCat3PriErig', comp_cat3_pri_hrig: 'compCat3PriHrig', comp_cat3_boost: 'compCat3Boost',
+            type_dog: 'typeDog', type_cat: 'typeCat', type_others: 'typeOthers',
+            status_pet: 'statusPet', status_stray: 'statusStray', status_unk: 'statusUnk', rabies_cases: 'rabiesCases'
         };
 
         reports.forEach(row => {
@@ -470,7 +509,7 @@ export default function AdminDashboard({
 
             if (targetMuni && consolidatedData[targetMuni]) {
                 const agg = consolidatedData[targetMuni];
-                for (const [camel, snake] of Object.entries(map)) {
+                for (const [snake, camel] of Object.entries(map)) {
                     agg[camel] = addVal(agg[camel], row[snake]);
                 }
             }
@@ -511,12 +550,23 @@ export default function AdminDashboard({
       return (meta?.status || 'Active') === 'Active';
   });
 
+  // --- ADDED THIS BACK TO PREVENT REFERENCE ERROR ---
+  const STATUS_PRIORITY = { 'Approved': 4, 'Pending': 3, 'Rejected': 2, 'Draft': 1 };
   const dedupedYearlyStats = {};
   yearlyStats.main.forEach(r => {
       const key = `${r.facility}_${r.month}`;
-      if (!dedupedYearlyStats[key] || r.status === 'Approved') dedupedYearlyStats[key] = r;
+      if (!dedupedYearlyStats[key]) {
+          dedupedYearlyStats[key] = r;
+      } else {
+          const currentPrio = STATUS_PRIORITY[dedupedYearlyStats[key].status] || 0;
+          const newPrio = STATUS_PRIORITY[r.status] || 0;
+          if (newPrio > currentPrio) {
+              dedupedYearlyStats[key] = r;
+          }
+      }
   });
   const flatYearlyStats = Object.values(dedupedYearlyStats);
+  // ------------------------------------------------
 
   let exportTargetMonths = [];
   if (periodType === 'Quarterly') {
@@ -614,10 +664,10 @@ export default function AdminDashboard({
           <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 flex flex-col h-full gap-4 pt-2 relative pb-24 animate-in fade-in duration-500">
               <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden shrink-0 mt-2">
                   <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
-                  <div className="flex items-start sm:items-center gap-4 relative z-10">
+                  <div className="flex items-start sm:items-center gap-4 relative z-10 w-full">
                       <button onClick={() => setIsViewingConsolidated(false)} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-all"><ArrowLeft size={20}/></button>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4 min-w-0">
-                          <h2 className="font-extrabold tracking-tight text-white text-2xl sm:text-3xl truncate">Province-Wide Consolidated Report</h2>
+                          <h2 className="font-extrabold tracking-tight text-white text-xl sm:text-2xl truncate">Province-Wide Consolidated Report</h2>
                           <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1.5"><Layers size={14}/> Provincial Data</div>
                       </div>
                   </div>
@@ -703,28 +753,26 @@ export default function AdminDashboard({
   const targetMonths = getTargetMonths();
 
   const buildMatrix = () => {
-      const dedupedStats = {};
-      yearlyStats.main.forEach(r => {
-          const key = `${r.facility}_${r.month}`;
-          if (!dedupedStats[key] || r.status === 'Approved') dedupedStats[key] = r;
-      });
-      const flatStats = Object.values(dedupedStats);
-
       return displayedFacilities.map(f => {
-          const facStats = flatStats.filter(r => r.facility === f);
+          // WE REUSE THE NEWLY CREATED flatYearlyStats HERE
+          const facStats = flatYearlyStats.filter(r => r.facility === f);
           const mData = targetMonths.map(m => {
               const rec = facStats.find(r => r.month === m);
               return { month: m, status: rec ? rec.status : 'Not Submitted' };
           });
+          
           const approvedCount = mData.filter(d => d.status === 'Approved').length;
           const submittedCount = mData.filter(d => d.status !== 'Not Submitted' && d.status !== 'Draft').length;
           
           return {
-              facility: f, months: mData, approvedCount,
-              complianceRate: Math.round((approvedCount / targetMonths.length) * 100),
-              isFully: approvedCount === targetMonths.length,
+              facility: f, 
+              months: mData, 
+              approvedCount, 
+              submittedCount,
+              complianceRate: Math.round((submittedCount / targetMonths.length) * 100),
+              isFully: submittedCount === targetMonths.length,
               isZero: submittedCount === 0,
-              isPartial: approvedCount < targetMonths.length && submittedCount > 0
+              isPartial: submittedCount < targetMonths.length && submittedCount > 0
           };
       }).sort((a, b) => b.complianceRate - a.complianceRate || a.facility.localeCompare(b.facility));
   };
@@ -733,12 +781,13 @@ export default function AdminDashboard({
 
   const getAggregates = (matrix) => {
       if (matrix.length === 0) return { full: 0, partial: 0, zero: 0, rate: 0 };
-      const totalApproved = matrix.reduce((sum, m) => sum + m.approvedCount, 0);
+      
+      const totalSubmitted = matrix.reduce((sum, m) => sum + m.submittedCount, 0);
       return {
           full: matrix.filter(m => m.isFully).length,
           partial: matrix.filter(m => m.isPartial).length,
           zero: matrix.filter(m => m.isZero).length,
-          rate: Math.round((totalApproved / (displayedFacilities.length * targetMonths.length)) * 100) || 0
+          rate: Math.round((totalSubmitted / (displayedFacilities.length * targetMonths.length)) * 100) || 0
       };
   };
 
@@ -778,7 +827,7 @@ export default function AdminDashboard({
               isZero ? 'bg-rose-100 text-rose-700' : 
               'bg-amber-100 text-amber-700'
           }`}>
-              {facData.approvedCount} / {targetMonths.length}
+              {facData.submittedCount} / {targetMonths.length}
           </span>
       );
   };
@@ -798,7 +847,6 @@ export default function AdminDashboard({
         {statusModal.isOpen && (
             <ModalPortal>
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    {/* CHANGED: max-w-md to max-w-2xl */}
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3 overflow-hidden">
@@ -820,7 +868,7 @@ export default function AdminDashboard({
                             </button>
                         </div>
 
-                        {/* NEW: QUICK SEARCH BAR */}
+                        {/* QUICK SEARCH BAR */}
                         <div className="px-4 py-3 border-b border-slate-100 bg-white shrink-0">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -892,7 +940,6 @@ export default function AdminDashboard({
         {leaderboardModal.isOpen && (
             <ModalPortal>
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    {/* CHANGED: max-w-2xl to max-w-4xl */}
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3 overflow-hidden">
@@ -913,7 +960,7 @@ export default function AdminDashboard({
                             </button>
                         </div>
                         
-                        {/* NEW: QUICK SEARCH BAR */}
+                        {/* QUICK SEARCH BAR */}
                         <div className="px-4 py-3 border-b border-slate-100 bg-white shrink-0">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -954,7 +1001,7 @@ export default function AdminDashboard({
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
-                                                    <span className="text-xs font-bold text-slate-600">{item.approvedCount} / {targetMonths.length}</span>
+                                                    <span className="text-xs font-bold text-slate-600">{item.submittedCount} / {targetMonths.length}</span>
                                                     <span className={`text-xs font-black px-1.5 py-0.5 rounded ${item.complianceRate === 100 ? 'bg-emerald-100 text-emerald-700' : item.complianceRate > 0 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
                                                         {item.complianceRate}%
                                                     </span>
@@ -1011,7 +1058,7 @@ export default function AdminDashboard({
                                 {confirmModal.action === 'delete' && " This action cannot be undone."}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 w-full">
-                                <button onClick={() => setConfirmModal({ isOpen: false, action: null, facility: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition-all duration-200 border border-slate-200 order-2 sm:order-1">
+                                <button onClick={() => setConfirmModal({ isOpen: false, action: null, facility: null })} className="flex-1 py-3 sm:py-2.5 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition-all duration-200 border border-slate-200 order-2 sm:order-1">
                                     Cancel
                                 </button>
                                 <button onClick={handleConfirmAction} className={`flex-1 py-3 sm:py-2.5 text-black rounded-xl text-sm font-bold active:scale-95 transition-all duration-200 shadow-sm order-1 sm:order-2 ${confirmModal.action === 'delete' ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-yellow-400 hover:bg-yellow-500'}`}>
@@ -1070,7 +1117,7 @@ export default function AdminDashboard({
                     </select>
                 </div>
                 
-                {/* Dynamic Dropdowns (Hides Future Months/Quarters entirely) */}
+                {/* Dynamic Dropdowns */}
                 {periodType === 'Monthly' && (
                     <select value={month} onChange={e => setMonth(e.target.value)} disabled={!availableMonths.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
                         {availableMonths
@@ -1118,7 +1165,6 @@ export default function AdminDashboard({
         {/* ========================================== */}
         {!showArchived && (
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden group mb-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
-              {/* Background accent */}
               <div className="absolute right-0 top-0 w-64 h-64 bg-slate-50 rounded-full opacity-60 -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none"></div>
 
               <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-4 relative z-10 gap-2">
@@ -1164,7 +1210,6 @@ export default function AdminDashboard({
 
                         {/* STATUS BREAKDOWN CARDS */}
                         <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-                            {/* Approved */}
                             <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-emerald-50/50 rounded-xl p-4 sm:p-5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
                                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-sm border border-emerald-200 group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors relative z-10">
                                     <CheckCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
@@ -1176,7 +1221,6 @@ export default function AdminDashboard({
                                 </div>
                             </div>
 
-                            {/* Pending */}
                             <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-amber-50/50 rounded-xl p-4 sm:p-5 border border-amber-100 hover:bg-amber-100 hover:border-amber-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
                                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3 shadow-sm border border-amber-200 group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors relative z-10">
                                     <Clock size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
@@ -1188,7 +1232,6 @@ export default function AdminDashboard({
                                 </div>
                             </div>
 
-                            {/* Rejected */}
                             <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-rose-50/50 rounded-xl p-4 sm:p-5 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
                                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3 shadow-sm border border-rose-200 group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors relative z-10">
                                     <XCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
@@ -1231,7 +1274,6 @@ export default function AdminDashboard({
 
                           {/* STATUS BREAKDOWN CARDS */}
                           <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-                              {/* Fully Compliant */}
                               <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'full' }); setModalSearch(''); }} className="h-full bg-emerald-50/50 rounded-xl p-4 sm:p-5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
                                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-sm border border-emerald-200 group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors relative z-10">
                                       <CheckCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
@@ -1243,7 +1285,6 @@ export default function AdminDashboard({
                                   </div>
                               </div>
 
-                              {/* Partially Compliant */}
                               <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'partial' }); setModalSearch(''); }} className="h-full bg-amber-50/50 rounded-xl p-4 sm:p-5 border border-amber-100 hover:bg-amber-100 hover:border-amber-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
                                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3 shadow-sm border border-amber-200 group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors relative z-10">
                                       <Clock size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
@@ -1255,7 +1296,6 @@ export default function AdminDashboard({
                                   </div>
                               </div>
 
-                              {/* Zero Submissions */}
                               <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'zero' }); setModalSearch(''); }} className="h-full bg-rose-50/50 rounded-xl p-4 sm:p-5 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
                                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3 shadow-sm border border-rose-200 group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors relative z-10">
                                       <XCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
@@ -1346,7 +1386,6 @@ export default function AdminDashboard({
                     {showArchived ? 'Archived Facility' : 'Open Report →'}
                   </span>
                   
-                  {/* ONLY SYSADMIN CAN SEE ARCHIVE/DELETE */}
                   {user?.role === 'SYSADMIN' && (
                       <div className="flex gap-1.5">
                         <button onClick={(e) => requestAction(e, f, showArchived ? 'restore' : 'archive')} className={`transition-all duration-200 active:scale-90 p-1.5 sm:p-2 rounded-lg border border-transparent ${showArchived ? 'text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200'}`} title={showArchived ? "Restore" : "Archive"}>
@@ -1380,7 +1419,6 @@ export default function AdminDashboard({
              </div>
           )}
 
-          {/* Cards Pagination */}
           {totalCardPages > 1 && (
              <div className="col-span-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white rounded-2xl border border-slate-200 shadow-sm mt-2">
                  <button onClick={() => setCardPage(p => Math.max(1, p - 1))} disabled={cardPage === 1} className="text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-100 hover:text-slate-900 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm flex items-center gap-1.5 sm:gap-2">
