@@ -34,7 +34,6 @@ export function useForecastingMetrics({
         let page = 0;
         const pageSize = 1000;
 
-        // FIX: Paginate to bypass the 1000 row Supabase limit
         while (hasMore) {
             let query = supabase.from('abtc_reports_v2').select('*');
             if (!isAdmin && !includeAllFacilities) {
@@ -53,6 +52,14 @@ export function useForecastingMetrics({
                 else page++;
             } else {
                 hasMore = false;
+            }
+        }
+
+        let activeFacilityCount = facilities?.length || 1;
+        if (isAdmin || includeAllFacilities) {
+            const { data: activeFacs } = await supabase.from('facilities').select('name').eq('status', 'Active');
+            if (activeFacs) {
+                activeFacilityCount = activeFacs.length;
             }
         }
 
@@ -99,7 +106,8 @@ export function useForecastingMetrics({
             const isPending = r.status === 'Pending';
             const isRejected = r.status === 'Rejected';
 
-            if (rYear === year && (isApproved || isPending || isRejected)) {
+            // FIX: Rejected no longer counts towards compliance
+            if (rYear === year && (isApproved || isPending)) {
                 if (dbMonth === 'annual') {
                     MONTHS.forEach(m => submittedFacilityMonths.add(`${fName}-${m}`));
                 } else if (dbMonth.includes('quarter')) {
@@ -158,8 +166,7 @@ export function useForecastingMetrics({
           setTotalYtdCases(Math.round(trueYtd));
           setTotalPreviousYtdCases(Math.round(truePrevYtd));
 
-          // FIX: Since there are no archived facilities, facilities.length is exactly the active count.
-          const targetFacilitiesCount = Math.max(facilities?.length || 1, 1);
+          const targetFacilitiesCount = Math.max(activeFacilityCount, 1);
           let expectedReports = 0; 
           let actualReports = 0;
           const submittedArr = Array.from(submittedFacilityMonths);

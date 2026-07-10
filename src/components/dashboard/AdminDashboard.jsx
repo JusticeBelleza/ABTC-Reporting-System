@@ -256,7 +256,6 @@ export default function AdminDashboard({
   const currentRealYear = currentDate.getFullYear();
   const currentRealMonthIdx = currentDate.getMonth();
 
-  // Reset modal pagination when search changes
   useEffect(() => { setModalPage(1); }, [modalSearch]);
 
   const formatQuarterName = (q) => {
@@ -322,7 +321,6 @@ export default function AdminDashboard({
             let page = 0;
             const pageSize = 1000;
 
-            // Paginated loop for overall year metrics
             while (hasMore) {
                 const { data, error } = await supabase
                     .from('abtc_reports_v2')
@@ -341,7 +339,6 @@ export default function AdminDashboard({
             }
             setYearlyStats({ main: allV2Data });
 
-            // Paginated filter logic strictly targeting current UI selection
             const currentPeriod = periodType === 'Quarterly' ? quarter : (periodType === 'Annual' ? 'Annual' : month);
             let allCurrentPeriodData = [];
             let cpHasMore = true;
@@ -562,10 +559,68 @@ export default function AdminDashboard({
       }
   }, [year, month, quarter, periodType]);
 
+  const displayedFacilities = facilities.filter(f => {
+    const meta = facilityMeta.find(m => m.name === f);
+    const status = meta?.status || 'Active'; 
+    return showArchived ? status === 'Archived' : status === 'Active';
+  });
+
   const activeFacilities = facilities.filter(f => {
       const meta = facilityMeta.find(m => m.name === f);
       return (meta?.status || 'Active') === 'Active';
   });
+
+  const mainStats = displayedFacilities.reduce((acc, f) => {
+    const status = facilityStatuses[f]?.status || 'Draft';
+    if (status === 'Approved') acc.approved++;
+    if (status === 'Pending') acc.pending++;
+    if (status === 'Rejected') acc.rejected++;
+    
+    // FIX: Rejected reports no longer count as submitted. Only Approved or Pending count towards the completion percentage.
+    if (status === 'Approved' || status === 'Pending') acc.submitted++;
+    return acc;
+  }, { approved: 0, pending: 0, rejected: 0, submitted: 0 });
+
+  const totalFacilities = displayedFacilities.length;
+  const mainReportingRate = totalFacilities > 0 ? Math.round((mainStats.submitted / totalFacilities) * 100) : 0;
+
+  const getFacilitiesByStatus = (statusType) => {
+    return displayedFacilities.filter(f => (facilityStatuses[f]?.status || 'Draft') === statusType);
+  };
+
+  const getTargetMonths = () => {
+      if (periodType === 'Quarterly') {
+          const qIdx = QUARTERS.indexOf(quarter);
+          return [MONTHS[qIdx * 3], MONTHS[qIdx * 3 + 1], MONTHS[qIdx * 3 + 2]];
+      }
+      return MONTHS;
+  };
+  const targetMonths = getTargetMonths();
+
+  const buildMatrix = () => {
+      return displayedFacilities.map(f => {
+          const facStats = flatYearlyStats.filter(r => r.facility === f);
+          const mData = targetMonths.map(m => {
+              const rec = facStats.find(r => r.month === m);
+              return { month: m, status: rec ? rec.status : 'Not Submitted' };
+          });
+          
+          const approvedCount = mData.filter(d => d.status === 'Approved').length;
+          // FIX: Rejected reports no longer count as submitted
+          const submittedCount = mData.filter(d => d.status === 'Approved' || d.status === 'Pending').length;
+          
+          return {
+              facility: f, 
+              months: mData, 
+              approvedCount, 
+              submittedCount,
+              complianceRate: Math.round((submittedCount / targetMonths.length) * 100),
+              isFully: submittedCount === targetMonths.length,
+              isZero: submittedCount === 0,
+              isPartial: submittedCount < targetMonths.length && submittedCount > 0
+          };
+      }).sort((a, b) => b.complianceRate - a.complianceRate || a.facility.localeCompare(b.facility));
+  };
 
   const STATUS_PRIORITY = { 'Approved': 4, 'Pending': 3, 'Rejected': 2, 'Draft': 1 };
   const dedupedYearlyStats = {};
@@ -582,6 +637,22 @@ export default function AdminDashboard({
       }
   });
   const flatYearlyStats = Object.values(dedupedYearlyStats);
+
+  const mainMatrix = buildMatrix();
+
+  const getAggregates = (matrix) => {
+      if (matrix.length === 0) return { full: 0, partial: 0, zero: 0, rate: 0 };
+      
+      const totalSubmitted = matrix.reduce((sum, m) => sum + m.submittedCount, 0);
+      return {
+          full: matrix.filter(m => m.isFully).length,
+          partial: matrix.filter(m => m.isPartial).length,
+          zero: matrix.filter(m => m.isZero).length,
+          rate: Math.round((totalSubmitted / (displayedFacilities.length * targetMonths.length)) * 100) || 0
+      };
+  };
+
+  const mainAgg = getAggregates(mainMatrix);
 
   let exportTargetMonths = [];
   if (periodType === 'Quarterly') {
@@ -674,6 +745,44 @@ export default function AdminDashboard({
     }
   };
 
+  const filteredModalFacilities = (statusModal.isOpen ? getFacilitiesByStatus(statusModal.status) : []).filter(f => 
+      f.toLowerCase().includes(modalSearch.toLowerCase())
+  );
+  const totalModalPages = Math.ceil(filteredModalFacilities.length / ITEMS_PER_PAGE);
+  const paginatedModalFacilities = filteredModalFacilities.slice((modalPage - 1) * ITEMS_PER_PAGE, modalPage * ITEMS_PER_PAGE);
+
+  const getFilteredMatrix = () => {
+      let matrix = mainMatrix;
+      if (leaderboardModal.filter === 'full') matrix = mainMatrix.filter(m => m.isFully);
+      if (leaderboardModal.filter === 'partial') matrix = mainMatrix.filter(m => m.isPartial);
+      if (leaderboardModal.filter === 'zero') matrix = mainMatrix.filter(m => m.isZero);
+      
+      return matrix.filter(item => item.facility.toLowerCase().includes(modalSearch.toLowerCase()));
+  };
+
+  const totalCardPages = Math.ceil(displayedFacilities.length / CARDS_PER_PAGE);
+  const paginatedCards = displayedFacilities.slice((cardPage - 1) * CARDS_PER_PAGE, cardPage * CARDS_PER_PAGE);
+
+  const currentDisplayPeriod = periodType === 'Monthly' ? month : periodType === 'Quarterly' ? formatQuarterName(quarter) : 'Annual';
+
+  const renderFractionBadge = (facilityName, matrix) => {
+      const facData = matrix.find(m => m.facility === facilityName);
+      if (!facData) return <span className="bg-slate-100 text-slate-400 px-2 py-0.5 rounded font-bold text-[10px]">0 / {targetMonths.length}</span>;
+      
+      const isFull = facData.isFully;
+      const isZero = facData.isZero;
+      
+      return (
+          <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+              isFull ? 'bg-emerald-100 text-emerald-700' : 
+              isZero ? 'bg-rose-100 text-rose-700' : 
+              'bg-amber-100 text-amber-700'
+          }`}>
+              {facData.submittedCount} / {targetMonths.length}
+          </span>
+      );
+  };
+
   if (isViewingConsolidated) {
       return (
           <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 flex flex-col h-full gap-4 pt-2 relative pb-24 animate-in fade-in duration-500">
@@ -735,116 +844,6 @@ export default function AdminDashboard({
           </div>
       );
   }
-
-  const displayedFacilities = facilities.filter(f => {
-    const meta = facilityMeta.find(m => m.name === f);
-    const status = meta?.status || 'Active'; 
-    return showArchived ? status === 'Archived' : status === 'Active';
-  });
-
-  const mainStats = displayedFacilities.reduce((acc, f) => {
-    const status = facilityStatuses[f]?.status || 'Draft';
-    if (status === 'Approved') acc.approved++;
-    if (status === 'Pending') acc.pending++;
-    if (status === 'Rejected') acc.rejected++;
-    if (status !== 'Draft' && status !== 'View Only') acc.submitted++;
-    return acc;
-  }, { approved: 0, pending: 0, rejected: 0, submitted: 0 });
-
-  const totalFacilities = displayedFacilities.length;
-  const mainReportingRate = totalFacilities > 0 ? Math.round((mainStats.submitted / totalFacilities) * 100) : 0;
-
-  const getFacilitiesByStatus = (statusType) => {
-    return displayedFacilities.filter(f => (facilityStatuses[f]?.status || 'Draft') === statusType);
-  };
-
-  const getTargetMonths = () => {
-      if (periodType === 'Quarterly') {
-          const qIdx = QUARTERS.indexOf(quarter);
-          return [MONTHS[qIdx * 3], MONTHS[qIdx * 3 + 1], MONTHS[qIdx * 3 + 2]];
-      }
-      return MONTHS;
-  };
-  const targetMonths = getTargetMonths();
-
-  const buildMatrix = () => {
-      return displayedFacilities.map(f => {
-          const facStats = flatYearlyStats.filter(r => r.facility === f);
-          const mData = targetMonths.map(m => {
-              const rec = facStats.find(r => r.month === m);
-              return { month: m, status: rec ? rec.status : 'Not Submitted' };
-          });
-          
-          const approvedCount = mData.filter(d => d.status === 'Approved').length;
-          const submittedCount = mData.filter(d => d.status !== 'Not Submitted' && d.status !== 'Draft').length;
-          
-          return {
-              facility: f, 
-              months: mData, 
-              approvedCount, 
-              submittedCount,
-              complianceRate: Math.round((submittedCount / targetMonths.length) * 100),
-              isFully: submittedCount === targetMonths.length,
-              isZero: submittedCount === 0,
-              isPartial: submittedCount < targetMonths.length && submittedCount > 0
-          };
-      }).sort((a, b) => b.complianceRate - a.complianceRate || a.facility.localeCompare(b.facility));
-  };
-
-  const mainMatrix = buildMatrix();
-
-  const getAggregates = (matrix) => {
-      if (matrix.length === 0) return { full: 0, partial: 0, zero: 0, rate: 0 };
-      
-      const totalSubmitted = matrix.reduce((sum, m) => sum + m.submittedCount, 0);
-      return {
-          full: matrix.filter(m => m.isFully).length,
-          partial: matrix.filter(m => m.isPartial).length,
-          zero: matrix.filter(m => m.isZero).length,
-          rate: Math.round((totalSubmitted / (displayedFacilities.length * targetMonths.length)) * 100) || 0
-      };
-  };
-
-  const mainAgg = getAggregates(mainMatrix);
-
-  // SEARCH LOGIC FOR MODALS
-  const filteredModalFacilities = (statusModal.isOpen ? getFacilitiesByStatus(statusModal.status) : []).filter(f => 
-      f.toLowerCase().includes(modalSearch.toLowerCase())
-  );
-  const totalModalPages = Math.ceil(filteredModalFacilities.length / ITEMS_PER_PAGE);
-  const paginatedModalFacilities = filteredModalFacilities.slice((modalPage - 1) * ITEMS_PER_PAGE, modalPage * ITEMS_PER_PAGE);
-
-  const getFilteredMatrix = () => {
-      let matrix = mainMatrix;
-      if (leaderboardModal.filter === 'full') matrix = mainMatrix.filter(m => m.isFully);
-      if (leaderboardModal.filter === 'partial') matrix = mainMatrix.filter(m => m.isPartial);
-      if (leaderboardModal.filter === 'zero') matrix = mainMatrix.filter(m => m.isZero);
-      
-      return matrix.filter(item => item.facility.toLowerCase().includes(modalSearch.toLowerCase()));
-  };
-
-  const totalCardPages = Math.ceil(displayedFacilities.length / CARDS_PER_PAGE);
-  const paginatedCards = displayedFacilities.slice((cardPage - 1) * CARDS_PER_PAGE, cardPage * CARDS_PER_PAGE);
-
-  const currentDisplayPeriod = periodType === 'Monthly' ? month : periodType === 'Quarterly' ? formatQuarterName(quarter) : 'Annual';
-
-  const renderFractionBadge = (facilityName, matrix) => {
-      const facData = matrix.find(m => m.facility === facilityName);
-      if (!facData) return <span className="bg-slate-100 text-slate-400 px-2 py-0.5 rounded font-bold text-[10px]">0 / {targetMonths.length}</span>;
-      
-      const isFull = facData.isFully;
-      const isZero = facData.isZero;
-      
-      return (
-          <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-              isFull ? 'bg-emerald-100 text-emerald-700' : 
-              isZero ? 'bg-rose-100 text-rose-700' : 
-              'bg-amber-100 text-amber-700'
-          }`}>
-              {facData.submittedCount} / {targetMonths.length}
-          </span>
-      );
-  };
 
   return (
     <div className="max-w-7xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500 relative pb-24 sm:pb-12 w-full px-2 sm:px-4">

@@ -108,9 +108,10 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
     setLoading(false);
   };
 
+  // FIX: Wrap the main return in ModalPortal and change z-index to z-[100]
   return (
-    <>
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+    <ModalPortal>
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
         <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
           
           <div className="bg-slate-900 px-6 sm:px-8 py-5 border-b border-slate-800 flex justify-between items-center relative overflow-hidden shrink-0">
@@ -331,7 +332,7 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
       {/* --- CONFIRMATION MODAL --- */}
       {showConfirmModal && (
         <ModalPortal>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                   <div className="flex flex-col items-center text-center">
                       <div className="bg-slate-100 p-4 rounded-full mb-5 text-slate-800 shadow-inner">
@@ -364,6 +365,6 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
           </div>
         </ModalPortal>
       )}
-    </>
+    </ModalPortal>
   );
 }

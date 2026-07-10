@@ -111,7 +111,6 @@ export default function AnalyticsOverview({
               let page = 0;
               const pageSize = 1000;
 
-              // FIX: Paginate to bypass the 1000 row limit
               while (hasMore) {
                   let query = supabase.from('abtc_reports_v2').select('*').in('year', [year, year - 1]);
                   if (!isAdmin) query = query.eq('facility', user?.facility);
@@ -179,16 +178,27 @@ export default function AnalyticsOverview({
 
               setV2Data(buckets.filter(d => d.year === year && targetMonths.includes(d.month)));
               
-              const originalRow = allData.filter(d => {
-                  if (d.year !== year) return false;
-                  const dbM = String(d.month || '').trim().toLowerCase();
-                  if (periodType === 'Monthly') return dbM === month.toLowerCase();
-                  if (periodType === 'Quarterly') return dbM.includes(String(QUARTERS.indexOf(quarter) + 1));
-                  return dbM === 'annual';
-              });
+              // FIX: Determine correct reportStatus for Admin
+              if (isAdmin) {
+                  const targetMonthsLower = targetMonths.map(m => m.toLowerCase());
+                  const hasApprovedReportInPeriod = allData.some(d => 
+                      d.year === year && 
+                      d.status === 'Approved' && 
+                      targetMonthsLower.includes(String(d.month || '').trim().toLowerCase())
+                  );
+                  setReportStatus(hasApprovedReportInPeriod ? 'Approved' : 'Draft');
+              } else {
+                  const originalRow = allData.filter(d => {
+                      if (d.year !== year) return false;
+                      const dbM = String(d.month || '').trim().toLowerCase();
+                      if (periodType === 'Monthly') return dbM === month.toLowerCase();
+                      if (periodType === 'Quarterly') return dbM.includes(String(QUARTERS.indexOf(quarter) + 1));
+                      return dbM === 'annual';
+                  });
 
-              if (originalRow.length > 0) setReportStatus(isAdmin ? 'Approved' : originalRow[0].status || 'Draft');
-              else setReportStatus('Draft'); 
+                  if (originalRow.length > 0) setReportStatus(originalRow[0].status || 'Draft');
+                  else setReportStatus('Draft'); 
+              }
 
           } catch (err) {
               console.error("V2 Analytics Fetch Error:", err);
