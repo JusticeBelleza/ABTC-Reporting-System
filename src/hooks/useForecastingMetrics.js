@@ -29,20 +29,38 @@ export function useForecastingMetrics({
     const fetchHistory = async () => {
       setLoadingHistory(true);
       try {
-        let query = supabase.from('abtc_reports_v2').select('*');
-        
-        if (!isAdmin && !includeAllFacilities) {
-          query = query.eq('facility', user?.facility);
-        }
-        
-        const { data: rawReports, error } = await query;
-        if (error) throw error;
+        let allRawReports = [];
+        let hasMore = true;
+        let page = 0;
+        const pageSize = 1000;
 
-        if (rawReports) {
+        // FIX: Paginate to bypass the 1000 row Supabase limit
+        while (hasMore) {
+            let query = supabase.from('abtc_reports_v2').select('*');
+            if (!isAdmin && !includeAllFacilities) {
+              query = query.eq('facility', user?.facility);
+            }
+            
+            const { data, error } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
+            if (error) {
+                console.error("Pagination error:", error);
+                break;
+            }
+            
+            if (data && data.length > 0) {
+                allRawReports.push(...data);
+                if (data.length < pageSize) hasMore = false;
+                else page++;
+            } else {
+                hasMore = false;
+            }
+        }
+
+        if (allRawReports.length > 0) {
           const STATUS_PRIORITY = { 'Approved': 4, 'Pending': 3, 'Rejected': 2, 'Draft': 1 };
           const dedupedMap = {};
           
-          rawReports.forEach(r => {
+          allRawReports.forEach(r => {
               const fName = String(r.facility || '').trim();
               const key = `${fName}_${r.year}_${r.month}_${r.location_name}`;
               
@@ -81,7 +99,6 @@ export function useForecastingMetrics({
             const isPending = r.status === 'Pending';
             const isRejected = r.status === 'Rejected';
 
-            // FIX: Now includes Rejected alongside Pending and Approved!
             if (rYear === year && (isApproved || isPending || isRejected)) {
                 if (dbMonth === 'annual') {
                     MONTHS.forEach(m => submittedFacilityMonths.add(`${fName}-${m}`));
@@ -99,7 +116,7 @@ export function useForecastingMetrics({
 
             if (!monthlyBuckets[rYear] || (!isApproved && (isAdmin || includeAllFacilities))) return;
 
-            const n = (v) => Number(v) || 0;
+            const n = (v) => isNaN(Number(v)) ? 0 : Number(v);
             const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig) + n(r.cat2EligPri) + n(r.cat2EligBoost) + n(r.cat2NonElig);
             const cat3Tot = n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig) + n(r.cat3EligPri) + n(r.cat3EligBoost) + n(r.cat3NonElig);
             const rTotCases = n(r.cat1) + cat2Tot + cat3Tot;
@@ -141,7 +158,8 @@ export function useForecastingMetrics({
           setTotalYtdCases(Math.round(trueYtd));
           setTotalPreviousYtdCases(Math.round(truePrevYtd));
 
-          const targetFacilitiesCount = (isAdmin || includeAllFacilities) ? Math.max(facilities?.length || 1, 1) : 1;
+          // FIX: Since there are no archived facilities, facilities.length is exactly the active count.
+          const targetFacilitiesCount = Math.max(facilities?.length || 1, 1);
           let expectedReports = 0; 
           let actualReports = 0;
           const submittedArr = Array.from(submittedFacilityMonths);

@@ -53,7 +53,7 @@ const calcTotal = (rows) => {
     let sum = 0;
     rows.forEach(r => {
         if (!r.location_name || r.location_name.includes('Outside Catchment')) return;
-        const n = (v) => Number(v) || 0;
+        const n = (v) => isNaN(Number(v)) ? 0 : Number(v);
         const cat2Tot = n(r.cat2_elig_pri) + n(r.cat2_elig_boost) + n(r.cat2_non_elig);
         const cat3Tot = n(r.cat3_elig_pri) + n(r.cat3_elig_boost) + n(r.cat3_non_elig);
         sum += n(r.cat1) + cat2Tot + cat3Tot;
@@ -106,17 +106,36 @@ export default function AnalyticsOverview({
       const fetchV2Analytics = async () => {
           setLoading(true);
           try {
-              let query = supabase.from('abtc_reports_v2').select('*').in('year', [year, year - 1]);
-              if (isAdmin) query = query.eq('status', 'Approved');
-              else query = query.eq('facility', user?.facility);
+              let allData = [];
+              let hasMore = true;
+              let page = 0;
+              const pageSize = 1000;
 
-              const { data, error } = await query;
-              if (error) throw error;
+              // FIX: Paginate to bypass the 1000 row limit
+              while (hasMore) {
+                  let query = supabase.from('abtc_reports_v2').select('*').in('year', [year, year - 1]);
+                  if (!isAdmin) query = query.eq('facility', user?.facility);
+                  
+                  const { data, error } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
+                  if (error) {
+                      console.error("Pagination error:", error);
+                      break;
+                  }
+                  
+                  if (data && data.length > 0) {
+                      allData.push(...data);
+                      if (data.length < pageSize) hasMore = false;
+                      else page++;
+                  } else {
+                      hasMore = false;
+                  }
+              }
               
-              // Apply bucket distribution so Pie Charts don't break on quarters/annuals!
               const buckets = [];
-              (data || []).forEach(r => {
-                  const n = (v) => Number(v) || 0;
+              allData.forEach(r => {
+                  if (isAdmin && r.status !== 'Approved') return; 
+
+                  const n = (v) => isNaN(Number(v)) ? 0 : Number(v);
                   const distribute = (mName, divisor) => {
                       buckets.push({
                           ...r, month: mName,
@@ -160,8 +179,7 @@ export default function AnalyticsOverview({
 
               setV2Data(buckets.filter(d => d.year === year && targetMonths.includes(d.month)));
               
-              // Figure out actual DB status for the banner
-              const originalRow = (data || []).filter(d => {
+              const originalRow = allData.filter(d => {
                   if (d.year !== year) return false;
                   const dbM = String(d.month || '').trim().toLowerCase();
                   if (periodType === 'Monthly') return dbM === month.toLowerCase();
@@ -198,7 +216,7 @@ export default function AnalyticsOverview({
 
     v2Data.forEach(row => {
         if (!row.location_name || row.location_name.includes('Outside Catchment')) return;
-        const num = (v) => Number(v) || 0;
+        const num = (v) => isNaN(Number(v)) ? 0 : Number(v);
         const cases = num(row.cat1) + num(row.cat2_elig_pri) + num(row.cat2_elig_boost) + num(row.cat2_non_elig) + num(row.cat3_elig_pri) + num(row.cat3_elig_boost) + num(row.cat3_non_elig);
         
         if (cases > 0) {
@@ -311,8 +329,8 @@ export default function AnalyticsOverview({
   const safeTotals = useMemo(() => {
       let sums = { male: 0, female: 0, ageLt15: 0, ageGt15: 0, cat1: 0, cat2: 0, cat3: 0, dog: 0, cat: 0, others: 0, pet: 0, stray: 0, unk: 0 };
       v2Data.forEach(r => {
-          if (r.location_name.includes('Outside Catchment')) return;
-          const n = (v) => Number(v) || 0;
+          if (!r.location_name || r.location_name.includes('Outside Catchment')) return;
+          const n = (v) => isNaN(Number(v)) ? 0 : Number(v);
           sums.male += n(r.male); sums.female += n(r.female);
           sums.ageLt15 += n(r.age_under_15); sums.ageGt15 += n(r.age_over_15);
           sums.cat1 += n(r.cat1);
@@ -326,39 +344,44 @@ export default function AnalyticsOverview({
       return sums;
   }, [v2Data]);
 
-  const demographicsSexData = useMemo(() => [{ name: 'Male', value: safeTotals.male }, { name: 'Female', value: safeTotals.female }], [safeTotals]);
-  const demographicsAgeData = useMemo(() => [{ name: 'Under 15', value: safeTotals.ageUnder15 }, { name: '15 & Over', value: safeTotals.ageOver15 }], [safeTotals]);
+  const demographicsSexData = useMemo(() => [{ name: 'Male', value: safeTotals.male || 0 }, { name: 'Female', value: safeTotals.female || 0 }], [safeTotals]);
+  
+  const demographicsAgeData = useMemo(() => [
+    { name: 'Under 15', value: safeTotals.ageLt15 || 0, fill: COLORS.ageLt15 }, 
+    { name: '15 & Over', value: safeTotals.ageGt15 || 0, fill: COLORS.ageGt15 }
+  ], [safeTotals]);
 
   const categoryData = useMemo(() => [
-    { name: 'Category I', value: safeTotals.cat1 },
-    { name: 'Category II', value: (safeTotals.cat2EligPri + safeTotals.cat2EligBoost + safeTotals.cat2NonElig) },
-    { name: 'Category III', value: (safeTotals.cat3EligPri + safeTotals.cat3EligBoost + safeTotals.cat3NonElig) }
+    { name: 'Category I', value: safeTotals.cat1 || 0, fill: COLORS.cat1 },
+    { name: 'Category II', value: safeTotals.cat2 || 0, fill: COLORS.cat2 },
+    { name: 'Category III', value: safeTotals.cat3 || 0, fill: COLORS.cat3 }
   ], [safeTotals]);
 
   const animalData = useMemo(() => [
-    { name: 'Dog', value: safeTotals.typeDog },
-    { name: 'Cat', value: safeTotals.typeCat },
-    { name: 'Others', value: safeTotals.typeOthers }
+    { name: 'Dog', value: safeTotals.dog || 0, fill: COLORS.dog },
+    { name: 'Cat', value: safeTotals.cat || 0, fill: COLORS.cat },
+    { name: 'Others', value: safeTotals.others || 0, fill: COLORS.other }
   ], [safeTotals]);
 
   const statusData = useMemo(() => [
-    { name: 'Pet', value: safeTotals.statusPet },
-    { name: 'Stray', value: safeTotals.statusStray },
-    { name: 'Unknown', value: safeTotals.statusUnk }
+    { name: 'Pet', value: safeTotals.pet || 0, fill: COLORS.pet },
+    { name: 'Stray', value: safeTotals.stray || 0, fill: COLORS.stray },
+    { name: 'Unknown', value: safeTotals.unk || 0, fill: COLORS.unk }
   ], [safeTotals]);
 
-  const categoryTotal = safeTotals.cat1 + safeTotals.cat2EligPri + safeTotals.cat2EligBoost + safeTotals.cat2NonElig + safeTotals.cat3EligPri + safeTotals.cat3EligBoost + safeTotals.cat3NonElig;
-  const animalTotal = safeTotals.typeDog + safeTotals.typeCat + safeTotals.typeOthers;
-  const statusTotal = safeTotals.statusPet + safeTotals.statusStray + safeTotals.statusUnk;
-  const sexTotal = safeTotals.male + safeTotals.female;
-  const ageTotal = safeTotals.ageUnder15 + safeTotals.ageOver15;
+  const categoryTotal = (safeTotals.cat1 || 0) + (safeTotals.cat2 || 0) + (safeTotals.cat3 || 0);
+  const animalTotal = (safeTotals.dog || 0) + (safeTotals.cat || 0) + (safeTotals.others || 0);
+  const statusTotal = (safeTotals.pet || 0) + (safeTotals.stray || 0) + (safeTotals.unk || 0);
+  const sexTotal = (safeTotals.male || 0) + (safeTotals.female || 0);
+  const ageTotal = (safeTotals.ageLt15 || 0) + (safeTotals.ageGt15 || 0);
 
   const handleDownload = (ref, filename) => {
-    if (ref.current === null) return;
-    toPng(ref.current, { cacheBust: true })
+    const el = document.getElementById(ref);
+    if (!el) return;
+    toPng(el, { cacheBust: true, backgroundColor: '#ffffff' })
       .then((dataUrl) => {
         const link = document.createElement('a');
-        link.download = `${filename}.png`;
+        link.download = filename;
         link.href = dataUrl;
         link.click();
       })
@@ -367,7 +390,6 @@ export default function AnalyticsOverview({
       });
   };
 
-  // RESTORED isDataApproved VARIABLE
   const isDataApproved = isAdmin || (periodType === 'Monthly' ? reportStatus === 'Approved' : v2Data.length > 0);
 
   const renderDataCompletenessBanner = () => {

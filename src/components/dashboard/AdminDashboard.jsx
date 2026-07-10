@@ -474,12 +474,29 @@ export default function AdminDashboard({
         };
 
         const map = {
-            male: 'male', female: 'female', ageUnder15: 'age_under_15', ageOver15: 'age_over_15',
-            cat1: 'cat1', cat2_elig_pri: 'cat2EligPri', cat2_elig_boost: 'cat2EligBoost', cat2_non_elig: 'cat2NonElig',
-            cat3_elig_pri: 'cat3EligPri', cat3_elig_boost: 'cat3EligBoost', cat3_non_elig: 'cat3NonElig',
-            comp_cat2_pri: 'compCat2Pri', comp_cat2_boost: 'compCat2Boost', comp_cat3_pri_erig: 'compCat3PriErig', comp_cat3_pri_hrig: 'compCat3PriHrig', comp_cat3_boost: 'compCat3Boost',
-            type_dog: 'typeDog', type_cat: 'typeCat', type_others: 'typeOthers',
-            status_pet: 'statusPet', status_stray: 'statusStray', status_unk: 'statusUnk', rabies_cases: 'rabiesCases'
+            male: 'male', 
+            female: 'female', 
+            age_under_15: 'ageUnder15', 
+            age_over_15: 'ageOver15',
+            cat1: 'cat1', 
+            cat2_elig_pri: 'cat2EligPri', 
+            cat2_elig_boost: 'cat2EligBoost', 
+            cat2_non_elig: 'cat2NonElig',
+            cat3_elig_pri: 'cat3EligPri', 
+            cat3_elig_boost: 'cat3EligBoost', 
+            cat3_non_elig: 'cat3NonElig',
+            comp_cat2_pri: 'compCat2Pri', 
+            comp_cat2_boost: 'compCat2Boost', 
+            comp_cat3_pri_erig: 'compCat3PriErig', 
+            comp_cat3_pri_hrig: 'compCat3PriHrig', 
+            comp_cat3_boost: 'compCat3Boost',
+            type_dog: 'typeDog', 
+            type_cat: 'typeCat', 
+            type_others: 'typeOthers',
+            status_pet: 'statusPet', 
+            status_stray: 'statusStray', 
+            status_unk: 'statusUnk', 
+            rabies_cases: 'rabiesCases'
         };
 
         reports.forEach(row => {
@@ -550,7 +567,6 @@ export default function AdminDashboard({
       return (meta?.status || 'Active') === 'Active';
   });
 
-  // --- ADDED THIS BACK TO PREVENT REFERENCE ERROR ---
   const STATUS_PRIORITY = { 'Approved': 4, 'Pending': 3, 'Rejected': 2, 'Draft': 1 };
   const dedupedYearlyStats = {};
   yearlyStats.main.forEach(r => {
@@ -566,7 +582,6 @@ export default function AdminDashboard({
       }
   });
   const flatYearlyStats = Object.values(dedupedYearlyStats);
-  // ------------------------------------------------
 
   let exportTargetMonths = [];
   if (periodType === 'Quarterly') {
@@ -754,7 +769,6 @@ export default function AdminDashboard({
 
   const buildMatrix = () => {
       return displayedFacilities.map(f => {
-          // WE REUSE THE NEWLY CREATED flatYearlyStats HERE
           const facStats = flatYearlyStats.filter(r => r.facility === f);
           const mData = targetMonths.map(m => {
               const rec = facStats.find(r => r.month === m);

@@ -2,6 +2,12 @@ import React from 'react';
 import { ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, LabelList, PieChart, Pie, Cell } from 'recharts';
 import { Download, Building2 } from 'lucide-react';
 
+// FIX: Added colorful palette specifically for Location rendering
+const LOCATION_COLORS = [
+    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#14B8A6', 
+    '#F97316', '#06B6D4', '#84CC16', '#EAB308', '#EC4899', '#6366F1'
+];
+
 export default function DemographicCharts({
   locationTitleBase, locationTotal, locationData, tableData,
   categoryTotal, categoryData,
@@ -32,7 +38,11 @@ export default function DemographicCharts({
                         <XAxis dataKey="name" angle={-90} textAnchor="end" dy={5} tick={{fontSize: 10, fill: '#475569', letterSpacing: '0.05em'}} interval={0} />
                         <YAxis tick={{fontSize: 10}} />
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
-                        <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                        {/* FIX: Mapped dynamic colors so each bar isn't just basic blue */}
+                        <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                            {locationData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={LOCATION_COLORS[index % LOCATION_COLORS.length]} />
+                            ))}
                             <LabelList dataKey="value" content={renderDynamicBarLabel} />
                         </Bar>
                     </RechartsBarChart>
@@ -72,6 +82,7 @@ export default function DemographicCharts({
                         <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 700}} />
                         <YAxis tick={{fontSize: 10}} />
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                        {/* FIX: Now maps correctly to e.fill */}
                         <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={100}>
                             {categoryData.map((e, i) => <Cell key={i} fill={e.fill} />)}
                             <LabelList dataKey="value" content={renderDynamicBarLabel} />
@@ -163,8 +174,9 @@ export default function DemographicCharts({
                         <XAxis type="number" hide />
                         <YAxis type="category" dataKey="name" tick={{fontSize: 11, fontWeight: 700}} axisLine={false} />
                         <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                        {/* FIX: Now maps correctly to e.fill */}
                         <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={false}>
-                            <Cell fill={COLORS.ageLt15} /><Cell fill={COLORS.ageGt15} />
+                            {demographicsAgeData.map((e, i) => <Cell key={`age-${i}`} fill={e.fill} />)}
                             <LabelList dataKey="value" position="right" style={{fontWeight: 'bold', fontSize: '12px'}} />
                         </Bar>
                     </RechartsBarChart>

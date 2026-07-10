@@ -120,11 +120,12 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
       const totElig = e2p + e2b + e3p + e3b;
       const totComp = c2p + c2b + c3z + c3b;
 
-      if (e2p > 0 && c2p / e2p > 1) pepExceedCount++;
-      if (e2b > 0 && c2b / e2b > 1) pepExceedCount++;
-      if (e3p > 0 && c3z / e3p > 1) pepExceedCount++;
-      if (e3b > 0 && c3b / e3b > 1) pepExceedCount++;
-      if (totElig > 0 && totComp / totElig > 1) pepExceedCount++;
+      // Direct comparison correctly flags errors even when Eligible is 0
+      if (c2p > e2p) pepExceedCount++;
+      if (c2b > e2b) pepExceedCount++;
+      if (c3z > e3p) pepExceedCount++;
+      if (c3b > e3b) pepExceedCount++;
+      if (totComp > totElig) pepExceedCount++;
   });
 
   const gt_e2p = calculateGrandTotal('cat2EligPri'), gt_c2p = calculateGrandTotal('compCat2Pri');
@@ -134,11 +135,11 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
   const gt_totElig = gt_e2p + gt_e2b + gt_e3p + gt_e3b;
   const gt_totComp = gt_c2p + gt_c2b + gt_c3z + gt_c3b;
 
-  if (gt_e2p > 0 && gt_c2p / gt_e2p > 1) pepExceedCount++;
-  if (gt_e2b > 0 && gt_c2b / gt_e2b > 1) pepExceedCount++;
-  if (gt_e3p > 0 && gt_c3z / gt_e3p > 1) pepExceedCount++;
-  if (gt_e3b > 0 && gt_c3b / gt_e3b > 1) pepExceedCount++;
-  if (gt_totElig > 0 && gt_totComp / gt_totElig > 1) pepExceedCount++;
+  if (gt_c2p > gt_e2p) pepExceedCount++;
+  if (gt_c2b > gt_e2b) pepExceedCount++;
+  if (gt_c3z > gt_e3p) pepExceedCount++;
+  if (gt_c3b > gt_e3b) pepExceedCount++;
+  if (gt_totComp > gt_totElig) pepExceedCount++;
 
   const tabs = [
     { id: 'tab1', label: 'ANIMAL BITE CASES' },
@@ -375,8 +376,12 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
     const totalElig = (num('cat2EligPri') + num('cat2EligBoost')) + (num('cat3EligPri') + num('cat3EligBoost'));
     const formatCovCell = (n, d) => {
         const pct = d > 0 ? (n/d)*100 : 0;
-        const err = pct > 100;
-        return <td style={{...STYLES.tdTotal, backgroundColor: err ? '#FEE2E2' : TOTAL_BG, color: err ? '#B91C1C' : '#0F172A'}}>{pct.toFixed(1)}%</td>;
+        const err = n > d; // Highlight red if completed > eligible, even if eligible is 0
+        return (
+          <td style={{...STYLES.tdTotal, backgroundColor: err ? '#FEE2E2' : TOTAL_BG, color: err ? '#B91C1C' : '#0F172A'}}>
+              {d === 0 && n > 0 ? '>100%' : `${pct.toFixed(1)}%`}
+          </td>
+        );
     };
     return (
       <>
@@ -428,7 +433,7 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
 const GrandTotalCells = ({ activeTab, calculate, populations }) => {
     const cellStyle = { ...STYLES.tdGrandTotal, backgroundColor: GRAND_TOTAL_BG };
 
-    const fPct = (n, d) => d > 0 ? ((n/d)*100).toFixed(1)+'%' : '0.0%';
+    const fPct = (n, d) => d > 0 ? ((n/d)*100).toFixed(1)+'%' : (n > 0 ? '>100%' : '0.0%');
     const totalPop = Object.values(populations || {}).reduce((sum, val) => sum + val, 0);
 
     if (activeTab === 'tab1') {
@@ -460,9 +465,11 @@ const GrandTotalCells = ({ activeTab, calculate, populations }) => {
                 <td style={cellStyle}>{c2p}</td><td style={cellStyle}>{c2b}</td>
                 <td style={cellStyle}>{calculate('compCat3PriErig')}</td><td style={cellStyle}>{calculate('compCat3PriHrig')}</td><td style={cellStyle}>{c3z}</td>
                 <td style={cellStyle}>{c3b}</td>
-                <td style={cellStyle}>{fPct(c2p, e2p)}</td><td style={cellStyle}>{fPct(c2b, e2b)}</td>
-                <td style={cellStyle}>{fPct(c3z, e3p)}</td><td style={cellStyle}>{fPct(c3b, e3b)}</td>
-                <td style={cellStyle}>{fPct(c2p+c2b+c3z+c3b, e2p+e2b+e3p+e3b)}</td>
+                <td style={{...cellStyle, backgroundColor: c2p > e2p ? '#FEE2E2' : cellStyle.backgroundColor, color: c2p > e2p ? '#B91C1C' : cellStyle.color}}>{fPct(c2p, e2p)}</td>
+                <td style={{...cellStyle, backgroundColor: c2b > e2b ? '#FEE2E2' : cellStyle.backgroundColor, color: c2b > e2b ? '#B91C1C' : cellStyle.color}}>{fPct(c2b, e2b)}</td>
+                <td style={{...cellStyle, backgroundColor: c3z > e3p ? '#FEE2E2' : cellStyle.backgroundColor, color: c3z > e3p ? '#B91C1C' : cellStyle.color}}>{fPct(c3z, e3p)}</td>
+                <td style={{...cellStyle, backgroundColor: c3b > e3b ? '#FEE2E2' : cellStyle.backgroundColor, color: c3b > e3b ? '#B91C1C' : cellStyle.color}}>{fPct(c3b, e3b)}</td>
+                <td style={{...cellStyle, backgroundColor: (c2p+c2b+c3z+c3b) > (e2p+e2b+e3p+e3b) ? '#FEE2E2' : cellStyle.backgroundColor, color: (c2p+c2b+c3z+c3b) > (e2p+e2b+e3p+e3b) ? '#B91C1C' : cellStyle.color}}>{fPct(c2p+c2b+c3z+c3b, e2p+e2b+e3p+e3b)}</td>
             </>
         );
     }
