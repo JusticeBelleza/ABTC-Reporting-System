@@ -213,7 +213,8 @@ export default function AnalyticsOverview({
 
   const {
     full24MonthData, loadingHistory, smartAlerts,
-    complianceRate, riskLevel, projectedNextMonth, modelMetrics
+    complianceRate, riskLevel, projectedNextMonth, modelMetrics,
+    inFlightMonth, lastFinalizedMonth
   } = useForecastingMetrics({
     year, month, quarter, periodType, facilities, user, isAdmin,
     currentDate, currentRealYear, OUTBREAK_SENSITIVITY, TREND_SENSITIVITY,
@@ -590,7 +591,9 @@ export default function AnalyticsOverview({
               year={year} full24MonthData={full24MonthData} handleDownload={handleDownload} showMathModal={showMathModal} setShowMathModal={setShowMathModal}
               OUTBREAK_SENSITIVITY={OUTBREAK_SENSITIVITY} TREND_SENSITIVITY={TREND_SENSITIVITY} TOOLTIP_STYLE={TOOLTIP_STYLE}
               projectedNextMonth={projectedNextMonth} riskLevel={riskLevel} modelMetrics={modelMetrics}
-              currentTotal={annualTotal} 
+              currentTotal={annualTotal}
+              inFlightMonth={inFlightMonth}
+              lastFinalizedMonth={lastFinalizedMonth}
             />
         </div>
       )}

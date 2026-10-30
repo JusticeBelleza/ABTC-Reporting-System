@@ -1,5 +1,5 @@
 import React from 'react';
-import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, Line } from 'recharts';
+import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Bar, Line, Cell } from 'recharts';
 import { BrainCircuit, Download, Calculator, X, TrendingUp, AlertTriangle, CheckCircle2, ActivitySquare, Info, Target, Loader2 } from 'lucide-react';
 import ModalPortal from '../modals/ModalPortal';
 
@@ -16,6 +16,48 @@ export default function PredictiveModel({
   const hasEnoughData = validDataCount >= 3 && projectedNextMonth !== null;
   
   const isCalibratingAccuracy = modelMetrics.validMonths < 3 || parseFloat(modelMetrics.accuracy) <= 0;
+
+  const CustomPredictiveTooltip = ({ active, payload, label }) => {
+    if (!active || !payload || !payload.length) return null;
+    const dataPoint = payload[0]?.payload;
+    const isInFlight = dataPoint?.isInFlight;
+
+    return (
+      <div className="bg-slate-900/95 backdrop-blur-md text-white p-3 sm:p-3.5 rounded-xl shadow-2xl border border-slate-700/80 text-xs space-y-2 max-w-[280px]">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-700/70 pb-1.5 font-bold">
+          <span className="text-sm text-slate-100">{label}</span>
+          {isInFlight && (
+            <span className="bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[9px] px-1.5 py-0.5 rounded font-black tracking-wide uppercase">
+              Reporting Active
+            </span>
+          )}
+        </div>
+        <div className="space-y-1">
+          {payload.map((entry, idx) => {
+            if (entry.value === null || entry.value === undefined) return null;
+            const isActual = entry.dataKey === 'raw';
+            return (
+              <div key={idx} className="flex items-center justify-between gap-3 text-[11px]">
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color || entry.stroke || entry.fill }} />
+                  {entry.name}:
+                </span>
+                <span className="font-bold text-white">
+                  {Math.round(entry.value)}
+                  {isActual && isInFlight ? ' (in-flight)' : ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {isInFlight && (
+          <p className="text-[10px] text-amber-300/90 pt-1.5 border-t border-slate-800 leading-tight">
+            * Submissions due 1st week of next month. Baseline trajectory stabilized.
+          </p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -77,10 +119,20 @@ export default function PredictiveModel({
                       
                       <XAxis dataKey="display" tick={{fill: '#94A3B8', fontSize: 10, fontWeight: 700}} axisLine={false} tickLine={false} />
                       <YAxis tick={{fill: '#94A3B8', fontSize: 11, fontWeight: 600}} axisLine={false} tickLine={false} />
-                      <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
+                      <RechartsTooltip content={<CustomPredictiveTooltip />} />
                       <Legend verticalAlign="top" align="right" wrapperStyle={{paddingBottom: '20px', fontSize: '11px', fontWeight: 'bold', color: '#1E293B'}} />
                       
-                      <Bar dataKey="raw" name="Total Actual Cases" fill="#3B82F6" radius={[4,4,0,0]} barSize={20} isAnimationActive={false} />
+                      <Bar dataKey="raw" name="Total Actual Cases" fill="#3B82F6" radius={[4,4,0,0]} barSize={20} isAnimationActive={false}>
+                        {chartDisplayData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.isInFlight ? '#93C5FD' : '#3B82F6'}
+                            stroke={entry.isInFlight ? '#2563EB' : 'none'}
+                            strokeDasharray={entry.isInFlight ? '3 3' : 'none'}
+                            strokeWidth={entry.isInFlight ? 1.5 : 0}
+                          />
+                        ))}
+                      </Bar>
                       <Line type="monotone" dataKey="sma12" name="12M SMA (Seasonality)" stroke="#000000" strokeWidth={2} dot={false} strokeDasharray="5 5" isAnimationActive={false} connectNulls={true} />
                       <Line type="monotone" dataKey="sma6" name="6M SMA (Mid-Term)" stroke="#F59E0B" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
                       <Line type="monotone" dataKey="sma3" name="3M SMA (Short-Term)" stroke="#10B981" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
@@ -95,8 +147,22 @@ export default function PredictiveModel({
               
               {hasEnoughData ? (
                   <div className="text-sm font-medium text-slate-600 leading-relaxed">
+                      {inFlightMonth && (
+                        <div className="mb-3.5 p-3 sm:p-3.5 bg-blue-50/90 border border-blue-200/80 rounded-xl flex items-start gap-2.5 text-xs text-blue-950 shadow-sm">
+                          <Info size={16} className="text-blue-600 mt-0.5 shrink-0" />
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-blue-900">
+                              Active Reporting Window: {inFlightMonth.month} {inFlightMonth.year}
+                            </p>
+                            <p className="text-blue-800 leading-relaxed">
+                              Facility submissions for {inFlightMonth.month} are due during the 1st week of the following month. Moving average baselines are anchored to <strong>{lastFinalizedMonth || 'the last closed month'}</strong> (projected at <strong>{projectedNextMonth} cases</strong>) to prevent incomplete reporting from distorting trends.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       <p className="mb-2">
-                        Based on recent trajectory data, the mathematical model projects an estimated <strong className="text-slate-900">{projectedNextMonth !== null ? projectedNextMonth : '--'} cases</strong> for the upcoming reporting period. 
+                        Based on recent trajectory data{lastFinalizedMonth ? ` through ${lastFinalizedMonth}` : ''}, the mathematical model projects an estimated <strong className="text-slate-900">{projectedNextMonth !== null ? projectedNextMonth : '--'} cases</strong> for the upcoming reporting period. 
                       </p>
                       <p>
                         Current case volume is classified as a <strong className={`px-1.5 py-0.5 rounded ${riskLevel === 'HIGH' ? 'bg-red-100 text-red-700' : riskLevel === 'MODERATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{riskLevel || 'LOW'} RISK</strong> event. This indicates that the active reporting volume is {riskLevel === 'HIGH' ? 'significantly exceeding normal baselines or showing critical indicators, suggesting a potential outbreak anomaly' : riskLevel === 'MODERATE' ? 'accelerating faster than the short-term average, indicating a rising trend' : 'stable and tracking normally within established historical baselines'}.
@@ -227,6 +293,15 @@ export default function PredictiveModel({
                                 </div>
                             </div>
                             
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <h5 className="font-bold text-sm text-slate-900 mb-1">Reporting Cycle & Finalization Cutoff</h5>
+                                <p className="text-xs text-slate-600 mb-2">Facility reports are compiled after month-end and submitted during the 1st week of the following month (deadline ~8th).</p>
+                                <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-950 font-medium leading-relaxed shadow-sm">
+                                    <strong className="block mb-1">Anti-Distortion Grace Period:</strong>
+                                    Months with open submission windows (&lt;80% complete prior to the 8th) are isolated as <em>in-flight</em>. Partial data is prevented from artificially collapsing 3M/6M moving averages or projecting false crashes. Projections anchor firmly to the last completed cycle.
+                                </div>
+                            </div>
+
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                 <h5 className="font-bold text-sm text-slate-900 mb-1">High-Risk Rabies Indicator (Score)</h5>
                                 <p className="text-xs text-slate-600 mb-3">Isolates the most severe exposure types (Category 3 and Stray Animals) to detect potential rabid animal incidents before total volume spikes.</p>

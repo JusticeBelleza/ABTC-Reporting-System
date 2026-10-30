@@ -19,6 +19,8 @@ export function useForecastingMetrics({
   
   const [totalYtdCases, setTotalYtdCases] = useState(0);
   const [totalPreviousYtdCases, setTotalPreviousYtdCases] = useState(0);
+  const [inFlightMonth, setInFlightMonth] = useState(null);
+  const [lastFinalizedMonth, setLastFinalizedMonth] = useState(null);
 
   const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
   const areaText = (isAdmin || facilityType === 'Hospital' || facilityType === 'Clinic') ? 'the province' : 'the municipality';
@@ -88,7 +90,7 @@ export function useForecastingMetrics({
           [year - 1, year, year + 1].forEach(y => {
             monthlyBuckets[y] = {};
             MONTHS.forEach(m => {
-              monthlyBuckets[y][m] = { raw: 0, cat3: 0, stray: 0, hasData: false };
+              monthlyBuckets[y][m] = { raw: 0, cat3: 0, stray: 0, hasData: false, approvedFacilities: new Set() };
             });
           });
 
@@ -139,6 +141,9 @@ export function useForecastingMetrics({
                 monthlyBuckets[rYear][mName].cat3 += c3;
                 monthlyBuckets[rYear][mName].stray += st;
                 monthlyBuckets[rYear][mName].hasData = true;
+                if (isApproved && fName) {
+                  monthlyBuckets[rYear][mName].approvedFacilities.add(fName);
+                }
               }
             };
 
@@ -188,15 +193,34 @@ export function useForecastingMetrics({
           setComplianceRate(Math.min(calcRate, 100));
 
           const allMonthsRaw = [];
+          const targetFacCount = Math.max(activeFacilityCount, 1);
+
           [year - 1, year].forEach(y => {
              MONTHS.forEach((m) => {
                 const bucket = monthlyBuckets[y][m];
                 const mIdx = MONTHS.indexOf(m);
+                
+                const approvedCount = bucket.approvedFacilities ? bucket.approvedFacilities.size : 0;
+                const monthCompliance = targetFacCount > 0 ? (approvedCount / targetFacCount) : 0;
+
+                // Reporting Grace Period & Finalization Cutoff:
+                // Monthly reports for month M are submitted during the 1st week of month M+1 (deadline ~8th).
+                // A month is finalized if:
+                // 1. It is from a previous calendar year (y < currentRealYear)
+                // 2. OR its approved submission compliance is >= 80%
+                // 3. OR the current date has passed the 1st week submission deadline (>= 8th of following month)
+                const deadlineDate = new Date(y, mIdx + 1, 8); 
+                const isDeadlinePassed = currentDate >= deadlineDate;
+                const isFullySubmitted = monthCompliance >= 0.8;
+                const isFuture = y > currentRealYear || (y === currentRealYear && mIdx > currentDate.getMonth());
                 const isPastOrCurrent = y < currentRealYear || (y === currentRealYear && mIdx <= currentDate.getMonth());
                 const isAfterFirstReport = firstReportDate && (y > firstReportDate.year || (y === firstReportDate.year && mIdx >= firstReportDate.monthIdx));
+
+                // Active reporting month is in-flight if the deadline hasn't elapsed AND submissions aren't complete
+                const isInFlight = !isFuture && !isFullySubmitted && !isDeadlinePassed;
                 
                 let rawVal = bucket.hasData ? Math.round(bucket.raw) : null;
-                if (rawVal === null && isPastOrCurrent && isAfterFirstReport) {
+                if (rawVal === null && isPastOrCurrent && isAfterFirstReport && !isInFlight) {
                     rawVal = 0;
                 }
                 
@@ -205,15 +229,21 @@ export function useForecastingMetrics({
                     raw: rawVal, 
                     cat3: Math.round(bucket.cat3), 
                     stray: Math.round(bucket.stray),
-                    display: `${m.substring(0,3)} ${y}` 
+                    display: `${m.substring(0,3)} ${y}`,
+                    isInFlight,
+                    monthCompliance: Math.round(monthCompliance * 100)
                 });
              });
           });
 
           const processed24Months = allMonthsRaw.map((item, idx, arr) => {
               const getAvg = (size) => {
-                  const start = Math.max(0, idx - size + 1);
-                  const window = arr.slice(start, idx + 1).map(x => x.raw).filter(x => x !== null);
+                  // Filter to only finalized (non-in-flight) months with data up to idx
+                  const window = arr
+                      .slice(0, idx + 1)
+                      .filter(x => x.raw !== null && !x.isInFlight)
+                      .slice(-size)
+                      .map(x => x.raw);
                   return window.length > 0 ? Math.round(window.reduce((a, b) => a + b, 0) / window.length) : null;
               };
 
@@ -222,7 +252,10 @@ export function useForecastingMetrics({
               const sma12 = getAvg(12);
 
               let wma3 = null;
-              const recent = arr.slice(Math.max(0, idx - 2), idx + 1).filter(x => x.raw !== null);
+              const recent = arr
+                  .slice(0, idx + 1)
+                  .filter(x => x.raw !== null && !x.isInFlight)
+                  .slice(-3);
               if (recent.length === 3) {
                   wma3 = Math.round(((recent[0].raw * 1) + (recent[1].raw * 2) + (recent[2].raw * 3)) / 6);
               } else {
@@ -232,7 +265,9 @@ export function useForecastingMetrics({
               return { ...item, sma3, sma6, sma12, wma3, forecast: null };
           });
 
-          const lastValidIdx = processed24Months.findLastIndex(d => d.raw !== null);
+          // Prioritize the latest fully finalized month for baselines
+          const lastFinalizedIdx = processed24Months.findLastIndex(d => d.raw !== null && !d.isInFlight);
+          const lastValidIdx = lastFinalizedIdx !== -1 ? lastFinalizedIdx : processed24Months.findLastIndex(d => d.raw !== null);
           let predictedVal = null;
           
           let absErrSum = 0; 
@@ -248,7 +283,7 @@ export function useForecastingMetrics({
                   if (predictedForCurrent !== null && predictedForCurrent !== undefined) {
                       processed24Months[i].forecast = predictedForCurrent;
                       
-                      if (currentActual !== null) {
+                      if (currentActual !== null && !processed24Months[i].isInFlight) {
                           const err = Math.abs(currentActual - predictedForCurrent);
                           absErrSum += err;
                           
@@ -271,8 +306,9 @@ export function useForecastingMetrics({
               predictedVal = last.wma3 !== null ? last.wma3 : (last.sma3 !== null ? last.sma3 : last.raw);
               setProjectedNextMonth(predictedVal);
 
-              if (lastValidIdx + 1 < processed24Months.length) {
-                  processed24Months[lastValidIdx + 1].forecast = predictedVal;
+              // Seamlessly project forward into both the active in-flight month AND upcoming month
+              for (let i = lastValidIdx + 1; i < processed24Months.length && i <= lastValidIdx + 2; i++) {
+                  processed24Months[i].forecast = predictedVal;
               }
           }
 
@@ -301,6 +337,9 @@ export function useForecastingMetrics({
           const latest = lastValidIdx >= 0 ? processed24Months[lastValidIdx] : null;
           let alerts = [];
           let currentRisk = 'LOW';
+
+          const activeInFlightMonth = processed24Months.find(d => d.isInFlight && d.raw !== null);
+          const lastFinalizedMonthName = latest ? `${latest.month} ${latest.year}` : null;
 
           if (!latest || lastValidIdx < 2) {
               alerts.push({ type: 'info', title: 'Gathering Baseline Data', desc: 'Accumulating historical data for accurate forecasting.' });
@@ -333,10 +372,25 @@ export function useForecastingMetrics({
               else {
                   alerts.push({ type: 'success', title: 'Stable Volume', desc: 'Case volume is stable and within expected thresholds.' });
               }
+
+              if (activeInFlightMonth) {
+                  alerts.push({
+                      type: 'info',
+                      title: `${activeInFlightMonth.month} Reporting Active`,
+                      desc: `Reports for ${activeInFlightMonth.month} are currently being submitted (due 1st week of next month). Trend baselines are anchored to ${latest?.month || 'the last closed month'}.`
+                  });
+              }
           }
           
           setSmartAlerts(alerts);
           setRiskLevel(currentRisk);
+          setInFlightMonth(activeInFlightMonth ? {
+              month: activeInFlightMonth.month,
+              year: activeInFlightMonth.year,
+              partialCases: activeInFlightMonth.raw || 0,
+              projectedCases: predictedVal
+          } : null);
+          setLastFinalizedMonth(lastFinalizedMonthName);
 
         } else {
           setSmartAlerts([{
@@ -351,6 +405,8 @@ export function useForecastingMetrics({
           setComplianceRate(0);
           setTotalYtdCases(0);
           setTotalPreviousYtdCases(0);
+          setInFlightMonth(null);
+          setLastFinalizedMonth(null);
         }
       } catch (err) {
         console.error("Analytics Error:", err);
@@ -375,6 +431,8 @@ export function useForecastingMetrics({
       projectedNextMonth, 
       modelMetrics,
       totalYtdCases, 
-      totalPreviousYtdCases 
+      totalPreviousYtdCases,
+      inFlightMonth,
+      lastFinalizedMonth
   };
 }

@@ -4,6 +4,7 @@ import { useForecastingMetrics } from './useForecastingMetrics';
 
 // 1. MOCK THE SUPABASE DATABASE
 let mockReportsData = [];
+let mockFacilitiesData = [{ name: 'Facility A', status: 'Active' }];
 
 vi.mock('../lib/supabase', () => ({
   supabase: {
@@ -24,7 +25,7 @@ vi.mock('../lib/supabase', () => ({
         }),
         then: (resolve) => {
           if (table === 'populations') return resolve({ data: [], error: null });
-          if (table === 'facilities') return resolve({ data: [{ name: 'Facility A', status: 'Active' }], error: null });
+          if (table === 'facilities') return resolve({ data: mockFacilitiesData, error: null });
           if (table === 'abtc_reports_v2') {
             const data = (rangeStart !== null && rangeEnd !== null)
               ? mockReportsData.slice(rangeStart, rangeEnd + 1)
@@ -63,6 +64,7 @@ describe('useForecastingMetrics', () => {
 
   beforeEach(() => {
     mockReportsData = [];
+    mockFacilitiesData = [{ name: 'Facility A', status: 'Active' }];
     vi.clearAllMocks();
   });
 
@@ -129,5 +131,56 @@ describe('useForecastingMetrics', () => {
     expect(topAlert.title).toBe('High-Risk Rabies Indicator');
     expect(topAlert.type).toBe('critical');
     expect(topAlert.desc).toContain('Critical spike in Category 3 exposures and Stray Animal bites detected');
+  });
+
+  it('4. Should stabilize forecasting when current month has partial in-flight reporting', async () => {
+    // 5 months of steady 100 cases (May - Sep 2026)
+    const steadyMonths = ['May', 'June', 'July', 'August', 'September'].map(m => ({
+      year: 2026,
+      month: m,
+      facility: 'Facility A',
+      status: 'Approved',
+      cat1: 90, cat3_elig_pri: 10, status_stray: 0 // 100 total cases
+    }));
+
+    // Incomplete October report (only 10 cases so far because today is Oct 30 and reporting window is open)
+    const incompleteOctober = {
+      year: 2026,
+      month: 'October',
+      facility: 'Facility A',
+      status: 'Approved',
+      cat1: 10, cat3_elig_pri: 0, status_stray: 0
+    };
+
+    mockReportsData = [...steadyMonths, incompleteOctober];
+    mockFacilitiesData = [
+      { name: 'Facility A', status: 'Active' },
+      { name: 'Facility B', status: 'Active' },
+      { name: 'Facility C', status: 'Active' },
+      { name: 'Facility D', status: 'Active' },
+      { name: 'Facility E', status: 'Active' }
+    ];
+
+    const octProps = {
+      ...baseProps,
+      month: 'October',
+      currentDate: new Date('2026-10-30'),
+      facilities: ['Facility A', 'Facility B', 'Facility C', 'Facility D', 'Facility E'] // 5 facilities total, only 1 approved = 20% (<80%)
+    };
+
+    const { result } = renderHook(() => useForecastingMetrics(octProps));
+
+    await waitFor(() => expect(result.current.loadingHistory).toBe(false));
+
+    // October should be identified as in-flight
+    expect(result.current.inFlightMonth).not.toBeNull();
+    expect(result.current.inFlightMonth.month).toBe('October');
+
+    // Forecast should be stabilized near 100 cases, NOT collapsed down into the 30s/40s
+    expect(result.current.projectedNextMonth).toBeGreaterThanOrEqual(95);
+    expect(result.current.projectedNextMonth).toBeLessThanOrEqual(105);
+
+    // Risk should stay LOW (not artificially triggered by incomplete data)
+    expect(result.current.riskLevel).toBe('LOW');
   });
 });
