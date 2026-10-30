@@ -87,8 +87,8 @@ export default defineConfig({
         manualChunks: {
           // Split heavy reporting and DB libraries into their own files to speed up initial load
           'vendor-excel': ['exceljs', 'file-saver'],
+          'vendor-charts': ['recharts'],
           'vendor-db': ['@supabase/supabase-js'],
-          'vendor-react': ['react', 'react-dom'],
         },
       },
     },

@@ -133,7 +133,7 @@ const PopulationUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
 
     return (
         <ModalPortal>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
                 <div className="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200 border border-slate-200 flex flex-col max-h-[90vh]">
                     
                     <input type="file" ref={fileInputRef} accept=".csv" onChange={handleFileChange} className="hidden" />
@@ -875,7 +875,7 @@ export default function AdminDashboard({
         {/* --- MONTHLY STATUS DETAILS MODAL --- */}
         {statusModal.isOpen && (
             <ModalPortal>
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3 overflow-hidden">
@@ -968,7 +968,7 @@ export default function AdminDashboard({
         {/* --- LEADERBOARD MATRIX MODAL --- */}
         {leaderboardModal.isOpen && (
             <ModalPortal>
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 border border-slate-100">
                         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3 overflow-hidden">
@@ -1072,7 +1072,7 @@ export default function AdminDashboard({
         {/* --- CONFIRMATION MODAL (Delete/Restore) --- */}
         {confirmModal.isOpen && (
             <ModalPortal>
-                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
                     <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden scale-100 animate-in zoom-in-95 duration-200 border border-slate-100">
                         <div className="flex flex-col items-center text-center">
                             <div className={`p-4 rounded-full mb-5 shadow-inner ${confirmModal.action === 'delete' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>

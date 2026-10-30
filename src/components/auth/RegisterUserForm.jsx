@@ -347,7 +347,7 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
       {/* --- CONFIRMATION MODAL --- */}
       {showConfirmModal && (
         <ModalPortal>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                   <div className="flex flex-col items-center text-center">
                       <div className="bg-slate-100 p-4 rounded-full mb-5 text-slate-800 shadow-inner">

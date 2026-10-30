@@ -3,6 +3,7 @@ import { ShieldAlert, Check, LogOut, Loader2, ShieldBan, FileWarning, Scale, Dat
 import { supabase } from '../../lib/supabase';
 import { useApp } from '../../context/AppContext';
 import { toast } from 'sonner'; // Upgraded from alert()
+import ModalPortal from '../modals/ModalPortal';
 
 export default function PostLoginEula({ onAcceptComplete }) {
   const { user, logout } = useApp(); 
@@ -32,7 +33,8 @@ export default function PostLoginEula({ onAcceptComplete }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-300">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-300">
       
       {/* Main Modal Card */}
       <div className="bg-white w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-500 delay-150 border border-slate-200">
@@ -169,5 +171,6 @@ export default function PostLoginEula({ onAcceptComplete }) {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}} />
     </div>
+    </ModalPortal>
   );
 }

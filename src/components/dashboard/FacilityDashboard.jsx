@@ -852,7 +852,7 @@ export default function FacilityDashboard({
         {/* --- EXPORT MODAL --- */}
         {showExportModal && (
             <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
                             <FileDown size={24} strokeWidth={2.5} />
@@ -874,7 +874,7 @@ export default function FacilityDashboard({
         {/* --- DELETE OTHER ROW MODAL --- */}
         {deleteRowModal.isOpen && (
             <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
                             <Trash2 size={24} strokeWidth={2.5} />
@@ -893,7 +893,7 @@ export default function FacilityDashboard({
         {/* --- DRAFT MODAL --- */}
         {showDraftModal && (
             <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mb-4">
                             <Save size={24} strokeWidth={2.5} />
@@ -912,7 +912,7 @@ export default function FacilityDashboard({
         {/* --- SUBMIT MODAL --- */}
         {showSubmitModal && (
             <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
                             <CheckCircle size={24} strokeWidth={2.5} />
@@ -935,7 +935,7 @@ export default function FacilityDashboard({
         {/* --- APPROVE MODAL --- */}
         {showApproveModal && (
             <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
                             <CheckCircle size={24} strokeWidth={2.5} />
@@ -954,7 +954,7 @@ export default function FacilityDashboard({
         {/* --- REJECT MODAL --- */}
         {showRejectModal && (
             <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white p-6 rounded-2xl max-w-sm w-full border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
                         <div className="mx-auto w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
                             <XCircle size={24} strokeWidth={2.5} />
@@ -986,7 +986,7 @@ export default function FacilityDashboard({
         {/* --- DELETE REPORT MODAL --- */}
         {showDeleteReportModal && (
             <ModalPortal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white p-6 rounded-2xl max-w-sm w-full text-center border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="mx-auto w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
                             <Trash2 size={24} strokeWidth={2.5} />
