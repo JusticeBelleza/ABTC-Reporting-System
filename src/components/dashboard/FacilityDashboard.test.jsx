@@ -24,9 +24,14 @@ vi.mock('../../context/AppContext', () => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn((table) => {
-      return {
+      const qb = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+        not: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
         then: (resolve) => {
           if (table === 'facilities') return resolve({ data: [], error: null });
           if (table === 'abtc_reports_v2') return resolve({ data: [], error: null });
@@ -34,6 +39,7 @@ vi.mock('../../lib/supabase', () => ({
           return resolve({ data: [], error: null });
         },
       };
+      return qb;
     })
   },
   adminHelperClient: {}

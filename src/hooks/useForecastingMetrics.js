@@ -338,6 +338,19 @@ export function useForecastingMetrics({
           setSmartAlerts(alerts);
           setRiskLevel(currentRisk);
 
+        } else {
+          setSmartAlerts([{
+            type: 'info',
+            title: 'Gathering Baseline Data',
+            desc: 'Accumulating historical data for accurate forecasting.'
+          }]);
+          setRiskLevel('LOW');
+          setHistoricalData([]);
+          setFull24MonthData([]);
+          setProjectedNextMonth(null);
+          setComplianceRate(0);
+          setTotalYtdCases(0);
+          setTotalPreviousYtdCases(0);
         }
       } catch (err) {
         console.error("Analytics Error:", err);

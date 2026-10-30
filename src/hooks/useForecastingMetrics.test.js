@@ -8,14 +8,29 @@ let mockReportsData = [];
 vi.mock('../lib/supabase', () => ({
   supabase: {
     from: vi.fn((table) => {
+      let rangeStart = null;
+      let rangeEnd = null;
       const queryBuilder = {
         select: vi.fn().mockReturnThis(),
         not: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         in: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        range: vi.fn((start, end) => {
+          rangeStart = start;
+          rangeEnd = end;
+          return queryBuilder;
+        }),
         then: (resolve) => {
           if (table === 'populations') return resolve({ data: [], error: null });
-          if (table === 'abtc_reports_v2') return resolve({ data: mockReportsData, error: null });
+          if (table === 'facilities') return resolve({ data: [{ name: 'Facility A', status: 'Active' }], error: null });
+          if (table === 'abtc_reports_v2') {
+            const data = (rangeStart !== null && rangeEnd !== null)
+              ? mockReportsData.slice(rangeStart, rangeEnd + 1)
+              : mockReportsData;
+            return resolve({ data, error: null });
+          }
           return resolve({ data: [], error: null });
         },
       };
