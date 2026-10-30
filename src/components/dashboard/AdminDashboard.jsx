@@ -441,19 +441,54 @@ export default function AdminDashboard({
         }
 
         let targetMonths = [];
-        if (periodType === 'Monthly') targetMonths = [month];
-        else if (periodType === 'Quarterly') {
+        if (periodType === 'Monthly') {
+            targetMonths = [month];
+        } else if (periodType === 'Quarterly') {
             const qIdx = QUARTERS.indexOf(quarter);
-            targetMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
-        } else targetMonths = MONTHS;
+            const qMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
+            targetMonths = [...qMonths, quarter, `Q${qIdx + 1}`, `${qIdx + 1}st Quarter`, `${qIdx + 1}nd Quarter`, `${qIdx + 1}rd Quarter`, `${qIdx + 1}th Quarter`];
+        } else {
+            targetMonths = [...MONTHS, 'Annual', 'annual'];
+        }
 
-        const { data: reports, error: repError } = await supabase.from('abtc_reports_v2')
-            .select('*')
-            .eq('year', year)
-            .in('month', periodType === 'Annual' ? MONTHS : targetMonths)
-            .eq('status', 'Approved');
+        // Ensure facility metadata is freshly available for accurate municipality mapping
+        let currentFacilityMeta = facilityMeta;
+        if (!currentFacilityMeta || currentFacilityMeta.length === 0) {
+            const { data: fData } = await supabase.from('facilities').select('name, status, type, ownership, municipality');
+            if (fData && fData.length > 0) {
+                currentFacilityMeta = fData;
+                setFacilityMeta(fData);
+            }
+        }
 
-        if (repError) throw repError;
+        // Paged fetch: Supabase PostgREST default limit is 1000 rows.
+        // Province-wide annual reports aggregate thousands of rows across all facilities and months.
+        let reports = [];
+        let hasMore = true;
+        let page = 0;
+        const pageSize = 1000;
+
+        while (hasMore) {
+            let query = supabase.from('abtc_reports_v2')
+                .select('*')
+                .eq('year', year)
+                .eq('status', 'Approved');
+
+            if (periodType !== 'Annual') {
+                query = query.in('month', targetMonths);
+            }
+
+            const { data, error: repError } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
+            if (repError) throw repError;
+
+            if (data && data.length > 0) {
+                reports = [...reports, ...data];
+                if (data.length < pageSize) hasMore = false;
+                else page++;
+            } else {
+                hasMore = false;
+            }
+        }
 
         const consolidatedData = {};
         ABRA_MUNICIPALITIES.forEach(m => consolidatedData[m] = {
@@ -500,24 +535,26 @@ export default function AdminDashboard({
 
         reports.forEach(row => {
             const loc = row.location_name?.trim();
-            const facName = row.facility;
+            if (!loc || loc.includes('Outside Catchment')) return;
+            const facName = row.facility?.trim();
             
             let targetMuni = null;
 
-            if (ABRA_MUNICIPALITIES.includes(loc)) {
-                targetMuni = loc;
-            } else if (loc === "Non-Abra") {
+            const exactMuni = ABRA_MUNICIPALITIES.find(m => m.toLowerCase() === loc.toLowerCase());
+            if (exactMuni) {
+                targetMuni = exactMuni;
+            } else if (loc.toLowerCase() === "non-abra") {
                 targetMuni = "Non-Abra"; 
             } else {
-                const fMeta = facilityMeta.find(m => m.name === facName);
-                if (fMeta && fMeta.municipality && ABRA_MUNICIPALITIES.includes(fMeta.municipality)) {
-                    targetMuni = fMeta.municipality;
+                const fMeta = currentFacilityMeta?.find(m => m.name?.trim().toLowerCase() === facName?.toLowerCase());
+                if (fMeta && fMeta.municipality && ABRA_MUNICIPALITIES.some(m => m.toLowerCase() === fMeta.municipality.toLowerCase())) {
+                    targetMuni = ABRA_MUNICIPALITIES.find(m => m.toLowerCase() === fMeta.municipality.toLowerCase());
                 } else {
                     const fCtx = facilityDetails?.[facName];
-                    if (fCtx && fCtx.municipality && ABRA_MUNICIPALITIES.includes(fCtx.municipality)) {
-                        targetMuni = fCtx.municipality;
+                    if (fCtx && fCtx.municipality && ABRA_MUNICIPALITIES.some(m => m.toLowerCase() === fCtx.municipality.toLowerCase())) {
+                        targetMuni = ABRA_MUNICIPALITIES.find(m => m.toLowerCase() === fCtx.municipality.toLowerCase());
                     } else {
-                        const guessed = ABRA_MUNICIPALITIES.find(m => facName.includes(m));
+                        const guessed = ABRA_MUNICIPALITIES.find(m => facName?.toLowerCase().includes(m.toLowerCase()));
                         if (guessed) targetMuni = guessed;
                     }
                 }
@@ -690,34 +727,59 @@ export default function AdminDashboard({
     try {
         const { v2Data, formRowKeys, otherRowKeys, formPopulations } = useReportStore.getState();
 
+        let currentFacilityMeta = facilityMeta;
+        if (!currentFacilityMeta || currentFacilityMeta.length === 0) {
+            const { data: fData } = await supabase.from('facilities').select('name, status, type, ownership, municipality');
+            if (fData && fData.length > 0) {
+                currentFacilityMeta = fData;
+            }
+        }
+
         let rawDataForAnnual = null;
         if (periodType === 'Annual') {
-            const { data: rd, error } = await supabase.from('abtc_reports_v2')
-                .select('*')
-                .eq('year', year)
-                .eq('status', 'Approved');
-            if (error) throw error;
+            let allAnnualRows = [];
+            let hasMore = true;
+            let page = 0;
+            const pageSize = 1000;
+
+            while (hasMore) {
+                const { data: rd, error } = await supabase.from('abtc_reports_v2')
+                    .select('*')
+                    .eq('year', year)
+                    .eq('status', 'Approved')
+                    .range(page * pageSize, (page + 1) * pageSize - 1);
+                if (error) throw error;
+                if (rd && rd.length > 0) {
+                    allAnnualRows = [...allAnnualRows, ...rd];
+                    if (rd.length < pageSize) hasMore = false;
+                    else page++;
+                } else {
+                    hasMore = false;
+                }
+            }
             
-            rawDataForAnnual = rd.map(row => {
+            rawDataForAnnual = allAnnualRows.map(row => {
                 const loc = row.location_name?.trim();
-                const facName = row.facility;
+                if (!loc || loc.includes('Outside Catchment')) return null;
+                const facName = row.facility?.trim();
                 
                 let targetMuni = null;
 
-                if (ABRA_MUNICIPALITIES.includes(loc)) {
-                    targetMuni = loc;
-                } else if (loc === "Non-Abra") {
+                const exactMuni = ABRA_MUNICIPALITIES.find(m => m.toLowerCase() === loc.toLowerCase());
+                if (exactMuni) {
+                    targetMuni = exactMuni;
+                } else if (loc.toLowerCase() === "non-abra") {
                     targetMuni = "Non-Abra"; 
                 } else {
-                    const fMeta = facilityMeta.find(m => m.name === facName);
-                    if (fMeta && fMeta.municipality && ABRA_MUNICIPALITIES.includes(fMeta.municipality)) {
-                        targetMuni = fMeta.municipality;
+                    const fMeta = currentFacilityMeta?.find(m => m.name?.trim().toLowerCase() === facName?.toLowerCase());
+                    if (fMeta && fMeta.municipality && ABRA_MUNICIPALITIES.some(m => m.toLowerCase() === fMeta.municipality.toLowerCase())) {
+                        targetMuni = ABRA_MUNICIPALITIES.find(m => m.toLowerCase() === fMeta.municipality.toLowerCase());
                     } else {
                         const fCtx = facilityDetails?.[facName];
-                        if (fCtx && fCtx.municipality && ABRA_MUNICIPALITIES.includes(fCtx.municipality)) {
-                            targetMuni = fCtx.municipality;
+                        if (fCtx && fCtx.municipality && ABRA_MUNICIPALITIES.some(m => m.toLowerCase() === fCtx.municipality.toLowerCase())) {
+                            targetMuni = ABRA_MUNICIPALITIES.find(m => m.toLowerCase() === fCtx.municipality.toLowerCase());
                         } else {
-                            const guessed = ABRA_MUNICIPALITIES.find(m => facName.includes(m));
+                            const guessed = ABRA_MUNICIPALITIES.find(m => facName?.toLowerCase().includes(m.toLowerCase()));
                             if (guessed) targetMuni = guessed;
                         }
                     }
