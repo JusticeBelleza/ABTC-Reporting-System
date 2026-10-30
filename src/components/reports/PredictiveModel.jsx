@@ -7,7 +7,9 @@ export default function PredictiveModel({
   year, full24MonthData, handleDownload, showMathModal, setShowMathModal,
   OUTBREAK_SENSITIVITY, TREND_SENSITIVITY, HIGH_RISK_SENSITIVITY = 1.25, TOOLTIP_STYLE,
   projectedNextMonth, riskLevel, currentTotal = 0,
-  modelMetrics = { accuracy: 0, mae: 0, mape: 0, validMonths: 0 } 
+  modelMetrics = { accuracy: 0, mae: 0, mape: 0, validMonths: 0 },
+  inFlightMonth = null,
+  lastFinalizedMonth = null
 }) {
   
   const chartDisplayData = full24MonthData.slice(-13);
