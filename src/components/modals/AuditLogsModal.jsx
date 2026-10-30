@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, ClipboardList, Loader2, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import ModalPortal from './ModalPortal';
+import { TableSkeleton } from '../common/DashboardSkeleton';
+import CustomDropdown from '../common/CustomDropdown';
 
 export default function AuditLogsModal({ onClose }) {
   const [logs, setLogs] = useState([]);
@@ -95,9 +97,8 @@ export default function AuditLogsModal({ onClose }) {
           {/* Table Body - Mobile Scrollable */}
           <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6">
             {loading ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <Loader2 size={32} className="animate-spin mb-3 text-blue-500" />
-                <p className="text-xs font-semibold">Loading secure logs...</p>
+              <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
+                <TableSkeleton rows={7} label="Loading secure audit logs..." />
               </div>
             ) : logs.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed mx-2 sm:mx-0">
@@ -105,7 +106,11 @@ export default function AuditLogsModal({ onClose }) {
                 <p className="text-xs font-semibold text-slate-500">No audit logs recorded yet.</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-slate-200 shadow-sm bg-white w-full overflow-hidden flex flex-col">
+              <>
+                <div className="sm:hidden flex items-center justify-end text-[10px] text-slate-400 font-medium px-1 mb-1.5">
+                  <span>← Scroll horizontally to view columns →</span>
+                </div>
+                <div className="rounded-xl border border-slate-200 shadow-sm bg-white w-full overflow-hidden flex flex-col">
                 <div className="overflow-x-auto w-full">
                   <table className="w-full text-left border-collapse text-[10px] sm:text-[11px] min-w-[800px]">
                     <thead className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
@@ -140,6 +145,7 @@ export default function AuditLogsModal({ onClose }) {
                   </table>
                 </div>
               </div>
+              </>
             )}
           </div>
 
@@ -149,15 +155,17 @@ export default function AuditLogsModal({ onClose }) {
               
               <div className="flex items-center gap-2 text-[10px] sm:text-xs font-medium text-slate-500">
                 <span>Show</span>
-                <select 
-                  value={logsPerPage} 
-                  onChange={(e) => { setLogsPerPage(Number(e.target.value)); setCurrentPage(1); }} 
-                  className="bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:ring-2 focus:ring-slate-900/20 font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
+                <CustomDropdown
+                  value={logsPerPage}
+                  onChange={(val) => { setLogsPerPage(Number(val)); setCurrentPage(1); }}
+                  options={[
+                    { value: 10, label: '10' },
+                    { value: 20, label: '20' },
+                    { value: 50, label: '50' }
+                  ]}
+                  className="w-16"
+                  buttonClassName="!py-1 !px-2 !text-xs font-bold !bg-slate-50"
+                />
                 <span>logs per page</span>
               </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, PlusCircle, Building2, MapPin, Building, Activity, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ModalPortal from '../modals/ModalPortal';
+import CustomDropdown from '../common/CustomDropdown';
 import { supabase } from '../../lib/supabase';
 
 // --- FLOATING TEXT INPUT ---
@@ -133,8 +134,8 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
       return !normalizedFacilities.includes(expectedRhuName);
   });
 
-  const handleMunicipalityChange = (e) => {
-    const muni = e.target.value;
+  const handleMunicipalityChange = (valOrEvent) => {
+    const muni = typeof valOrEvent === 'string' ? valOrEvent : valOrEvent?.target?.value;
     setSelectedMunicipality(muni);
     
     if (type === 'RHU') {
@@ -149,8 +150,8 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
     }
   };
 
-  const handleTypeChange = (e) => {
-      const newType = e.target.value;
+  const handleTypeChange = (valOrEvent) => {
+      const newType = typeof valOrEvent === 'string' ? valOrEvent : valOrEvent?.target?.value;
       setType(newType);
 
       if (newType === 'Hospital' || newType === 'Clinic') {
@@ -216,79 +217,59 @@ export default function AddFacilityForm({ onAdd, loading, facilities = [], onClo
             <div className="overflow-y-auto max-h-[75vh] custom-scrollbar">
                 <form onSubmit={handlePreSubmit} className="p-6 sm:p-8 space-y-5">
                   
-                  <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${!type ? 'border-rose-200 bg-rose-50/20' : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md'}`}>
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                          <Activity size={14} className={`transition-colors duration-300 ${!type ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900 group-focus-within:scale-110'}`} />
-                      </div>
-                      <label className={`absolute text-[9px] transform -translate-y-1 top-2 z-10 origin-[0] left-8 pointer-events-none font-bold tracking-wide transition-all ${!type ? 'text-rose-500' : 'text-slate-500 group-focus-within:text-slate-900'}`}>
-                          Facility Type <span className="text-red-500 ml-0.5">*</span>
+                  <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                          <Activity size={13} className="text-slate-400" />
+                          Facility Type <span className="text-red-500">*</span>
                       </label>
-                      <select 
-                          required
-                          value={type} 
-                          onChange={handleTypeChange} 
+                      <CustomDropdown
+                          value={type}
+                          onChange={handleTypeChange}
                           disabled={isFetchingLocations}
-                          className={`block w-full pl-8 pr-8 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${type ? 'text-slate-900' : 'text-slate-400'} disabled:opacity-50`}
-                      >
-                          <option value="" disabled>{isFetchingLocations ? "Loading Data..." : "Select Facility Type..."}</option>
-                          <option value="RHU">RHU (Rural Health Unit)</option>
-                          <option value="Hospital">Hospital</option>
-                          <option value="Clinic">Clinic</option>
-                      </select>
-                      <div className={`absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none ${!type ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900'}`}>
-                          {isFetchingLocations ? <Loader2 size={14} className="animate-spin" /> : <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>}
-                      </div>
+                          placeholder={isFetchingLocations ? "Loading Data..." : "Select Facility Type..."}
+                          options={[
+                              { value: 'RHU', label: 'RHU (Rural Health Unit)' },
+                              { value: 'Hospital', label: 'Hospital' },
+                              { value: 'Clinic', label: 'Clinic' }
+                          ]}
+                          className="w-full"
+                          buttonClassName="!py-2.5 !px-3 font-semibold !bg-white border-slate-200"
+                      />
                   </div>
 
                   <div className={`grid gap-4 ${type === 'RHU' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-                      {/* ONLY SHOW MUNICIPALITY IF TYPE IS RHU */}
                       {type === 'RHU' && (
-                          <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${!selectedMunicipality ? 'border-rose-200 bg-rose-50/20' : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md'}`}>
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                  <MapPin size={14} className={`transition-colors duration-300 ${!selectedMunicipality ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900 group-focus-within:scale-110'}`} />
-                              </div>
-                              <label className={`absolute text-[9px] duration-300 transform -translate-y-1 top-2 z-10 origin-[0] left-8 pointer-events-none font-bold tracking-wide transition-all ${!selectedMunicipality ? 'text-rose-500' : 'text-slate-500 group-focus-within:text-slate-900'}`}>
-                                  Municipality <span className="text-red-500 ml-0.5">*</span>
+                          <div className="space-y-1.5">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                                  <MapPin size={13} className="text-slate-400" />
+                                  Municipality <span className="text-red-500">*</span>
                               </label>
-                              <select 
-                                  required={type === 'RHU'}
-                                  value={selectedMunicipality} 
+                              <CustomDropdown
+                                  value={selectedMunicipality}
                                   onChange={handleMunicipalityChange}
-                                  className={`block w-full pl-8 pr-8 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${selectedMunicipality ? 'text-slate-900' : 'text-slate-400'}`}
-                              >
-                                  <option value="" disabled>Select Municipality...</option>
-                                  {availableMunicipalities.length > 0 ? (
-                                      availableMunicipalities.map(m => (
-                                          <option key={m} value={m} className="text-slate-900">{m}</option>
-                                      ))
-                                  ) : (
-                                      <option value="" disabled>No available municipalities</option>
-                                  )}
-                              </select>
-                              <div className={`absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none ${!selectedMunicipality ? 'text-rose-400' : 'text-slate-400 group-focus-within:text-slate-900'}`}>
-                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                              </div>
+                                  placeholder="Select Municipality..."
+                                  options={availableMunicipalities.map(m => ({ value: m, label: m }))}
+                                  className="w-full"
+                                  buttonClassName="!py-2.5 !px-3 font-semibold !bg-white border-slate-200"
+                              />
                           </div>
                       )}
 
-                      <div className="relative w-full shadow-sm rounded-lg border border-slate-200 bg-white hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-1 focus-within:ring-slate-900 focus-within:shadow-md transition-all duration-300 overflow-hidden group">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                              <Building size={14} className="text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300 group-focus-within:scale-110" />
-                          </div>
-                          <label className="absolute text-[9px] duration-300 transform -translate-y-1 top-2 z-10 origin-[0] left-8 pointer-events-none font-bold tracking-wide text-slate-500 group-focus-within:text-slate-900">
+                      <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                              <Building size={13} className="text-slate-400" />
                               Ownership
                           </label>
-                          <select 
-                              value={ownership} 
-                              onChange={e => setOwnership(e.target.value)} 
-                              className="block w-full pl-8 pr-8 pt-4 pb-1.5 text-xs font-medium appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer text-slate-900"
-                          >
-                              <option value="Government">Government</option>
-                              <option value="Private">Private</option>
-                          </select>
-                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-slate-900">
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                          </div>
+                          <CustomDropdown
+                              value={ownership}
+                              onChange={val => setOwnership(val)}
+                              options={[
+                                  { value: 'Government', label: 'Government' },
+                                  { value: 'Private', label: 'Private' }
+                              ]}
+                              className="w-full"
+                              buttonClassName="!py-2.5 !px-3 font-semibold !bg-white border-slate-200"
+                          />
                       </div>
                   </div>
 

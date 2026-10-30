@@ -24,8 +24,12 @@ export default function DemographicCharts({
                <button onClick={() => handleDownload('chart-location', `Locations.png`)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-all"><Download size={16}/></button>
             </div>
             
+            <div className="flex sm:hidden items-center justify-between text-[10px] text-slate-400 font-medium mb-1.5 px-0.5">
+                <span>All 27 Municipalities</span>
+                <span className="text-blue-600 font-semibold">← Swipe horizontally →</span>
+            </div>
             <div className="w-full overflow-x-auto hide-scrollbar">
-                <div className="h-[170px] sm:h-[260px] min-w-[420px] sm:min-w-full">
+                <div className="h-[170px] sm:h-[260px] min-w-[680px] sm:min-w-full">
                     <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart data={locationData} margin={{ top: 10, right: 10, left: -20, bottom: 60 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#CBD5E1" />

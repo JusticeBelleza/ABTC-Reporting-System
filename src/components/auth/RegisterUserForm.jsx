@@ -4,6 +4,7 @@ import { Turnstile } from '@marsidev/react-turnstile'; // --- UPDATED IMPORT ---
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import ModalPortal from '../modals/ModalPortal';
+import CustomDropdown from '../common/CustomDropdown';
 import { useApp } from '../../context/AppContext';
 
 // --- UPDATED ENV VARIABLE ---
@@ -170,65 +171,53 @@ export default function RegisterUserForm({ facilities = [], client, onSuccess })
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
                 {/* ROLE SELECTOR */}
-                <div className="relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group bg-white border-slate-200 hover:border-slate-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10">
-                    <label className={`absolute text-[10px] transform top-1.5 left-3 z-10 font-bold tracking-wide ${!formData.role ? 'text-rose-500' : 'text-slate-500 group-focus-within:text-blue-600'}`}>
-                        Account Role <span className="text-red-500 ml-0.5">*</span>
+                <div className="space-y-1.5">
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${!formData.role ? 'text-rose-500' : 'text-slate-700'}`}>
+                        Account Role <span className="text-red-500">*</span>
                     </label>
-                    <select 
-                        required
-                        value={formData.role} 
-                        onChange={e => {
-                            const newRole = e.target.value;
-                            // Automatically assign 'PHO' if Admin is selected
+                    <CustomDropdown
+                        value={formData.role}
+                        onChange={newRole => {
                             setFormData({
                                 ...formData, 
                                 role: newRole, 
                                 facility: newRole === 'admin' ? 'PHO' : (newRole === 'user' ? formData.facility : '')
                             });
-                        }} 
-                        className={`block w-full pl-3 pr-10 pt-5 pb-1.5 text-sm font-bold appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${formData.role ? 'text-slate-900' : 'text-slate-400'}`}
-                    >
-                        <option value="" disabled>Select a role...</option>
-                        {currentUser?.role === 'SYSADMIN' && (
-                            <option value="admin" className="text-slate-900">Administrator</option>
-                        )}
-                        <option value="user" className="text-slate-900">Standard User</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                    </div>
+                        }}
+                        placeholder="Select a role..."
+                        options={[
+                            ...(currentUser?.role === 'SYSADMIN' ? [{ value: 'admin', label: 'Administrator' }] : []),
+                            { value: 'user', label: 'Standard User' }
+                        ]}
+                        className="w-full"
+                        buttonClassName="!py-2.5 !px-3 font-semibold !bg-white border-slate-200"
+                    />
                 </div>
 
                 {/* FACILITY SELECTOR */}
-                <div className={`relative w-full shadow-sm rounded-lg border transition-all duration-300 overflow-hidden group ${formData.role === 'user' && !formData.facility ? 'border-rose-300 bg-rose-50/30' : 'bg-white border-slate-200 hover:border-slate-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10'}`}>
-                    <label className={`absolute text-[10px] transform top-1.5 left-3 z-10 font-bold tracking-wide ${formData.role === 'user' && !formData.facility ? 'text-rose-500' : 'text-slate-500 group-focus-within:text-blue-600'}`}>
-                        Assigned Facility {formData.role === 'user' && <span className="text-red-500 ml-0.5">*</span>}
+                <div className="space-y-1.5">
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${formData.role === 'user' && !formData.facility ? 'text-rose-500' : 'text-slate-700'}`}>
+                        Assigned Facility {formData.role === 'user' && <span className="text-red-500">*</span>}
                     </label>
-                    <select 
-                        required={formData.role === 'user'}
+                    <CustomDropdown
+                        value={formData.facility}
+                        onChange={val => setFormData({ ...formData, facility: val })}
                         disabled={formData.role !== 'user'}
-                        value={formData.facility} 
-                        onChange={e=>setFormData({...formData, facility: e.target.value})} 
-                        className={`block w-full pl-3 pr-10 pt-5 pb-1.5 text-sm font-bold appearance-none focus:outline-none bg-transparent border-none ring-0 cursor-pointer ${formData.facility || formData.role !== 'user' ? 'text-slate-900' : 'text-slate-400'} ${formData.role !== 'user' ? 'cursor-not-allowed opacity-60 bg-slate-50' : ''}`}
-                    >
-                        {formData.role === 'admin' ? (
-                            <option value="PHO">Provincial Health Office (PHO)</option>
-                        ) : formData.role === 'SYSADMIN' ? (
-                            <option value="">System-wide (No Facility)</option>
-                        ) : (
-                            <>
-                                <option value="" disabled>Select a facility...</option>
-                                {facilities.length > 0 ? (
-                                    facilities.map(f => <option key={f} value={f} className="text-slate-900">{f}</option>)
-                                ) : (
-                                    <option value="" disabled>No available facilities</option>
-                                )}
-                            </>
-                        )}
-                    </select>
-                    <div className={`absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none ${formData.role === 'user' && !formData.facility ? 'text-rose-400' : 'text-slate-400'}`}>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                    </div>
+                        placeholder={
+                            formData.role === 'admin' 
+                                ? "Provincial Health Office (PHO)" 
+                                : formData.role === 'SYSADMIN'
+                                ? "System-wide (No Facility)"
+                                : "Select a facility..."
+                        }
+                        options={
+                            formData.role === 'admin'
+                                ? [{ value: 'PHO', label: 'Provincial Health Office (PHO)' }]
+                                : facilities.map(f => ({ value: f, label: f }))
+                        }
+                        className="w-full"
+                        buttonClassName="!py-2.5 !px-3 font-semibold !bg-white border-slate-200"
+                    />
                 </div>
             </div>
         </div>

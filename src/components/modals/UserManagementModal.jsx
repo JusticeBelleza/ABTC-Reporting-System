@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import RegisterUserForm from '../auth/RegisterUserForm'; 
 import ProfileModal from './ProfileModal';
 import ModalPortal from './ModalPortal';
+import { TableSkeleton } from '../common/DashboardSkeleton';
+import CustomDropdown from '../common/CustomDropdown';
 import { useApp } from '../../context/AppContext';
 
 export default function UserManagementModal({ onClose, facilities, client }) {
@@ -243,6 +245,10 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                       <p className="text-xs font-semibold text-slate-500">No users found.</p>
                   </div>
               ) : (
+                <>
+                  <div className="sm:hidden flex items-center justify-end text-[10px] text-slate-400 font-medium px-1 mb-1.5">
+                    <span>← Scroll horizontally to view columns →</span>
+                  </div>
                   <div className="rounded-xl border border-slate-200 shadow-sm bg-white w-full overflow-hidden flex flex-col flex-1">
                       <div className="overflow-x-auto w-full">
                           <table className="w-full text-left border-collapse text-[10px] sm:text-[11px] min-w-[800px]">
@@ -314,6 +320,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
                           </table>
                       </div>
                   </div>
+                </>
               )
             ) : (
               <div className="w-full max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -333,15 +340,17 @@ export default function UserManagementModal({ onClose, facilities, client }) {
             <div className="flex flex-col sm:flex-row items-center justify-between px-6 sm:px-8 py-3 border-t border-slate-200 bg-white shrink-0 gap-4">
               <div className="flex items-center gap-2 text-[10px] sm:text-xs font-medium text-slate-500">
                 <span>Show</span>
-                <select 
-                  value={usersPerPage} 
-                  onChange={(e) => { setUsersPerPage(Number(e.target.value)); setCurrentPage(1); }} 
-                  className="bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:ring-2 focus:ring-slate-900/20 font-bold text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
+                <CustomDropdown
+                  value={usersPerPage}
+                  onChange={(val) => { setUsersPerPage(Number(val)); setCurrentPage(1); }}
+                  options={[
+                    { value: 10, label: '10' },
+                    { value: 20, label: '20' },
+                    { value: 50, label: '50' }
+                  ]}
+                  className="w-16"
+                  buttonClassName="!py-1 !px-2 !text-xs font-bold !bg-slate-50"
+                />
                 <span>users per page</span>
               </div>
               <div className="flex items-center gap-4 text-[10px] sm:text-xs font-medium text-slate-500">
