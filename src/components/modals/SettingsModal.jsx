@@ -111,10 +111,10 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
   // FIX: Wrap the main return in ModalPortal and change z-index to z-[100]
   return (
     <ModalPortal>
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-        <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+        <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl w-full max-w-3xl h-[88vh] sm:h-[650px] max-h-[92vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
           
-          <div className="bg-slate-900 px-6 sm:px-8 py-5 border-b border-slate-800 flex justify-between items-center relative overflow-hidden shrink-0">
+          <div className="bg-slate-900 px-5 sm:px-8 py-4 sm:py-5 border-b border-slate-800 flex justify-between items-center relative overflow-hidden shrink-0">
             <div className="absolute -right-10 -top-10 w-40 h-40 bg-slate-800 rounded-full opacity-50 blur-2xl pointer-events-none"></div>
             <div className="flex items-center gap-3 relative z-10">
                 <div className="p-2.5 bg-slate-800/80 rounded-xl text-yellow-400 shadow-inner border border-slate-700">
@@ -131,36 +131,42 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
           </div>
           
           {/* TABS HEADER */}
-          <div className="flex px-6 sm:px-8 pt-4 border-b border-slate-100 gap-8 bg-slate-50 shrink-0 overflow-x-auto no-scrollbar">
+          <div className="flex px-3 sm:px-8 pt-3 sm:pt-4 border-b border-slate-200 gap-2 sm:gap-6 bg-slate-50 shrink-0 overflow-x-auto no-scrollbar">
             {isAdmin && (
               <>
                 <button 
+                    type="button"
                     onClick={() => setActiveTab('analytics')} 
-                    className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 ${activeTab==='analytics' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
+                    className={`pb-3 sm:pb-3.5 px-2.5 sm:px-1 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 ${activeTab==='analytics' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
                 >
-                    Predictive Analytics
+                    <span className="sm:hidden">Analytics</span>
+                    <span className="hidden sm:inline">Predictive Analytics</span>
                 </button>
                 <button 
+                    type="button"
                     onClick={() => setActiveTab('logo')} 
-                    className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 ${activeTab==='logo' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
+                    className={`pb-3 sm:pb-3.5 px-2.5 sm:px-1 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 ${activeTab==='logo' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
                 >
                     Global Logo
                 </button>
               </>
             )}
             <button 
+                type="button"
                 onClick={() => setActiveTab('signatories')} 
-                className={`pb-3.5 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 ${activeTab==='signatories' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`pb-3 sm:pb-3.5 px-2.5 sm:px-1 text-xs font-bold transition-all duration-200 border-b-[3px] whitespace-nowrap active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 ${activeTab==='signatories' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
             >
-                Facility Logo & Signatories
+                <span className="sm:hidden">Signatories</span>
+                <span className="hidden sm:inline">Facility Logo & Signatories</span>
             </button>
           </div>
 
-          <form onSubmit={handlePreSubmit} className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar bg-white">
+          <form onSubmit={handlePreSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white">
+            <div className="p-5 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar min-h-0 bg-white">
              
             {/* ANALYTICS SETTINGS TAB (Admin Only) */}
             {activeTab === 'analytics' && isAdmin && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 max-w-xl">
+              <div className="space-y-6 animate-in fade-in duration-200 w-full max-w-xl">
                 <div>
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2 flex items-center gap-1.5"><BrainCircuit size={12}/> Smart Alert Thresholds</h4>
                     <p className="text-xs text-slate-500 font-medium mb-4">Adjust the sensitivity of the AI predictive alerts displayed on the dashboard. Changing these values immediately affects how warnings are triggered.</p>
@@ -218,7 +224,7 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
 
             {/* GLOBAL LOGO TAB (Admin Only) */}
             {activeTab === 'logo' && isAdmin && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 max-w-xl">
+              <div className="space-y-4 animate-in fade-in duration-200 w-full max-w-xl">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Provincial / Global Header Logo</h4>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-5 p-5 border border-slate-200 rounded-xl bg-slate-50/50 shadow-sm">
                    <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-sm shrink-0">
@@ -234,7 +240,7 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
 
             {/* SIGNATORIES TAB (All Users) */}
             {activeTab === 'signatories' && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
+              <div className="space-y-8 animate-in fade-in duration-200 w-full">
                 <div className="space-y-4 max-w-xl">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Facility Header Logo</h4>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-5 p-5 border border-slate-200 rounded-xl bg-slate-50/50 shadow-sm">
@@ -315,11 +321,14 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
               </div>
             )}
 
-            <div className="pt-6 border-t border-slate-100 flex justify-end mt-2">
+            </div>
+
+            {/* PINNED MODAL FOOTER */}
+            <div className="p-4 sm:px-8 sm:py-4 border-t border-slate-100 flex justify-end shrink-0 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
                 <button 
                     type="submit" 
                     disabled={loading} 
-                    className="w-full sm:w-auto bg-slate-900 text-yellow-400 px-6 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    className="w-full sm:w-auto bg-slate-900 text-yellow-400 px-6 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-slate-800 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                 >
                     {loading ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle size={16}/>} 
                     {loading ? 'Saving...' : 'Save Settings'}
@@ -332,7 +341,7 @@ export default function SettingsModal({ onClose, globalSettings, onSaveGlobal, u
       {/* --- CONFIRMATION MODAL --- */}
       {showConfirmModal && (
         <ModalPortal>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                   <div className="flex flex-col items-center text-center">
                       <div className="bg-slate-100 p-4 rounded-full mb-5 text-slate-800 shadow-inner">

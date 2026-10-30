@@ -8,6 +8,7 @@ import { useApp } from '../../context/AppContext';
 import ModalPortal from '../modals/ModalPortal';
 import { supabase } from '../../lib/supabase';
 import MainReportTableV2 from '../reports/MainReportTableV2';
+import CustomDropdown from '../common/CustomDropdown';
 import { saveOfflineDraft, getOfflineDraft, clearOfflineDraft } from '../../lib/offlineDB';
 import { useReportStore } from '../../store/useReportStore';
 import { exportToExcelTemplate } from '../../lib/excelExporter'; 
@@ -641,8 +642,8 @@ export default function FacilityDashboard({
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 relative pb-24">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-4 pt-4 flex-1">
-            <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-5 border border-slate-800 relative overflow-hidden">
+        <div className="w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 flex flex-col gap-4 pt-4">
+            <div className="bg-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-5 border border-slate-800 relative overflow-hidden">
                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
                 <div className="flex items-start sm:items-center gap-4 relative z-10 w-full">
                     {isAnyAdmin && <button onClick={onBack} className="p-2 bg-slate-800/80 border border-slate-700 rounded-xl text-slate-400 hover:text-white active:scale-95 transition-all duration-200 shrink-0"><ArrowLeft size={20}/></button>}
@@ -713,21 +714,40 @@ export default function FacilityDashboard({
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-4 relative z-10">
-                <h2 className="text-slate-800 font-bold px-4 shrink-0">Animal Bite and Rabies Report Form</h2>
-                <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-                    <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2 sm:p-3 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-4 relative z-10">
+                <h2 className="text-slate-800 font-bold px-2 sm:px-4 text-xs sm:text-base shrink-0 text-center sm:text-left">Animal Bite and Rabies Report Form</h2>
+                <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+                    <CustomDropdown
+                        value={periodType}
+                        onChange={setPeriodType}
+                        options={['Monthly', 'Quarterly', 'Annual']}
+                        className="flex-1 sm:flex-none min-w-[100px]"
+                    />
                     {periodType === 'Monthly' && (
-                        <select value={month} onChange={e => setMonth(e.target.value)} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
-                            {availableMonths.filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx))).map(m => <option key={m} value={m}>{m}</option>)}
-                        </select>
+                        <CustomDropdown
+                            value={month}
+                            onChange={setMonth}
+                            options={availableMonths.filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx)))}
+                            disabled={loading}
+                            className="flex-1 sm:flex-none min-w-[105px]"
+                        />
                     )}
                     {periodType === 'Quarterly' && (
-                        <select value={quarter} onChange={e => setQuarter(e.target.value)} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
-                            {QUARTERS.filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3)))).map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
-                        </select>
+                        <CustomDropdown
+                            value={quarter}
+                            onChange={setQuarter}
+                            options={QUARTERS.filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3)))).map(q => ({ value: q, label: q }))}
+                            disabled={loading}
+                            className="flex-1 sm:flex-none min-w-[115px]"
+                        />
                     )}
-                    <select value={year} onChange={e => setYear(Number(e.target.value))} disabled={loading} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">{availableYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                    <CustomDropdown
+                        value={year}
+                        onChange={v => setYear(Number(v))}
+                        options={availableYears.map(y => ({ value: y, label: String(y) }))}
+                        disabled={loading}
+                        className="flex-1 sm:flex-none min-w-[80px]"
+                    />
                 </div>
             </div>
 
@@ -751,7 +771,7 @@ export default function FacilityDashboard({
                         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-slate-100 border border-slate-200"></div> Unsubmitted</div>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
                         {[0, 1, 2, 3].map(qIdx => {
                             const qMonths = MONTHS.slice(qIdx * 3, qIdx * 3 + 3);
                             const qVal = String(quarter).replace(/\D/g, '');
@@ -796,7 +816,7 @@ export default function FacilityDashboard({
                 </div>
             )}
 
-            <div className="bg-white flex-1 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
+            <div className="bg-white w-full rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                 {formRowKeys.length > 0 ? (
                     <>
                         <MainReportTableV2 
@@ -805,20 +825,21 @@ export default function FacilityDashboard({
                         />
                         
                         {!isConsolidatedView && !isAnyAdmin && !isAggregationMode && v2Status !== 'Approved' && v2Status !== 'Pending' && currentFacilityType === 'RHU' && (
-                            <div className="bg-white border-t border-slate-100 px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
-                                <div className="flex items-center gap-3">
-                                    <div className="text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100"><MapPin size={16} strokeWidth={2.5}/></div>
-                                    <div><h3 className="text-sm font-bold text-slate-800 tracking-tight">Add Patient Origin</h3><p className="text-[11px] text-slate-400 font-medium mt-0.5">Include cases from other municipalities</p></div>
+                            <div className="bg-slate-50/70 border-t border-slate-200 px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="text-blue-600 bg-blue-50 p-2 rounded-lg border border-blue-100 shrink-0"><MapPin size={16} strokeWidth={2.5}/></div>
+                                    <div><h3 className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight leading-tight">Add Patient Origin</h3><p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Include cases from other municipalities</p></div>
                                 </div>
                                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                                    <div className="relative w-full sm:w-auto">
-                                        <select value={selectedLocationToAdd} onChange={e => setSelectedLocationToAdd(e.target.value)} disabled={availableLocationsToAdd.length === 0} className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-4 focus:ring-slate-50 focus:border-slate-300 transition-all shadow-sm w-full sm:w-[220px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                                            <option value="" disabled className="text-slate-400">Select municipality...</option>
-                                            {availableLocationsToAdd.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                                        </select>
-                                        <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                    </div>
-                                    <button onClick={handleAddRow} disabled={!selectedLocationToAdd} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:scale-95 active:bg-slate-100 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none text-sm font-bold px-4 py-2 rounded-lg shadow-sm whitespace-nowrap flex items-center gap-1.5 cursor-pointer"><Plus size={14} strokeWidth={2.5}/> Add</button>
+                                    <CustomDropdown
+                                        value={selectedLocationToAdd}
+                                        onChange={setSelectedLocationToAdd}
+                                        options={availableLocationsToAdd}
+                                        placeholder="Select municipality..."
+                                        disabled={availableLocationsToAdd.length === 0}
+                                        className="flex-1 sm:w-[220px]"
+                                    />
+                                    <button onClick={handleAddRow} disabled={!selectedLocationToAdd} className="bg-slate-900 text-yellow-400 hover:bg-slate-800 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none text-xs sm:text-sm font-bold px-4 py-2 rounded-lg shadow-sm whitespace-nowrap flex items-center justify-center gap-1.5 cursor-pointer shrink-0"><Plus size={14} strokeWidth={2.5}/> Add</button>
                                 </div>
                             </div>
                         )}

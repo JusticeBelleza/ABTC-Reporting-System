@@ -6,6 +6,7 @@ import { QUARTERS, MONTHS } from '../../lib/constants';
 
 import { useForecastingMetrics } from '../../hooks/useForecastingMetrics';
 import DemographicCharts from './DemographicCharts';
+import CustomDropdown from '../common/CustomDropdown';
 import SmartAlertsPanel from './SmartAlertsPanel';
 import PredictiveModel from './PredictiveModel';
 import { toPng } from 'html-to-image'; 
@@ -406,7 +407,7 @@ export default function AnalyticsOverview({
     if (v2Data.length === 0) return null; 
     const isComplete = complianceRate === 100;
     return (
-      <div className={`mb-6 p-4 rounded-xl border flex items-start sm:items-center gap-3 shadow-sm ${isComplete ? 'bg-emerald-50/80 border-emerald-200/60' : 'bg-amber-50/80 border-amber-200/60'}`}>
+      <div className={`mb-3 sm:mb-6 p-3 sm:p-4 rounded-xl border flex items-start sm:items-center gap-2.5 sm:gap-3 shadow-sm ${isComplete ? 'bg-emerald-50/80 border-emerald-200/60' : 'bg-amber-50/80 border-amber-200/60'}`}>
         <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 sm:mt-0 ${isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
              {isComplete ? <CheckCircle size={18} strokeWidth={2.5}/> : <ShieldAlert size={18} strokeWidth={2.5}/>}
         </div>
@@ -425,15 +426,15 @@ export default function AnalyticsOverview({
 
   return (
     <div className="max-w-7xl mx-auto no-print animate-in fade-in slide-in-from-bottom-2 duration-500 relative pb-24 sm:pb-12 w-full px-2 sm:px-4">
-      <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print z-20 mt-2 mb-3">
+      <div className="bg-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 mb-3 sm:mb-6 mt-1 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-4 sm:gap-6 border border-slate-800 relative overflow-hidden no-print z-20">
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
-          <div className="flex items-start gap-4 relative z-10">
-              <div className="bg-slate-800 p-4 rounded-2xl shadow-inner border border-slate-700 text-yellow-400">
-                  <PieChartIcon size={28} strokeWidth={2.5}/>
+          <div className="flex items-start gap-3 sm:gap-4 relative z-10">
+              <div className="bg-slate-800 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-inner border border-slate-700 text-yellow-400">
+                  <PieChartIcon size={22} className="sm:w-7 sm:h-7" strokeWidth={2.5}/>
               </div>
               <div>
-                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">{isAdmin ? "Provincial" : "Facility"} Analytics</h2>
-                  <p className="text-sm font-medium text-slate-400 mt-1">Review performance and forecast future volume</p>
+                  <h2 className="text-xl sm:text-3xl font-black tracking-tight text-white">{isAdmin ? "Provincial" : "Facility"} Analytics</h2>
+                  <p className="text-xs sm:text-sm font-medium text-slate-400 mt-0.5 sm:mt-1">Review performance and forecast future volume</p>
               </div>
           </div>
           
@@ -447,38 +448,45 @@ export default function AnalyticsOverview({
                   </button>
               </div>
 
-              <div className="flex flex-wrap items-center bg-slate-800/80 p-1.5 rounded-xl border border-slate-700 shadow-inner w-full xl:w-auto">
+              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-800/80 rounded-xl border border-slate-700 shadow-inner w-full xl:w-auto">
                   {activeSubTab === 'overview' && (
                       <>
-                          <select value={periodType} onChange={(e) => setPeriodType(e.target.value)} className="flex-1 xl:flex-none bg-slate-700 text-xs font-bold text-white py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-600">
-                              <option value="Monthly" className="bg-slate-800 text-white">Monthly</option>
-                              <option value="Quarterly" className="bg-slate-800 text-white">Quarterly</option>
-                              <option value="Annual" className="bg-slate-800 text-white">Annual</option>
-                          </select>
+                          <CustomDropdown
+                              value={periodType}
+                              onChange={setPeriodType}
+                              options={['Monthly', 'Quarterly', 'Annual']}
+                              className="flex-1 xl:flex-none min-w-[95px]"
+                              buttonClassName="!bg-slate-700 !text-white !border-slate-600 !py-1.5"
+                          />
                           
                           {periodType === 'Monthly' && (
-                              <>
-                                  <div className="w-px h-5 bg-slate-600 mx-1 hidden sm:block"></div>
-                                  <select value={month} onChange={(e) => setMonth(e.target.value)} className="flex-1 xl:flex-none bg-transparent text-xs font-bold text-slate-300 py-2 px-2 outline-none cursor-pointer hover:text-white">
-                                      {availableMonths.map(m => <option key={m} value={m} className="bg-slate-800 text-white">{m}</option>)}
-                                  </select>
-                              </>
+                              <CustomDropdown
+                                  value={month}
+                                  onChange={setMonth}
+                                  options={availableMonths}
+                                  className="flex-1 xl:flex-none min-w-[100px]"
+                                  buttonClassName="!bg-slate-700 !text-white !border-slate-600 !py-1.5"
+                              />
                           )}
 
                           {periodType === 'Quarterly' && (
-                              <>
-                                  <div className="w-px h-5 bg-slate-600 mx-1 hidden sm:block"></div>
-                                  <select value={quarter} onChange={(e) => setQuarter(e.target.value)} className="flex-1 xl:flex-none bg-transparent text-xs font-bold text-slate-300 py-2 px-2 outline-none cursor-pointer hover:text-white">
-                                      {availableQuarters.map(q => <option key={q} value={q} className="bg-slate-800 text-white">{q}</option>)}
-                                  </select>
-                              </>
+                              <CustomDropdown
+                                  value={quarter}
+                                  onChange={setQuarter}
+                                  options={availableQuarters}
+                                  className="flex-1 xl:flex-none min-w-[110px]"
+                                  buttonClassName="!bg-slate-700 !text-white !border-slate-600 !py-1.5"
+                              />
                           )}
-                          <div className="w-px h-5 bg-slate-600 mx-1 hidden sm:block"></div>
                       </>
                   )}
-                  <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={`${activeSubTab === 'predictive' ? 'bg-slate-700 rounded-lg px-4' : 'bg-transparent px-2'} flex-1 xl:flex-none text-xs font-bold text-white py-2 outline-none cursor-pointer hover:text-white`}>
-                      {availableYears.map(y => <option key={y} value={y} className="bg-slate-800 text-white">{y}</option>)}
-                  </select>
+                  <CustomDropdown
+                      value={year}
+                      onChange={v => setYear(Number(v))}
+                      options={availableYears.map(y => ({ value: y, label: String(y) }))}
+                      className="flex-1 xl:flex-none min-w-[75px]"
+                      buttonClassName="!bg-slate-700 !text-white !border-slate-600 !py-1.5"
+                  />
               </div>
           </div>
       </div>
@@ -499,84 +507,42 @@ export default function AnalyticsOverview({
 
           {renderDataCompletenessBanner()}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
               
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity size={12}/> Current Period Cases</p>
-                  <div className="flex items-end justify-between">
-                      <h3 className="text-3xl font-black text-slate-900">{currentTotal}</h3>
-                      
-                      <div className="flex flex-col items-end gap-1 min-w-[130px]">
-                          <div className="flex items-center justify-end w-full">
-                              {previousPeriodComparison.hasData ? (
-                                  <>
-                                      <div className={`px-2 py-0.5 rounded-md text-[10px] font-black min-w-[40px] text-center flex items-center justify-center gap-1 ${previousPeriodComparison.diff > 0 ? 'bg-rose-50 text-rose-600' : (previousPeriodComparison.diff < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600')}`}>
-                                          {previousPeriodComparison.diff > 0 ? <TrendingUp size={10} strokeWidth={3}/> : (previousPeriodComparison.diff < 0 ? <TrendingDown size={10} strokeWidth={3}/> : null)}
-                                          {previousPeriodComparison.display}
-                                      </div>
-                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right whitespace-nowrap min-w-[90px] ml-2">
-                                          {previousPeriodComparison.label}
-                                      </span>
-                                  </>
-                              ) : (
-                                  <>
-                                      <div className="px-2 py-0.5 rounded-md text-[10px] font-black min-w-[40px] text-center bg-slate-50 text-slate-400">—</div>
-                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right whitespace-nowrap min-w-[90px] ml-2">
-                                          {previousPeriodComparison.label}
-                                      </span>
-                                  </>
-                              )}
-                          </div>
-
-                          {samePeriodLastYear && (
-                              <div className="flex items-center justify-end w-full mt-1">
-                                  {samePeriodLastYear.hasData ? (
-                                      <>
-                                          <div className={`px-2 py-0.5 rounded-md text-[10px] font-black min-w-[40px] text-center flex items-center justify-center gap-1 ${samePeriodLastYear.diff > 0 ? 'bg-rose-50 text-rose-600' : (samePeriodLastYear.diff < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600')}`}>
-                                              {samePeriodLastYear.diff > 0 ? <TrendingUp size={10} strokeWidth={3}/> : (samePeriodLastYear.diff < 0 ? <TrendingDown size={10} strokeWidth={3}/> : null)}
-                                              {samePeriodLastYear.display}
-                                          </div>
-                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right whitespace-nowrap min-w-[90px] ml-2">
-                                              {samePeriodLastYear.label}
-                                          </span>
-                                      </>
-                                  ) : (
-                                      <>
-                                          <div className="px-2 py-0.5 rounded-md text-[10px] font-black min-w-[40px] text-center bg-slate-50 text-slate-400">—</div>
-                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right whitespace-nowrap min-w-[90px] ml-2">
-                                              {samePeriodLastYear.label}
-                                          </span>
-                                      </>
-                                  )}
+              <div className="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
+                  <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1 truncate"><Activity size={12} className="shrink-0"/> <span className="hidden sm:inline">Current</span> Cases</p>
+                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-1">
+                      <h3 className="text-xl sm:text-3xl font-black text-slate-900 leading-tight">{currentTotal}</h3>
+                      <div className="flex flex-col items-start sm:items-end min-w-0">
+                          {previousPeriodComparison.hasData ? (
+                              <div className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[10px] font-black truncate max-w-full ${previousPeriodComparison.diff > 0 ? 'bg-rose-50 text-rose-600' : (previousPeriodComparison.diff < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600')}`}>
+                                  {previousPeriodComparison.display}
                               </div>
+                          ) : (
+                              <div className="text-[8px] sm:text-[10px] font-bold text-slate-400">—</div>
                           )}
                       </div>
                   </div>
               </div>
               
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar size={12}/> {periodType === 'Annual' ? 'YTD TOTAL' : 'YTD Total'}</p>
-                  <div className="flex items-end justify-between">
-                      <h3 className="text-3xl font-black text-slate-900">
+              <div className="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
+                  <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1 truncate"><Calendar size={12} className="shrink-0"/> YTD Total</p>
+                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-1">
+                      <h3 className="text-xl sm:text-3xl font-black text-slate-900 leading-tight">
                           {calculatedYTD}
                       </h3>
-                      <div className="flex flex-col items-end">
-                          <div className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold uppercase">
-                              Cumulative in {year}
-                          </div>
+                      <div className="text-[8px] sm:text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded truncate">
+                          In {year}
                       </div>
                   </div>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><User size={12}/> Average Completion</p>
-                  <div className="flex items-end justify-between">
-                      <h3 className="text-3xl font-black text-slate-900">{complianceRate}%</h3>
-                      <div className="flex flex-col items-end">
-                          <div className={`${complianceRate >= 80 ? 'bg-emerald-50 text-emerald-600' : complianceRate >= 50 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'} px-2 py-1 rounded-lg text-[10px] font-bold`}>
-                              {complianceRate >= 80 ? 'OPTIMAL' : complianceRate >= 50 ? 'FAIR' : 'LOW'}
-                          </div>
-                          <span className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">SUBMITTED REPORTS</span>
+              <div className="bg-white p-2.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
+                  <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1 truncate"><User size={12} className="shrink-0"/> Completion</p>
+                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-1">
+                      <h3 className="text-xl sm:text-3xl font-black text-slate-900 leading-tight">{complianceRate}%</h3>
+                      <div className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[10px] font-bold truncate ${complianceRate >= 80 ? 'bg-emerald-50 text-emerald-600' : complianceRate >= 50 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
+                          {complianceRate >= 80 ? 'OPTIMAL' : complianceRate >= 50 ? 'FAIR' : 'LOW'}
                       </div>
                   </div>
               </div>

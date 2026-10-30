@@ -11,6 +11,7 @@ import Papa from 'papaparse';
 import ModalPortal from '../modals/ModalPortal';
 import { exportToExcelTemplate } from '../../lib/excelExporter';
 import MainReportTableV2 from '../reports/MainReportTableV2';
+import CustomDropdown from '../common/CustomDropdown';
 import { useReportStore } from '../../store/useReportStore';
 
 const ABRA_MUNICIPALITIES = [
@@ -811,27 +812,44 @@ export default function AdminDashboard({
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row justify-between items-center gap-4 relative z-10 shrink-0">
                   <h2 className="text-slate-800 font-bold px-4 shrink-0 whitespace-normal break-words">Animal Bite and Rabies Report Form</h2>
                   <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-                      <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none"><option value="Monthly">Monthly</option><option value="Quarterly">Quarterly</option><option value="Annual">Annual</option></select>
+                      <CustomDropdown
+                          value={periodType}
+                          onChange={setPeriodType}
+                          options={['Monthly', 'Quarterly', 'Annual']}
+                          className="flex-1 sm:flex-none min-w-[95px]"
+                      />
                       
                       {periodType === 'Monthly' && (
-                          <select value={month} onChange={e => setMonth(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
-                              {availableMonths
+                          <CustomDropdown
+                              value={month}
+                              onChange={setMonth}
+                              options={availableMonths
                                   .filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx)))
-                                  .map(m => <option key={m} value={m}>{m}</option>)}
-                          </select>
+                              }
+                              className="flex-1 sm:flex-none min-w-[100px]"
+                          />
                       )}
                       {periodType === 'Quarterly' && (
-                          <select value={quarter} onChange={e => setQuarter(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">
-                              {QUARTERS
+                          <CustomDropdown
+                              value={quarter}
+                              onChange={setQuarter}
+                              options={QUARTERS
                                   .filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3))))
-                                  .map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
-                          </select>
+                                  .map(q => ({ value: q, label: formatQuarterName(q) }))
+                              }
+                              className="flex-1 sm:flex-none min-w-[110px]"
+                          />
                       )}
-                      <select value={year} onChange={e => setYear(Number(e.target.value))} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 rounded-lg border border-slate-200 outline-none">{availableYears.map(y => <option key={y} value={y}>{y}</option>)}</select>
+                      <CustomDropdown
+                          value={year}
+                          onChange={v => setYear(Number(v))}
+                          options={availableYears.map(y => ({ value: y, label: String(y) }))}
+                          className="flex-1 sm:flex-none min-w-[75px]"
+                      />
                   </div>
               </div>
 
-              <div className="bg-white flex-1 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+              <div className="bg-white w-full rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                   {isLoadingConsolidated ? (
                       <div className="flex flex-col items-center justify-center py-32 text-slate-400">
                           <Loader2 className="animate-spin mb-4 text-blue-500" size={32} />
@@ -1087,29 +1105,29 @@ export default function AdminDashboard({
         {/* ========================================== */}
         {/* TIER 1: MAIN ADMIN HEADER & ACTIONS        */}
         {/* ========================================== */}
-        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 md:p-8 mb-6 mt-2 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-5 sm:gap-6 border border-slate-800 relative overflow-hidden no-print z-20 mt-2 mb-3">
+        <div className="bg-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 mb-3 sm:mb-6 mt-1 shadow-xl flex flex-col xl:flex-row xl:items-end justify-between gap-3 sm:gap-6 border border-slate-800 relative overflow-hidden no-print z-20">
             <div className="absolute -right-20 -top-20 w-64 h-64 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
             
             {/* Left side: Title & Subtitle */}
             <div className="relative z-10 w-full xl:w-auto">
-                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Admin Dashboard</h2>
-                <p className="text-slate-400 text-xs sm:text-sm mt-1 font-medium">Manage and monitor facility submissions province-wide</p>
+                <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white">Admin Dashboard</h2>
+                <p className="text-slate-400 text-xs sm:text-sm mt-0.5 sm:mt-1 font-medium">Manage and monitor facility submissions province-wide</p>
             </div>
             
             {/* Right side: Global Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2 relative z-10 w-full xl:w-auto">
-                <button onClick={onAddFacility} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
-                    <Plus size={16} /> <span>Add Facility</span>
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 relative z-10 w-full xl:w-auto">
+                <button onClick={onAddFacility} className="justify-center bg-slate-800 border border-slate-700 text-slate-300 px-3 py-2 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-1.5 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
+                    <Plus size={14} className="sm:w-4 sm:h-4 shrink-0" /> <span className="truncate">Add Facility</span>
                 </button>
-                <button onClick={onManageUsers} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
-                    <Users size={16} /> <span>Manage Users</span>
+                <button onClick={onManageUsers} className="justify-center bg-slate-800 border border-slate-700 text-slate-300 px-3 py-2 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-1.5 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
+                    <Users size={14} className="sm:w-4 sm:h-4 shrink-0" /> <span className="truncate">Manage Users</span>
                 </button>
-                <button onClick={() => setIsPopModalOpen(true)} className="flex-1 sm:flex-none justify-center bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-2 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
-                    <Database size={16} /> <span>Populations</span>
+                <button onClick={() => setIsPopModalOpen(true)} className="justify-center bg-slate-800 border border-slate-700 text-slate-300 px-3 py-2 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md flex items-center gap-1.5 active:scale-95 transition-all duration-200 hover:bg-slate-700 hover:text-white hover:border-slate-500">
+                    <Database size={14} className="sm:w-4 sm:h-4 shrink-0" /> <span className="truncate">Populations</span>
                 </button>
                 <div className="hidden sm:block w-px h-6 bg-slate-700 mx-1"></div>
-                <button onClick={loadConsolidatedData} className="flex-1 sm:flex-none justify-center bg-yellow-400 text-black px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 flex items-center gap-2 active:scale-95 transition-all duration-200">
-                    <Layers size={16} /> <span>Consolidated Report</span>
+                <button onClick={loadConsolidatedData} className="justify-center bg-yellow-400 text-black px-3 py-2 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold shadow-[0_0_15px_rgba(250,204,21,0.2)] hover:bg-yellow-500 flex items-center gap-1.5 active:scale-95 transition-all duration-200">
+                    <Layers size={14} className="sm:w-4 sm:h-4 shrink-0" /> <span className="truncate">Consolidated Report</span>
                 </button>
             </div>
         </div>
@@ -1117,57 +1135,66 @@ export default function AdminDashboard({
         {/* ========================================== */}
         {/* TIER 2: DATA CONTROLS (FILTERS & VIEWS)    */}
         {/* ========================================== */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2 sm:p-3 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10 no-print">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2 sm:p-3 mb-3 sm:mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-4 relative z-10 no-print">
 
             {/* Left side: Date Filters */}
-            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-                <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline-block mr-1">Period:</span>
-                    <select value={periodType} onChange={e => setPeriodType(e.target.value)} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm">
-                        <option value="Monthly">Monthly</option>
-                        <option value="Quarterly">Quarterly</option>
-                        <option value="Annual">Annual</option>
-                    </select>
-                </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline-block mr-1">Period:</span>
+                <CustomDropdown
+                    value={periodType}
+                    onChange={setPeriodType}
+                    options={['Monthly', 'Quarterly', 'Annual']}
+                    className="flex-1 sm:flex-none min-w-[100px]"
+                />
                 
                 {/* Dynamic Dropdowns */}
                 {periodType === 'Monthly' && (
-                    <select value={month} onChange={e => setMonth(e.target.value)} disabled={!availableMonths.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
-                        {availableMonths
-                            .filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx)))
-                            .map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                    <CustomDropdown
+                        value={month}
+                        onChange={setMonth}
+                        options={availableMonths.filter(m => !(year > currentRealYear || (year === currentRealYear && MONTHS.indexOf(m) > currentRealMonthIdx)))}
+                        disabled={!availableMonths.length}
+                        className="flex-1 sm:flex-none min-w-[105px]"
+                    />
                 )}
                 
                 {periodType === 'Quarterly' && (
-                    <select value={quarter} onChange={e => setQuarter(e.target.value)} disabled={!QUARTERS.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[110px]">
-                        {QUARTERS
+                    <CustomDropdown
+                        value={quarter}
+                        onChange={setQuarter}
+                        options={QUARTERS
                             .filter((q, idx) => !(year > currentRealYear || (year === currentRealYear && idx > Math.floor(currentRealMonthIdx / 3))))
-                            .map(q => <option key={q} value={q}>{formatQuarterName(q)}</option>)}
-                    </select>
+                            .map(q => ({ value: q, label: formatQuarterName(q) }))}
+                        disabled={!QUARTERS.length}
+                        className="flex-1 sm:flex-none min-w-[115px]"
+                    />
                 )}
                 
-                <select value={year} onChange={e => setYear(Number(e.target.value))} disabled={!availableYears.length} className="bg-slate-50 text-slate-700 text-sm font-semibold py-2 px-3 outline-none cursor-pointer rounded-lg border border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50 min-w-[80px]">
-                    {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
+                <CustomDropdown
+                    value={year}
+                    onChange={v => setYear(Number(v))}
+                    options={availableYears.map(y => ({ value: y, label: String(y) }))}
+                    disabled={!availableYears.length}
+                    className="flex-1 sm:flex-none min-w-[80px]"
+                />
             </div>
 
             {/* Right side: Archive Toggle */}
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                 {showArchived && (
-                    <div className="hidden sm:flex items-center gap-1.5 text-amber-700 bg-amber-50 px-3 py-1.5 rounded-md border border-amber-200 text-xs font-bold animate-in fade-in slide-in-from-right-2">
-                        <AlertTriangle size={14} /> Viewing Archived
+                    <div className="flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md border border-amber-200 text-[10px] sm:text-xs font-bold animate-in fade-in slide-in-from-right-2">
+                        <AlertTriangle size={12} className="sm:w-3.5 sm:h-3.5" /> Viewing Archived
                     </div>
                 )}
                 <button 
                     onClick={() => setShowArchived(!showArchived)} 
-                    className={`flex-1 sm:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-all duration-200 border flex items-center justify-center gap-2 ${
+                    className={`w-full sm:w-auto flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold rounded-lg transition-all duration-200 border flex items-center justify-center gap-1.5 ${
                         showArchived 
                             ? 'bg-slate-800 text-white border-slate-700 shadow-md' 
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-sm'
                     }`}
                 >
-                    {showArchived ? <RefreshCcw size={16} /> : <Archive size={16} />}
+                    {showArchived ? <RefreshCcw size={14} className="sm:w-4 sm:h-4" /> : <Archive size={14} className="sm:w-4 sm:h-4" />}
                     <span>{showArchived ? 'Show Active Facilities' : 'View Archived'}</span>
                 </button>
             </div>
@@ -1177,7 +1204,7 @@ export default function AdminDashboard({
         {/* TIER 3: KPI CARDS (REVAMPED SUBMISSION HUB)*/}
         {/* ========================================== */}
         {!showArchived && (
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden group mb-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-3.5 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden group mb-4 sm:mb-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
               <div className="absolute right-0 top-0 w-64 h-64 bg-slate-50 rounded-full opacity-60 -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none"></div>
 
               <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-4 relative z-10 gap-2">
@@ -1222,37 +1249,37 @@ export default function AdminDashboard({
                         </div>
 
                         {/* STATUS BREAKDOWN CARDS */}
-                        <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-emerald-50/50 rounded-xl p-4 sm:p-5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-sm border border-emerald-200 group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors relative z-10">
-                                    <CheckCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                        <div className="lg:col-span-7 grid grid-cols-3 gap-2 sm:gap-4 items-stretch">
+                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Approved' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-emerald-50/50 rounded-xl p-2.5 sm:p-5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1.5 sm:mb-3 shadow-sm border border-emerald-200 group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors relative z-10">
+                                    <CheckCircle size={16} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
                                 </div>
                                 <div className="flex flex-col items-center justify-center relative z-10">
-                                    <p className="text-3xl sm:text-4xl font-black text-emerald-900">{mainStats.approved}</p>
-                                    <p className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wide mt-1.5">Verified</p>
-                                    <p className="text-[9px] sm:text-[10px] font-medium text-emerald-600/70 mt-0.5">Approved Reports</p>
+                                    <p className="text-2xl sm:text-4xl font-black text-emerald-900 leading-tight">{mainStats.approved}</p>
+                                    <p className="text-[9px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wide mt-1 truncate">Verified</p>
+                                    <p className="hidden sm:block text-[9px] sm:text-[10px] font-medium text-emerald-600/70 mt-0.5 truncate">Approved Reports</p>
                                 </div>
                             </div>
 
-                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-amber-50/50 rounded-xl p-4 sm:p-5 border border-amber-100 hover:bg-amber-100 hover:border-amber-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3 shadow-sm border border-amber-200 group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors relative z-10">
-                                    <Clock size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Pending' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-amber-50/50 rounded-xl p-2.5 sm:p-5 border border-amber-100 hover:bg-amber-100 hover:border-amber-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-1.5 sm:mb-3 shadow-sm border border-amber-200 group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors relative z-10">
+                                    <Clock size={16} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
                                 </div>
                                 <div className="flex flex-col items-center justify-center relative z-10">
-                                    <p className="text-3xl sm:text-4xl font-black text-amber-900">{mainStats.pending}</p>
-                                    <p className="text-[10px] sm:text-xs font-bold text-amber-700 uppercase tracking-wide mt-1.5">Review</p>
-                                    <p className="text-[9px] sm:text-[10px] font-medium text-amber-600/70 mt-0.5">Pending Reports</p>
+                                    <p className="text-2xl sm:text-4xl font-black text-amber-900 leading-tight">{mainStats.pending}</p>
+                                    <p className="text-[9px] sm:text-xs font-bold text-amber-700 uppercase tracking-wide mt-1 truncate">Review</p>
+                                    <p className="hidden sm:block text-[9px] sm:text-[10px] font-medium text-amber-600/70 mt-0.5 truncate">Pending Reports</p>
                                 </div>
                             </div>
 
-                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-rose-50/50 rounded-xl p-4 sm:p-5 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3 shadow-sm border border-rose-200 group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors relative z-10">
-                                    <XCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                            <div onClick={() => { setStatusModal({ isOpen: true, status: 'Rejected' }); setModalPage(1); setModalSearch(''); }} className="h-full bg-rose-50/50 rounded-xl p-2.5 sm:p-5 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-1.5 sm:mb-3 shadow-sm border border-rose-200 group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors relative z-10">
+                                    <XCircle size={16} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
                                 </div>
                                 <div className="flex flex-col items-center justify-center relative z-10">
-                                    <p className="text-3xl sm:text-4xl font-black text-rose-900">{mainStats.rejected}</p>
-                                    <p className="text-[10px] sm:text-xs font-bold text-rose-700 uppercase tracking-wide mt-1.5">Action Required</p>
-                                    <p className="text-[9px] sm:text-[10px] font-medium text-rose-600/70 mt-0.5">Needs Revision</p>
+                                    <p className="text-2xl sm:text-4xl font-black text-rose-900 leading-tight">{mainStats.rejected}</p>
+                                    <p className="text-[9px] sm:text-xs font-bold text-rose-700 uppercase tracking-wide mt-1 truncate">Revision</p>
+                                    <p className="hidden sm:block text-[9px] sm:text-[10px] font-medium text-rose-600/70 mt-0.5 truncate">Needs Revision</p>
                                 </div>
                             </div>
                         </div>
@@ -1286,37 +1313,37 @@ export default function AdminDashboard({
                           </div>
 
                           {/* STATUS BREAKDOWN CARDS */}
-                          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'full' }); setModalSearch(''); }} className="h-full bg-emerald-50/50 rounded-xl p-4 sm:p-5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
-                                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-sm border border-emerald-200 group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors relative z-10">
-                                      <CheckCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                          <div className="lg:col-span-7 grid grid-cols-3 gap-2 sm:gap-4 items-stretch">
+                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'full' }); setModalSearch(''); }} className="h-full bg-emerald-50/50 rounded-xl p-2.5 sm:p-5 border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                  <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1.5 sm:mb-3 shadow-sm border border-emerald-200 group-hover/card:bg-emerald-500 group-hover/card:text-white transition-colors relative z-10">
+                                      <CheckCircle size={16} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
                                   </div>
                                   <div className="flex flex-col items-center justify-center relative z-10">
-                                      <p className="text-3xl sm:text-4xl font-black text-emerald-900">{mainAgg.full}</p>
-                                      <p className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wide mt-1.5">100% Complete</p>
-                                      <p className="text-[9px] sm:text-[10px] font-medium text-emerald-600/70 mt-0.5">All months submitted</p>
+                                      <p className="text-2xl sm:text-4xl font-black text-emerald-900 leading-tight">{mainAgg.full}</p>
+                                      <p className="text-[9px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wide mt-1 truncate">Complete</p>
+                                      <p className="hidden sm:block text-[9px] sm:text-[10px] font-medium text-emerald-600/70 mt-0.5 truncate">All months</p>
                                   </div>
                               </div>
 
-                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'partial' }); setModalSearch(''); }} className="h-full bg-amber-50/50 rounded-xl p-4 sm:p-5 border border-amber-100 hover:bg-amber-100 hover:border-amber-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
-                                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-3 shadow-sm border border-amber-200 group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors relative z-10">
-                                      <Clock size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'partial' }); setModalSearch(''); }} className="h-full bg-amber-50/50 rounded-xl p-2.5 sm:p-5 border border-amber-100 hover:bg-amber-100 hover:border-amber-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                  <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-1.5 sm:mb-3 shadow-sm border border-amber-200 group-hover/card:bg-amber-500 group-hover/card:text-white transition-colors relative z-10">
+                                      <Clock size={16} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
                                   </div>
                                   <div className="flex flex-col items-center justify-center relative z-10">
-                                      <p className="text-3xl sm:text-4xl font-black text-amber-900">{mainAgg.partial}</p>
-                                      <p className="text-[10px] sm:text-xs font-bold text-amber-700 uppercase tracking-wide mt-1.5">In Progress</p>
-                                      <p className="text-[9px] sm:text-[10px] font-medium text-amber-600/70 mt-0.5">Missing some months</p>
+                                      <p className="text-2xl sm:text-4xl font-black text-amber-900 leading-tight">{mainAgg.partial}</p>
+                                      <p className="text-[9px] sm:text-xs font-bold text-amber-700 uppercase tracking-wide mt-1 truncate">In Progress</p>
+                                      <p className="hidden sm:block text-[9px] sm:text-[10px] font-medium text-amber-600/70 mt-0.5 truncate">Missing some</p>
                                   </div>
                               </div>
 
-                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'zero' }); setModalSearch(''); }} className="h-full bg-rose-50/50 rounded-xl p-4 sm:p-5 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
-                                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3 shadow-sm border border-rose-200 group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors relative z-10">
-                                      <XCircle size={20} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
+                              <div onClick={() => { setLeaderboardModal({ isOpen: true, filter: 'zero' }); setModalSearch(''); }} className="h-full bg-rose-50/50 rounded-xl p-2.5 sm:p-5 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 hover:shadow-md cursor-pointer group/card transition-all flex flex-col items-center justify-between text-center relative overflow-hidden">
+                                  <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-1.5 sm:mb-3 shadow-sm border border-rose-200 group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors relative z-10">
+                                      <XCircle size={16} className="sm:w-6 sm:h-6" strokeWidth={2.5} />
                                   </div>
                                   <div className="flex flex-col items-center justify-center relative z-10">
-                                      <p className="text-3xl sm:text-4xl font-black text-rose-900">{mainAgg.zero}</p>
-                                      <p className="text-[10px] sm:text-xs font-bold text-rose-700 uppercase tracking-wide mt-1.5">No Data</p>
-                                      <p className="text-[9px] sm:text-[10px] font-medium text-rose-600/70 mt-0.5">0 submissions</p>
+                                      <p className="text-2xl sm:text-4xl font-black text-rose-900 leading-tight">{mainAgg.zero}</p>
+                                      <p className="text-[9px] sm:text-xs font-bold text-rose-700 uppercase tracking-wide mt-1 truncate">No Data</p>
+                                      <p className="hidden sm:block text-[9px] sm:text-[10px] font-medium text-rose-600/70 mt-0.5 truncate">0 submissions</p>
                                   </div>
                               </div>
                           </div>
@@ -1361,7 +1388,7 @@ export default function AdminDashboard({
                         onSelectFacility(f);
                     }
                 }} 
-                className={`group relative p-5 sm:p-6 rounded-2xl border transition-all duration-300 flex flex-col h-full cursor-pointer overflow-hidden ${showArchived ? 'bg-slate-100 border-slate-200 opacity-80' : 'bg-white border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] hover:border-slate-900/30'}`}
+                className={`group relative p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border transition-all duration-300 flex flex-col h-full cursor-pointer overflow-hidden ${showArchived ? 'bg-slate-100 border-slate-200 opacity-80' : 'bg-white border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] hover:border-slate-900/30'}`}
               >
                 <div className="flex justify-between items-start mb-4 sm:mb-5">
                   <div className={`p-2.5 sm:p-3 rounded-xl transition-all duration-300 ${showArchived ? 'bg-slate-200 text-slate-400' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-900 group-hover:text-yellow-400 group-hover:shadow-md'}`}>

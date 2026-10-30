@@ -70,11 +70,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 relative flex items-center justify-center p-4 sm:p-8 font-sans selection:bg-yellow-200 selection:text-black overflow-hidden">
+    <div className="min-h-screen bg-slate-50 relative flex items-center justify-center p-3 sm:p-8 font-sans selection:bg-yellow-200 selection:text-black overflow-hidden">
       
       <div className="absolute top-0 left-0 w-full h-[50vh] bg-slate-900 [clip-path:polygon(0_0,100%_0,100%_75%,0_100%)] z-0"></div>
 
-      <div className={`w-full max-w-md bg-white rounded-xl shadow-2xl border border-slate-100 p-8 sm:p-10 relative z-10 transform transition-all duration-700 ease-out ${
+      <div className={`w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-10 relative z-10 transform transition-all duration-700 ease-out ${
         isMounted ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'
       }`}>
         
@@ -163,7 +163,7 @@ export default function Login() {
               </div>
             </div>
 
-            <div className={`flex justify-center py-2 origin-center transition-all duration-700 delay-300 ${isMounted ? 'opacity-100 scale-95' : 'opacity-0 scale-90'}`}>
+            <div className={`flex justify-center py-2 origin-center transition-all duration-700 delay-300 overflow-hidden ${isMounted ? 'opacity-100 scale-[0.88] sm:scale-100' : 'opacity-0 scale-90'}`}>
               {/* --- UPDATED TURNSTILE COMPONENT --- */}
               <Turnstile
                 ref={captcha}
@@ -224,7 +224,7 @@ export default function Login() {
                 </label>
               </div>
               
-              <div className="flex justify-center py-2 scale-95 origin-center">
+              <div className="flex justify-center py-2 scale-[0.88] sm:scale-100 origin-center overflow-hidden">
                 {/* --- UPDATED TURNSTILE COMPONENT --- */}
                 <Turnstile
                   ref={captcha}

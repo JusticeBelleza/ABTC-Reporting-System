@@ -253,10 +253,10 @@ function DashboardContent() {
 
       {/* --- HEADER --- */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 no-print transition-all duration-300 shadow-sm shrink-0">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-8 py-3 flex items-center justify-between relative min-h-[72px]">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-8 py-2 sm:py-3 flex items-center justify-between relative min-h-[52px] sm:min-h-[72px]">
           
           {/* LEFT: LOGO, TITLE, AND DATE/TIME */}
-          <div className="flex items-center gap-2 sm:gap-3 group w-1/3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 group shrink-0">
             <div className="bg-slate-900 text-yellow-400 p-1.5 sm:p-2 rounded-xl shadow-lg group-hover:rotate-3 transition-transform duration-300">
               <FileText size={18} className="sm:w-5 sm:h-5" strokeWidth={2.5}/>
             </div>
@@ -283,9 +283,9 @@ function DashboardContent() {
           </div>
 
           {/* RIGHT: PROFILE AND ACTION MENU */}
-          <div className="flex items-center justify-end gap-2 sm:gap-3 w-1/3 shrink-0">
+          <div className="flex items-center justify-end gap-1.5 sm:gap-3 shrink-0">
             
-            <div onClick={() => setShowProfileModal(true)} className="flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 pr-1 py-1 bg-white border border-slate-200 rounded-full shadow-sm hover:border-slate-400 active:scale-95 transition-all duration-300 cursor-pointer group">
+            <div onClick={() => setShowProfileModal(true)} className="hidden md:flex items-center gap-2 sm:gap-2.5 pl-2 sm:pl-3 pr-1 py-1 bg-white border border-slate-200 rounded-full shadow-sm hover:border-slate-400 active:scale-95 transition-all duration-300 cursor-pointer group">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-black text-slate-800 leading-none truncate max-w-[120px]">{userProfile?.full_name || 'User'}</p>
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{getRoleDisplayName(user?.role)}</p>
@@ -300,16 +300,16 @@ function DashboardContent() {
               
               {isAnyAdmin && (
                 <>
-                  <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
-                  <button onClick={() => setShowAuditLogs(true)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:-translate-y-0.5 transition-all duration-300 active:scale-90" title="System Audit Logs">
+                  <div className="hidden md:block w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
+                  <button onClick={() => setShowAuditLogs(true)} className="hidden md:flex p-1.5 text-slate-500 hover:text-blue-600 hover:-translate-y-0.5 transition-all duration-300 active:scale-90" title="System Audit Logs">
                     <ClipboardList size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
                   </button>
                 </>
               )}
               
-              <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
+              <div className="hidden md:block w-px h-3 sm:h-4 bg-slate-300 mx-0.5"></div>
 
-              <button onClick={() => setShowSettingsModal(true)} className="p-1.5 text-slate-500 hover:text-slate-900 hover:-translate-y-0.5 transition-all duration-300 active:scale-90" title="System Settings">
+              <button onClick={() => setShowSettingsModal(true)} className="hidden md:flex p-1.5 text-slate-500 hover:text-slate-900 hover:-translate-y-0.5 transition-all duration-300 active:scale-90" title="System Settings">
                 <Settings size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
               </button>
               
@@ -323,7 +323,7 @@ function DashboardContent() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-8 relative z-0" id="report-content">
+      <main className="flex-1 p-2 sm:p-4 md:p-8 relative z-0 pb-24 md:pb-8" id="report-content">
         {activeNav === 'reports' ? (
            <AnalyticsOverview 
               periodType={periodType} setPeriodType={setPeriodType}
@@ -367,7 +367,7 @@ function DashboardContent() {
         
         {facilityToDelete && (
           <ModalPortal>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 border border-slate-200">
                     <div className="flex flex-col items-center text-center">
                         <div className="bg-red-50 p-4 rounded-full mb-5 text-red-600 shadow-inner"><AlertTriangle size={32} strokeWidth={2.5} /></div>
@@ -388,7 +388,7 @@ function DashboardContent() {
 
         {showLogoutModal && (
           <ModalPortal>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                     <div className="flex flex-col items-center text-center">
                         <div className="bg-rose-50 p-4 rounded-full mb-5 text-rose-600 shadow-inner"><LogOut size={32} strokeWidth={2.5} /></div>
@@ -409,16 +409,41 @@ function DashboardContent() {
         {showLicense && <LicenseModal onClose={() => setShowLicense(false)} />} 
       </main>
 
-      <footer className="w-full py-8 px-4 md:px-8 bg-slate-50 no-print shrink-0 border-t border-slate-200/60 pb-28 md:pb-8">
+      <footer className="w-full py-4 md:py-8 px-4 md:px-8 bg-slate-50 no-print shrink-0 border-t border-slate-200/60 pb-20 md:pb-8">
         <div className="max-w-[1600px] mx-auto flex justify-center">
-          <div className="bg-slate-900/95 text-slate-400 px-5 sm:px-8 py-3 rounded-2xl sm:rounded-full shadow-xl border border-slate-800 flex flex-col md:flex-row items-center gap-4 md:gap-6 w-full sm:w-fit transition-all hover:border-slate-700">
+          
+          {/* MOBILE FOOTER: Clean, Minimalist Text & Links (< md) */}
+          <div className="md:hidden flex flex-col items-center text-center gap-2 w-full text-slate-500 py-1">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
+              <span className="text-[10px] font-bold tracking-wider text-slate-700">© 2026 JUSTICE BELLEZA</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-[10px] font-medium text-slate-400">v{packageInfo.version}</span>
+            </div>
+            <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-slate-900 active:scale-95 transition-all">Privacy</button>
+              <span>·</span>
+              <button onClick={() => setShowTermsOfUse(true)} className="hover:text-slate-900 active:scale-95 transition-all">Terms</button>
+              <span>·</span>
+              <button onClick={() => setShowLicense(true)} className="hover:text-slate-900 active:scale-95 transition-all">License</button>
+              <span>·</span>
+              <button onClick={() => setShowUserManual(true)} className="hover:text-slate-900 active:scale-95 transition-all">Resources</button>
+              <span>·</span>
+              <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 inline-flex items-center gap-1 active:scale-95 transition-all text-slate-600" title="Github Profile">
+                <Github size={11} strokeWidth={2.5}/>
+              </a>
+            </div>
+          </div>
+
+          {/* DESKTOP FOOTER: Sleek Floating Pill (>= md) */}
+          <div className="hidden md:flex bg-slate-900/95 text-slate-400 px-8 py-3 rounded-full shadow-xl border border-slate-800 items-center gap-6 w-fit transition-all hover:border-slate-700">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
                 <span className="text-[10px] font-black whitespace-nowrap tracking-wider text-slate-300">© 2026 JUSTICE BELLEZA. ALL RIGHTS RESERVED.</span>
               </div>
             </div>
-            <div className="hidden md:block w-px h-3 bg-slate-700"></div>
+            <div className="w-px h-3 bg-slate-700"></div>
             <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2">
               <button onClick={() => setShowPrivacyPolicy(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Privacy</button>
               <button onClick={() => setShowTermsOfUse(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Terms</button>
@@ -426,11 +451,94 @@ function DashboardContent() {
               <button onClick={() => setShowUserManual(true)} className="text-[10px] font-bold uppercase tracking-widest hover:text-yellow-400 active:scale-95 transition-all">Resources</button>
               <span className="text-[10px] font-bold text-slate-500 tracking-widest cursor-default">ABTC-RS v.{packageInfo.version}</span>
             </div>
-            <div className="hidden md:block w-px h-3 bg-slate-700"></div>
+            <div className="w-px h-3 bg-slate-700"></div>
             <a href="https://github.com/JusticeBelleza" target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800 rounded-xl text-yellow-400 hover:text-white hover:bg-slate-700 active:scale-90 transition-all shadow-inner group" title="Github Profile"><Github size={14} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform"/></a>
           </div>
+
         </div>
       </footer>
+
+      {/* --- MOBILE BOTTOM NAVIGATION DOCK (< md) --- */}
+      <nav 
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 px-1.5 py-1 pb-[max(0.6rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_20px_rgba(0,0,0,0.08)] no-print flex items-center justify-around"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+      >
+        <button 
+          type="button"
+          onClick={() => setActiveNav('dashboard')} 
+          className="flex flex-col items-center justify-center flex-1 py-0.5 text-center outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:scale-95 transition-transform select-none border-none bg-transparent"
+          style={{ WebkitTapHighlightColor: 'transparent', outline: 'none' }}
+        >
+          <div className={`w-9 h-6 rounded-full flex items-center justify-center transition-all ${activeNav === 'dashboard' ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}>
+            <LayoutDashboard size={18} strokeWidth={activeNav === 'dashboard' ? 2.5 : 2} />
+          </div>
+          <span className={`text-[10px] leading-tight mt-0.5 tracking-tight ${activeNav === 'dashboard' ? 'text-blue-700 font-black' : 'text-slate-500 font-semibold'}`}>Dashboard</span>
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => setActiveNav('reports')} 
+          className="flex flex-col items-center justify-center flex-1 py-0.5 text-center outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:scale-95 transition-transform select-none border-none bg-transparent"
+          style={{ WebkitTapHighlightColor: 'transparent', outline: 'none' }}
+        >
+          <div className={`w-9 h-6 rounded-full flex items-center justify-center transition-all ${activeNav === 'reports' ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}>
+            <PieChart size={18} strokeWidth={activeNav === 'reports' ? 2.5 : 2} />
+          </div>
+          <span className={`text-[10px] leading-tight mt-0.5 tracking-tight ${activeNav === 'reports' ? 'text-blue-700 font-black' : 'text-slate-500 font-semibold'}`}>Analytics</span>
+        </button>
+
+        {isAnyAdmin ? (
+          <button 
+            type="button"
+            onClick={() => setShowAuditLogs(true)} 
+            className="flex flex-col items-center justify-center flex-1 py-0.5 text-center outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:scale-95 transition-transform select-none border-none bg-transparent text-slate-500 hover:text-slate-800"
+            style={{ WebkitTapHighlightColor: 'transparent', outline: 'none' }}
+          >
+            <div className="w-9 h-6 rounded-full flex items-center justify-center text-slate-400">
+              <ClipboardList size={18} strokeWidth={2} />
+            </div>
+            <span className="text-[10px] leading-tight mt-0.5 tracking-tight font-semibold">Audit</span>
+          </button>
+        ) : (
+          <button 
+            type="button"
+            onClick={() => setShowUserManual(true)} 
+            className="flex flex-col items-center justify-center flex-1 py-0.5 text-center outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:scale-95 transition-transform select-none border-none bg-transparent text-slate-500 hover:text-slate-800"
+            style={{ WebkitTapHighlightColor: 'transparent', outline: 'none' }}
+          >
+            <div className="w-9 h-6 rounded-full flex items-center justify-center text-slate-400">
+              <FileText size={18} strokeWidth={2} />
+            </div>
+            <span className="text-[10px] leading-tight mt-0.5 tracking-tight font-semibold">Resources</span>
+          </button>
+        )}
+
+        <button 
+          type="button"
+          onClick={() => setShowSettingsModal(true)} 
+          className="flex flex-col items-center justify-center flex-1 py-0.5 text-center outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:scale-95 transition-transform select-none border-none bg-transparent text-slate-500 hover:text-slate-800"
+          style={{ WebkitTapHighlightColor: 'transparent', outline: 'none' }}
+        >
+          <div className="w-9 h-6 rounded-full flex items-center justify-center text-slate-400">
+            <Settings size={18} strokeWidth={2} />
+          </div>
+          <span className="text-[10px] leading-tight mt-0.5 tracking-tight font-semibold">Settings</span>
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => setShowProfileModal(true)} 
+          className="flex flex-col items-center justify-center flex-1 py-0.5 text-center outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:scale-95 transition-transform select-none border-none bg-transparent text-slate-500 hover:text-slate-800"
+          style={{ WebkitTapHighlightColor: 'transparent', outline: 'none' }}
+        >
+          <div className="w-9 h-6 rounded-full flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center text-[8px] font-black ring-1 ring-slate-300">
+              {getInitials(userProfile?.full_name || user?.email)}
+            </div>
+          </div>
+          <span className="text-[10px] leading-tight mt-0.5 tracking-tight font-semibold">Profile</span>
+        </button>
+      </nav>
     </div>
   );
 }

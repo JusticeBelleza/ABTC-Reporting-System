@@ -107,6 +107,27 @@ export default function OnboardingCarousel({ onComplete }) {
     }, 200);
   };
 
+  // Touch Swipe for Mobile
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchEndX, setTouchEndX] = useState(null);
+  const minSwipeDist = 50;
+
+  const handleTouchStart = (e) => {
+    setTouchEndX(null);
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX || !touchEndX) return;
+    const distance = touchStartX - touchEndX;
+    if (distance > minSwipeDist) handleNext();
+    if (distance < -minSwipeDist) handlePrev();
+  };
+
   // --- NEW: Keyboard Navigation ---
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -133,7 +154,7 @@ export default function OnboardingCarousel({ onComplete }) {
       <div className="absolute -right-20 -top-20 w-96 h-96 bg-blue-900/40 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
       <div className="absolute -left-20 -bottom-20 w-96 h-96 bg-slate-800 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
 
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 relative z-10 flex flex-col min-h-[480px] overflow-hidden transform transition-all duration-500 hover:border-slate-300">
+      <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 relative z-10 flex flex-col min-h-[480px] overflow-hidden transform transition-all duration-500 hover:border-slate-300 select-none">
         
         {/* Top Header / Skip Button */}
         <div className="flex justify-end p-5 pb-0 h-12">

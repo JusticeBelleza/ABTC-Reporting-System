@@ -16,7 +16,7 @@ const STYLES = {
   thMain: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '6px 2px', fontSize: '11px', letterSpacing: '0.02em', transition: 'all 0.2s' },
   thGroup: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#1E293B', fontWeight: '700', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px', transition: 'all 0.2s' },
   thLeaf: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#475569', fontWeight: '600', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '9.5px', lineHeight: '1.1', transition: 'all 0.2s' },
-  thLocation: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'left', verticalAlign: 'middle', minWidth: '120px', width: '15%', fontSize: '11px', padding: '6px 10px' },
+  thLocation: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'left', verticalAlign: 'middle', minWidth: '105px', width: '15%', fontSize: '11px', padding: '6px 8px' },
   thPop: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: HEADER_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', fontSize: '10px', width: '5%' },
   thTotal: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: TOTAL_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px' },
   thGrandTotal: { border: `1px solid ${BORDER_COLOR}`, backgroundColor: GRAND_TOTAL_BG, color: '#0F172A', fontWeight: '800', textAlign: 'center', verticalAlign: 'middle', padding: '4px 2px', fontSize: '10px' },
@@ -195,7 +195,7 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
 
   return (
     // FIX: Replaced flex-1 h-full min-h-0 with exactly h-[900px]
-    <div className="flex flex-col w-full bg-slate-100 h-[900px]">
+    <div className="flex flex-col w-full bg-white">
       <style>{`
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
@@ -240,7 +240,11 @@ const MainReportTableV2 = ({ isRowReadOnly, onDeleteOtherRow, isConsolidated = f
         ))}
       </div>
 
-      <div id="v2-table-container" className="w-full overflow-auto hide-scrollbar flex-1 bg-slate-50 relative scroll-smooth">
+      <div className="md:hidden px-3 py-1 bg-slate-50 text-[10px] font-bold text-slate-500 flex items-center justify-between border-b border-slate-200">
+        <span>← Swipe horizontally to view all columns →</span>
+        <span className="text-[9px] uppercase tracking-wider text-blue-700 font-extrabold">{tabs.find(t => t.id === activeTab)?.label}</span>
+      </div>
+      <div id="v2-table-container" className="w-full overflow-auto hide-scrollbar max-h-[60vh] sm:max-h-[680px] bg-white relative scroll-smooth">
         <table className="w-full border-collapse tabular-nums relative">
           
           <thead className="sticky top-0 z-[50] shadow-md bg-[#E2E8F0] outline outline-1 outline-slate-300">
@@ -325,7 +329,7 @@ const DataCells = ({ isNonAbra, location, globalRowIndex, activeTab, rowData, po
         onFocus={() => onFocus(location, name)} 
         onWheel={(e) => e.target.blur()} 
         readOnly={readOnly}
-        className={`outline-none w-full h-full py-1.5 min-h-[28px] text-center text-[11px] font-bold bg-transparent transition-all box-border
+        className={`outline-none w-full h-full py-1.5 min-h-[30px] sm:min-h-[28px] text-center text-xs sm:text-[11px] font-bold bg-transparent transition-all box-border
           ${readOnly ? 'text-slate-400 cursor-not-allowed' : 'text-slate-900 hover:bg-white/50 focus:bg-transparent focus:ring-[2px] focus:ring-inset focus:ring-emerald-600'}`} 
       />
     );

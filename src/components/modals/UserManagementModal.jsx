@@ -121,7 +121,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
   // FIX: Wrap the entire return statement in ModalPortal to escape the layout stacking context
   return (
     <ModalPortal>
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
         
         {/* Edit Profile Sub-Modal */}
         {editingUserId && <ProfileModal userId={editingUserId} onClose={() => { setEditingUserId(null); fetchUsers(); window.dispatchEvent(new Event('user_registered')); }} />}
@@ -129,7 +129,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
         {/* Delete Confirmation Sub-Modal */}
         {userToDelete && (
           <ModalPortal>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                    <div className="flex flex-col items-center text-center">
                       <div className="bg-red-50 p-4 rounded-full mb-5 text-red-600 shadow-inner">
@@ -156,7 +156,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
         {/* Password Reset Confirmation Sub-Modal */}
         {userToReset && (
           <ModalPortal>
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200">
                    <div className="flex flex-col items-center text-center">
                       <div className="bg-amber-50 p-4 rounded-full mb-5 text-amber-600 shadow-inner">
@@ -188,7 +188,7 @@ export default function UserManagementModal({ onClose, facilities, client }) {
         )}
 
         {/* Main Modal Container */}
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden relative border border-slate-200 animate-in zoom-in-95 duration-200">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-6xl h-[88vh] sm:h-[720px] max-h-[92vh] flex flex-col overflow-hidden relative border border-slate-200 animate-in zoom-in-95 duration-200">
           
           {/* Dark Header */}
           <div className="bg-slate-900 p-4 sm:p-5 border-b border-slate-800 shrink-0 flex items-center justify-between">
@@ -212,16 +212,18 @@ export default function UserManagementModal({ onClose, facilities, client }) {
           </div>
 
           {/* Tabs */}
-          <div className="flex px-6 pt-3 border-b border-slate-200 bg-white shrink-0 gap-6">
+          <div className="flex px-4 sm:px-6 pt-3 border-b border-slate-200 bg-white shrink-0 gap-3 sm:gap-6 overflow-x-auto no-scrollbar">
             <button 
+                type="button"
                 onClick={() => setActiveTab('list')} 
-                className={`pb-3 text-sm font-bold transition-all duration-200 border-b-[3px] ${activeTab==='list' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`pb-3 text-xs sm:text-sm font-bold transition-all duration-200 border-b-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 whitespace-nowrap ${activeTab==='list' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
             >
                 User Directory
             </button>
             <button 
+                type="button"
                 onClick={() => setActiveTab('create')} 
-                className={`pb-3 text-sm font-bold transition-all duration-200 border-b-[3px] ${activeTab==='create' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
+                className={`pb-3 text-xs sm:text-sm font-bold transition-all duration-200 border-b-[3px] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 whitespace-nowrap ${activeTab==='create' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300'}`}
             >
                 Register New User
             </button>

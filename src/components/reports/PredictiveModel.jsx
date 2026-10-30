@@ -19,9 +19,9 @@ export default function PredictiveModel({
 
   return (
     <>
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group" id="chart-predictive">
+      <div className="bg-white p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm group" id="chart-predictive">
           
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
               <div>
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <BrainCircuit size={18} className="text-blue-600"/> 
@@ -70,7 +70,7 @@ export default function PredictiveModel({
               )}
           </div>
 
-          <div className="h-[400px] w-full">
+          <div className="h-[240px] sm:h-[380px] w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                   <ComposedChart data={chartDisplayData} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="#7398c9" />
@@ -90,7 +90,7 @@ export default function PredictiveModel({
               </ResponsiveContainer>
           </div>
           
-          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5">
+          <div className="mt-4 sm:mt-6 bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-5">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><BrainCircuit size={14}/> Algorithmic Chart Interpretation</h4>
               
               {hasEnoughData ? (

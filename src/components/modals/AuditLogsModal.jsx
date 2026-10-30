@@ -67,7 +67,7 @@ export default function AuditLogsModal({ onClose }) {
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden relative border border-slate-200 animate-in zoom-in-95 duration-200">
 
           {/* Dark Header - Compact Version */}
