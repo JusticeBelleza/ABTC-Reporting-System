@@ -10,6 +10,7 @@ import UpdatePasswordForm from './components/auth/UpdatePasswordForm';
 import Dashboard from './components/dashboard/Dashboard';
 import MainReportTableV2 from './components/reports/MainReportTableV2';
 import OnboardingCarousel from './components/auth/OnboardingCarousel'; // <-- IMPORT CAROUSEL
+import DashboardSkeleton from './components/common/DashboardSkeleton';
 
 function AppContent() {
   const { session, loading, logout } = useApp();
@@ -49,8 +50,8 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [session, logout]);
 
-  // 1. Keep your loading UI exactly the same
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-zinc-900" size={24} /></div>;
+  // 1. Skeleton Loading on incoming screen
+  if (loading) return <DashboardSkeleton />;
   
   // 2. Keep your password update UI exactly the same
   if (showPasswordUpdate) return <UpdatePasswordForm onComplete={() => setShowPasswordUpdate(false)} />;

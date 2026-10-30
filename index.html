@@ -11,7 +11,70 @@
     <title>ABTC-RS</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height:100vh;background-color:#f8fafc;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <style>
+          @keyframes initPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+          .init-sk-pulse { animation: initPulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        </style>
+        <!-- Incoming Screen Header Skeleton -->
+        <div style="background:rgba(255,255,255,0.9);border-bottom:1px solid #e2e8f0;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="init-sk-pulse" style="width:36px;height:36px;border-radius:10px;background:#0f172a;display:flex;align-items:center;justify-content:center;">
+              <div style="width:16px;height:16px;border-radius:4px;background:#eab308;opacity:0.4;"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div class="init-sk-pulse" style="width:64px;height:12px;border-radius:4px;background:#cbd5e1;"></div>
+              <div class="init-sk-pulse" style="width:105px;height:8px;border-radius:4px;background:#e2e8f0;"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <div class="init-sk-pulse" style="width:30px;height:30px;border-radius:50%;background:#e2e8f0;"></div>
+            <div class="init-sk-pulse" style="width:30px;height:30px;border-radius:50%;background:#e2e8f0;"></div>
+          </div>
+        </div>
+        <!-- Incoming Screen Body Skeleton -->
+        <div style="padding:16px 12px;max-width:1200px;margin:0 auto;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;">
+          <!-- Hero Card Skeleton -->
+          <div class="init-sk-pulse" style="background:#0f172a;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;">
+            <div style="width:180px;height:24px;border-radius:6px;background:#1e293b;"></div>
+            <div style="width:240px;height:12px;border-radius:4px;background:#334155;"></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <div style="flex:1;height:36px;border-radius:8px;background:#1e293b;"></div>
+              <div style="flex:1;height:36px;border-radius:8px;background:#1e293b;"></div>
+            </div>
+          </div>
+          <!-- 3-Column Metric Cards Skeleton -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            <div class="init-sk-pulse" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 6px;height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
+              <div style="width:26px;height:26px;border-radius:50%;background:#f1f5f9;"></div>
+              <div style="width:36px;height:18px;border-radius:4px;background:#cbd5e1;"></div>
+            </div>
+            <div class="init-sk-pulse" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 6px;height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
+              <div style="width:26px;height:26px;border-radius:50%;background:#f1f5f9;"></div>
+              <div style="width:36px;height:18px;border-radius:4px;background:#cbd5e1;"></div>
+            </div>
+            <div class="init-sk-pulse" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 6px;height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
+              <div style="width:26px;height:26px;border-radius:50%;background:#f1f5f9;"></div>
+              <div style="width:36px;height:18px;border-radius:4px;background:#cbd5e1;"></div>
+            </div>
+          </div>
+          <!-- Facility Cards List Skeleton -->
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="init-sk-pulse" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;height:120px;"></div>
+            <div class="init-sk-pulse" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;height:120px;"></div>
+          </div>
+        </div>
+        <!-- Mobile Bottom Dock Skeleton -->
+        <div style="position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,0.95);border-top:1px solid #e2e8f0;padding:10px 16px;display:flex;justify-content:space-around;">
+          <div class="init-sk-pulse" style="width:24px;height:24px;border-radius:6px;background:#cbd5e1;"></div>
+          <div class="init-sk-pulse" style="width:24px;height:24px;border-radius:6px;background:#cbd5e1;"></div>
+          <div class="init-sk-pulse" style="width:24px;height:24px;border-radius:6px;background:#cbd5e1;"></div>
+          <div class="init-sk-pulse" style="width:24px;height:24px;border-radius:6px;background:#cbd5e1;"></div>
+          <div class="init-sk-pulse" style="width:24px;height:24px;border-radius:6px;background:#cbd5e1;"></div>
+        </div>
+      </div>
+    </div>
     
     <box-icon name='code'></box-icon>
     

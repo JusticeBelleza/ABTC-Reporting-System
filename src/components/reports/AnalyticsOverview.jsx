@@ -7,6 +7,7 @@ import { QUARTERS, MONTHS } from '../../lib/constants';
 import { useForecastingMetrics } from '../../hooks/useForecastingMetrics';
 import DemographicCharts from './DemographicCharts';
 import CustomDropdown from '../common/CustomDropdown';
+import { AnalyticsSkeleton } from '../common/DashboardSkeleton';
 import SmartAlertsPanel from './SmartAlertsPanel';
 import PredictiveModel from './PredictiveModel';
 import { toPng } from 'html-to-image'; 
@@ -492,9 +493,7 @@ export default function AnalyticsOverview({
       </div>
 
       {loading || loadingHistory ? (
-        <div className="h-64 flex items-center justify-center bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <Loader2 className="animate-spin text-slate-400" size={32} />
-        </div>
+        <AnalyticsSkeleton />
       ) : !isDataApproved && activeSubTab === 'overview' ? (
         <div className="h-80 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 text-center p-6">
             <div className="bg-amber-50 p-5 rounded-full mb-5 text-amber-500"><ShieldAlert size={40} /></div>

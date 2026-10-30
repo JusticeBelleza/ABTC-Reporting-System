@@ -21,6 +21,7 @@ import ErrorBoundary from '../ErrorBoundary';
 import AnalyticsOverview from '../reports/AnalyticsOverview'; 
 import PostLoginEula from '../auth/PostLoginEula';
 import UserManualModal from '../modals/ResourcesModal.jsx';
+import DashboardSkeleton from '../common/DashboardSkeleton';
 import packageInfo from '../../../package.json';
 
 const getInitials = (name) => {
@@ -234,16 +235,7 @@ function DashboardContent() {
   };
 
   if (checkingConsent) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin text-blue-600" size={32} strokeWidth={2.5} />
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest animate-pulse">
-            Verifying Security Credentials...
-          </p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

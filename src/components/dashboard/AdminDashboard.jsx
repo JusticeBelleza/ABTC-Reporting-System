@@ -12,6 +12,7 @@ import ModalPortal from '../modals/ModalPortal';
 import { exportToExcelTemplate } from '../../lib/excelExporter';
 import MainReportTableV2 from '../reports/MainReportTableV2';
 import CustomDropdown from '../common/CustomDropdown';
+import { TableSkeleton } from '../common/DashboardSkeleton';
 import { useReportStore } from '../../store/useReportStore';
 
 const ABRA_MUNICIPALITIES = [
@@ -851,10 +852,7 @@ export default function AdminDashboard({
 
               <div className="bg-white w-full rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                   {isLoadingConsolidated ? (
-                      <div className="flex flex-col items-center justify-center py-32 text-slate-400">
-                          <Loader2 className="animate-spin mb-4 text-blue-500" size={32} />
-                          <p>Aggregating province-wide data...</p>
-                      </div>
+                      <TableSkeleton rows={8} label="Aggregating province-wide data..." />
                   ) : (
                       <MainReportTableV2 isRowReadOnly={true} onDeleteOtherRow={() => {}} isConsolidated={true} />
                   )}

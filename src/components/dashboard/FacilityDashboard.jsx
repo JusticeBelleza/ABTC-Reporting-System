@@ -9,6 +9,7 @@ import ModalPortal from '../modals/ModalPortal';
 import { supabase } from '../../lib/supabase';
 import MainReportTableV2 from '../reports/MainReportTableV2';
 import CustomDropdown from '../common/CustomDropdown';
+import { TableSkeleton } from '../common/DashboardSkeleton';
 import { saveOfflineDraft, getOfflineDraft, clearOfflineDraft } from '../../lib/offlineDB';
 import { useReportStore } from '../../store/useReportStore';
 import { exportToExcelTemplate } from '../../lib/excelExporter'; 
@@ -844,7 +845,7 @@ export default function FacilityDashboard({
                             </div>
                         )}
                     </>
-                ) : <div className="flex flex-col items-center justify-center py-20 text-slate-400"><Loader2 className="animate-spin mb-4 text-blue-500" size={32} /><p>Loading forms...</p></div>}
+                ) : <TableSkeleton rows={7} label="Loading reporting forms..." />}
             </div>
         </div>
 
