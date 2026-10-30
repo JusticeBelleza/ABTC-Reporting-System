@@ -182,5 +182,28 @@ describe('useForecastingMetrics', () => {
 
     // Risk should stay LOW (not artificially triggered by incomplete data)
     expect(result.current.riskLevel).toBe('LOW');
+
+    // Target forecast period should be the active in-flight month (October 2026)
+    expect(result.current.targetForecastMonth).toBe('October 2026');
+
+    const fullData = result.current.full24MonthData;
+    const sepItem = fullData.find(d => d.month === 'September' && d.year === 2026);
+    const octItem = fullData.find(d => d.month === 'October' && d.year === 2026);
+    const novItem = fullData.find(d => d.month === 'November' && d.year === 2026);
+
+    // September (finalized) has historical moving averages
+    expect(sepItem.sma3).not.toBeNull();
+    expect(sepItem.wma3).not.toBeNull();
+
+    // October (in-flight) gets the step-ahead forecast, but historical SMAs stop at September
+    expect(octItem.forecast).toBeGreaterThanOrEqual(95);
+    expect(octItem.forecast).toBeLessThanOrEqual(105);
+    expect(octItem.sma3).toBeNull();
+    expect(octItem.wma3).toBeNull();
+
+    // November (future) must NOT have forecast or SMAs while October is open
+    expect(novItem.forecast).toBeNull();
+    expect(novItem.sma3).toBeNull();
+    expect(novItem.wma3).toBeNull();
   });
 });

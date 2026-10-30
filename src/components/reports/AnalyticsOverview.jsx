@@ -214,7 +214,7 @@ export default function AnalyticsOverview({
   const {
     full24MonthData, loadingHistory, smartAlerts,
     complianceRate, riskLevel, projectedNextMonth, modelMetrics,
-    inFlightMonth, lastFinalizedMonth
+    inFlightMonth, lastFinalizedMonth, targetForecastMonth
   } = useForecastingMetrics({
     year, month, quarter, periodType, facilities, user, isAdmin,
     currentDate, currentRealYear, OUTBREAK_SENSITIVITY, TREND_SENSITIVITY,
@@ -594,6 +594,7 @@ export default function AnalyticsOverview({
               currentTotal={annualTotal}
               inFlightMonth={inFlightMonth}
               lastFinalizedMonth={lastFinalizedMonth}
+              targetForecastMonth={targetForecastMonth}
             />
         </div>
       )}

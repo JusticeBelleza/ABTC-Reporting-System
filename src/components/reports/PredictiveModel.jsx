@@ -9,7 +9,8 @@ export default function PredictiveModel({
   projectedNextMonth, riskLevel, currentTotal = 0,
   modelMetrics = { accuracy: 0, mae: 0, mape: 0, validMonths: 0 },
   inFlightMonth = null,
-  lastFinalizedMonth = null
+  lastFinalizedMonth = null,
+  targetForecastMonth = null
 }) {
   
   const [mathModalTab, setMathModalTab] = useState('legend');
@@ -22,6 +23,8 @@ export default function PredictiveModel({
 
   const CustomPredictiveTooltip = ({ active, payload, label }) => {
     if (!active || !payload || !payload.length) return null;
+    const validEntries = payload.filter(entry => entry.value !== null && entry.value !== undefined);
+    if (!validEntries.length) return null;
     const dataPoint = payload[0]?.payload;
     const isInFlight = dataPoint?.isInFlight;
 
@@ -36,8 +39,7 @@ export default function PredictiveModel({
           )}
         </div>
         <div className="space-y-1">
-          {payload.map((entry, idx) => {
-            if (entry.value === null || entry.value === undefined) return null;
+          {validEntries.map((entry, idx) => {
             const isActual = entry.dataKey === 'raw';
             return (
               <div key={idx} className="flex items-center justify-between gap-3 text-[11px]">
@@ -165,7 +167,7 @@ export default function PredictiveModel({
                       )}
 
                       <p className="mb-2">
-                        Based on recent trajectory data{lastFinalizedMonth ? ` through ${lastFinalizedMonth}` : ''}, the mathematical model projects an estimated <strong className="text-slate-900">{projectedNextMonth !== null ? projectedNextMonth : '--'} cases</strong> for the upcoming reporting period. 
+                        Based on recent trajectory data{lastFinalizedMonth ? ` through ${lastFinalizedMonth}` : ''}, the mathematical model projects an estimated <strong className="text-slate-900">{projectedNextMonth !== null ? projectedNextMonth : '--'} cases</strong> for {targetForecastMonth ? targetForecastMonth : 'the upcoming reporting period'}{inFlightMonth ? ' (active reporting cycle)' : ''}. 
                       </p>
                       <p>
                         Current case volume is classified as a <strong className={`px-1.5 py-0.5 rounded ${riskLevel === 'HIGH' ? 'bg-red-100 text-red-700' : riskLevel === 'MODERATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{riskLevel || 'LOW'} RISK</strong> event. This indicates that the active reporting volume is {riskLevel === 'HIGH' ? 'significantly exceeding normal baselines or showing critical indicators, suggesting a potential outbreak anomaly' : riskLevel === 'MODERATE' ? 'accelerating faster than the short-term average, indicating a rising trend' : 'stable and tracking normally within established historical baselines'}.
@@ -343,7 +345,7 @@ export default function PredictiveModel({
                                 <div>
                                     <h5 className="font-bold text-xs text-red-950 mb-1">Forecast vs. Actual Trajectory</h5>
                                     <p className="text-[11px] text-slate-600 leading-relaxed">
-                                        The algorithmic projection curve. On historical months, it depicts the model's step-ahead estimate compared against confirmed totals (measuring error). Extends into open and future periods to forecast expected bite volume.
+                                        The algorithmic projection curve. On historical months, it depicts the model's step-ahead estimate compared against confirmed totals (measuring error). Extends into the active open period to forecast expected finalized caseload.
                                     </p>
                                 </div>
                             </div>
@@ -375,9 +377,9 @@ export default function PredictiveModel({
                                     </span>
                                 </div>
                                 <div className="bg-white p-3.5 rounded-xl border border-amber-200/80 shadow-sm">
-                                    <strong className="block text-xs text-slate-900 mb-1 font-bold">2. Baseline Anchoring</strong>
+                                    <strong className="block text-xs text-slate-900 mb-1 font-bold">2. Baseline Anchoring & Forecast Horizon</strong>
                                     <span className="text-[11px] text-slate-600 leading-relaxed block">
-                                        While month <em>M</em> is in-flight, backward moving averages anchor to month <em>M-1</em>. The model projects stable volume forward across both the open and upcoming cycles.
+                                        While month <em>M</em> is in-flight, historical moving averages stop at finalized month <em>M-1</em>. The model targets its 1-step projection on active month <em>M</em> to evaluate incoming progress. Future months (<em>M+1</em>) remain unprojected until month <em>M</em> closes.
                                     </span>
                                 </div>
                             </div>

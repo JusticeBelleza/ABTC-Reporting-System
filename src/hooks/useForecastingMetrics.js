@@ -21,6 +21,7 @@ export function useForecastingMetrics({
   const [totalPreviousYtdCases, setTotalPreviousYtdCases] = useState(0);
   const [inFlightMonth, setInFlightMonth] = useState(null);
   const [lastFinalizedMonth, setLastFinalizedMonth] = useState(null);
+  const [targetForecastMonth, setTargetForecastMonth] = useState(null);
 
   const facilityType = facilityDetails?.[user?.facility]?.type || 'RHU';
   const areaText = (isAdmin || facilityType === 'Hospital' || facilityType === 'Clinic') ? 'the province' : 'the municipality';
@@ -237,6 +238,13 @@ export function useForecastingMetrics({
           });
 
           const processed24Months = allMonthsRaw.map((item, idx, arr) => {
+              // Moving averages describe retrospective trends from closed historical data.
+              // For future months (raw === null) or in-flight months (active reporting open),
+              // moving averages do not apply and must be null to avoid phantom flatlines into the future.
+              if (item.raw === null || item.isInFlight) {
+                  return { ...item, sma3: null, sma6: null, sma12: null, wma3: null, forecast: null };
+              }
+
               const getAvg = (size) => {
                   // Filter to only finalized (non-in-flight) months with data up to idx
                   const window = arr
@@ -269,6 +277,7 @@ export function useForecastingMetrics({
           const lastFinalizedIdx = processed24Months.findLastIndex(d => d.raw !== null && !d.isInFlight);
           const lastValidIdx = lastFinalizedIdx !== -1 ? lastFinalizedIdx : processed24Months.findLastIndex(d => d.raw !== null);
           let predictedVal = null;
+          let targetForecastIdx = -1;
           
           let absErrSum = 0; 
           let smapeSum = 0; 
@@ -306,9 +315,18 @@ export function useForecastingMetrics({
               predictedVal = last.wma3 !== null ? last.wma3 : (last.sma3 !== null ? last.sma3 : last.raw);
               setProjectedNextMonth(predictedVal);
 
-              // Seamlessly project forward into both the active in-flight month AND upcoming month
-              for (let i = lastValidIdx + 1; i < processed24Months.length && i <= lastValidIdx + 2; i++) {
-                  processed24Months[i].forecast = predictedVal;
+              // Single-Period Step-Ahead Target Forecast:
+              // 1. If an active month is in-flight (e.g. October with partial submissions),
+              //    we project THAT month so health officials can monitor incoming progress against expectation.
+              // 2. If the current month is already closed/finalized, we project the immediate upcoming month (lastValidIdx + 1).
+              // Future months beyond the active target period (e.g. November/December while October is open) remain null.
+              const inFlightIdx = processed24Months.findIndex(d => d.isInFlight && d.raw !== null);
+              targetForecastIdx = inFlightIdx !== -1 
+                  ? inFlightIdx 
+                  : (lastValidIdx + 1 < processed24Months.length ? lastValidIdx + 1 : -1);
+
+              if (targetForecastIdx !== -1) {
+                  processed24Months[targetForecastIdx].forecast = predictedVal;
               }
           }
 
@@ -391,6 +409,8 @@ export function useForecastingMetrics({
               projectedCases: predictedVal
           } : null);
           setLastFinalizedMonth(lastFinalizedMonthName);
+          const targetObj = targetForecastIdx !== -1 ? processed24Months[targetForecastIdx] : null;
+          setTargetForecastMonth(targetObj ? `${targetObj.month} ${targetObj.year}` : null);
 
         } else {
           setSmartAlerts([{
@@ -407,6 +427,7 @@ export function useForecastingMetrics({
           setTotalPreviousYtdCases(0);
           setInFlightMonth(null);
           setLastFinalizedMonth(null);
+          setTargetForecastMonth(null);
         }
       } catch (err) {
         console.error("Analytics Error:", err);
@@ -433,6 +454,7 @@ export function useForecastingMetrics({
       totalYtdCases, 
       totalPreviousYtdCases,
       inFlightMonth,
-      lastFinalizedMonth
+      lastFinalizedMonth,
+      targetForecastMonth
   };
 }
